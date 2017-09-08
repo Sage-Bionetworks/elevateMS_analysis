@@ -37,8 +37,11 @@ selected_records <- actv_tapping$recordId
 ######################
 # download right hand tapping files
 rightHand_tappingJsonFiles <- synDownloadTableColumns(actv_tapping_syntable, "tapping_right.json.TappingSamples")
-rightHand_tappingJsonFiles <- data.frame(tapping_right_json_fileId =names(rightHand_tappingJsonFiles),
-                                         tapping_right_json_file = as.character(rightHand_tappingJsonFiles))
+rightHand_tappingJsonFiles <-
+  data.frame(
+    tapping_right_json_fileId = names(rightHand_tappingJsonFiles),
+    tapping_right_json_file = as.character(rightHand_tappingJsonFiles)
+  )
 actv_tapping <- merge(actv_tapping,rightHand_tappingJsonFiles, by.x="tapping_right.json.TappingSamples", by.y="tapping_right_json_fileId", all=T)
 
 #download left hand tapping files
@@ -51,7 +54,7 @@ actv_tapping <- actv_tapping %>% mutate(tapping_right_json_file = as.character(t
                                         tapping_left_json_file = as.character(tapping_left_json_file))
 
 # Only keep the non-redundant data
-actv_tapping <- actv_tapping %>% filter( recordId %in% selected_recordIds )
+actv_tapping <- actv_tapping %>% filter( recordId %in% selected_records)
 
 # # remove duplicates
 # actv_tapping <- actv_tapping %>%
@@ -95,10 +98,6 @@ right_hand_tapping_features <-
 tappingFeatures <-
   rbind(left_hand_tapping_features, right_hand_tapping_features)
 
-# Only keep the non-redundant data
-tappingFeatures <- walkFeatures %>% 
-  filter(recordId %in% selected_records)
-
 # View the data
 # View(tappingFeatures)
 
@@ -106,11 +105,11 @@ tappingFeatures <- walkFeatures %>%
 # Final Data
 #############
 
-# upload your file to Synapse with provenance
+# upload file to Synapse with provenance
 # to learn more about provenance in Synapse, go to http://docs.synapse.org/articles/provenance.html
 
 ## Get commits from github 
-thisFileName <- "tappingFeatures.R"
+thisFileName <- "tappingFeatures.R" # name of file in github
 thisRepo <- getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
@@ -127,7 +126,6 @@ write.table(tappingFeatures, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=OUTPUT_FOLDER_ID),
          activityName = activityName,
          activityDescription = activityDescription,
-         Activity(used = INPUT_TAPPING_ACTIVITY_TABLE_SYNID,
-                  executed = list(thisFile, "https://github.com/Sage-Bionetworks/mpowertools")))
-
+         used = INPUT_TAPPING_ACTIVITY_TABLE_SYNID,
+         executed = list(thisFile, "https://github.com/Sage-Bionetworks/mpowertools"))
 unlink(OUTPUT_FILE)
