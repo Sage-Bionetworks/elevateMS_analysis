@@ -92,7 +92,7 @@ walkingFeatures <- walkFeatures %>% filter(recordId %in% selected_records)
 # walkingFeatures <- walkingFeatures[, cols_to_keep]
 
 # View the data
-View(walkingFeatures)
+# View(walkingFeatures)
 
 #############
 # Final Data
@@ -119,7 +119,7 @@ write.table(walkingFeatures, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=OUTPUT_FOLDER_ID),
          activityName = activityName,
          activityDescription = activityDescription,
-         used=INPUT_WALKING_ACTIVITY_TABLE_SYNID,
-         executed=list(thisFile, "https://github.com/Sage-Bionetworks/mpowertools"))
+         Activity(used = INPUT_WALKING_ACTIVITY_TABLE_SYNID,
+                  executed = list(thisFile, "https://github.com/Sage-Bionetworks/mpowertools")))
 
 unlink(OUTPUT_FILE)
