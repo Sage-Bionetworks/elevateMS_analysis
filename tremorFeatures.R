@@ -101,7 +101,7 @@ write.table(noseRightFeatures, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="
 synStore(File(OUTPUT_FILE, parentId=OUTPUT_FOLDER_ID),
          activityName = activityName,
          activityDescription = activityDescription,
-         used = INPUT_TREMOR_ACTIVITY_TABLE_SYNID,
+         used = INPUT_TREMOR_TABLE_SYNID,
          executed = list(thisFile, "https://github.com/Sage-Bionetworks/mpowertools"))
 
 unlink(OUTPUT_FILE)
@@ -112,7 +112,7 @@ write.table(noseLeftFeatures, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na=""
 synStore(File(OUTPUT_FILE, parentId=OUTPUT_FOLDER_ID),
          activityName = activityName,
          activityDescription = activityDescription,
-         used = INPUT_TREMOR_ACTIVITY_TABLE_SYNID,
+         used = INPUT_TREMOR_TABLE_SYNID,
          executed = list(thisFile, "https://github.com/Sage-Bionetworks/mpowertools"))
 
 unlink(OUTPUT_FILE)
