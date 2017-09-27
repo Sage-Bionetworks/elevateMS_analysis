@@ -1,0 +1,28 @@
+---
+title: "Digital Artefacts - Stroop data"
+output: html_notebook
+---
+ 
+
+```{r}
+library(synapseClient)
+synapseClient::synapseLogin()
+```
+
+```{r}
+stroopData <- synTableQuery("select * from syn9645170")
+stroopData <- stroopData@values
+```
+
+```{r}
+
+View(stroopData@values)
+```
+
+
+
+```{r}
+library(ggplot2)
+ggplot(data=stroopData, aes(x=responseTimeMS, fill=type)) + geom_density(alpha=.6)
+```
+

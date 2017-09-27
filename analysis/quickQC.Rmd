@@ -1,0 +1,154 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+Sys.setenv(TZ='GMT')
+library(synapseClient)
+synapseLogin()
+```
+
+
+#### elevate-ms-appVersion
+```{r}
+
+missingNess <- function(col){
+  missingVals <- sum(is.na(col)) + sum(col == '', na.rm = T)
+  (missingVals / length(col)) * 100
+}
+
+elevateMS_appVersion_table = "syn9758009"
+appVersion <- synTableQuery(paste("select * from", elevateMS_appVersion_table))
+appVersion <- appVersion@values
+head(appVersion)
+apply(appVersion, 2, missingNess)
+```
+
+
+```{r}
+elevateMS_walking_table = "syn9934066"
+walkingTable <- synTableQuery(paste("select * from", elevateMS_walking_table))
+walking <- walkingTable@values
+apply(walking, 2, missingNess)
+outFiles <- synDownloadTableColumns(walkingTable,"deviceMotion_walking_outbound.json")
+
+
+sample_walking_File <-'syn7077340'
+walkingJsonFile <- synGet(sample_walking_File)@filePath
+walkingJsonFile
+getWalkFeatures(walkingJsonFile)
+library(mpowertools)
+
+?mpowertools::getWalkFeatures
+mpowertools::getWalkFeatures(outFiles[[1]])
+
+
+outFiles[[1]]
+ dat <- jsonlite::fromJSON(outFiles[[1]])
+ dat1 <- jsonlite::fromJSON(walkingJsonFile)
+ 
+ View(dat$items)
+ colnames(dat$items)
+ colnames(dat1)
+ 
+ View(dat   )
+ dat <- ShapeGaitData(dat)
+    x <- dat$x
+    y <- dat$y
+    z <- dat$z
+
+lapply(outFiles, function(x) mpowertools::getWalkFeatures(x))
+```
+
+
+```{r}
+dailyCheckins_table = "syn9758010"
+dailyCheckin <- synTableQuery(paste("select * from", dailyCheckins_table))
+dailyCheckin <- dailyCheckin@values
+head(dailyCheckin)
+apply(dailyCheckin, 2, missingNess)
+apply(dailyCheckin, 2, table)
+
+```
+
+
+
+```{r}
+tapping_table = "syn9765504"
+tapping_table_out <- synTableQuery(paste("select * from", tapping_table))
+tapping <- tapping_table_out@values
+head(tapping)
+apply(tapping, 2, missingNess)
+apply(dailyCheckin, 2, table)
+
+tapping_left_files <- synDownloadTableColumns(walkingTable,"deviceMotion_walking_outbound.json")
+
+
+syn9765504
+```
+
+
+```{r}
+symptomSuvery_table = "syn9765702"
+symptomSuvery_table_out <- synTableQuery(paste("select * from", symptomSuvery_table))
+symptomSurvey <- symptomSuvery_table_out@values
+head(symptomSurvey)
+apply(symptomSurvey, 2, missingNess)
+apply(symptomSurvey, 2, table)
+str(symptomSurvey)
+
+
+#this could just become columns
+symptomSurvey$symptomTiming.json.choiceAnswers[10]
+```
+
+
+
+
+```{r}
+factorsSuvery_table = "syn9819608"
+factorsSuvery_table_out <- synTableQuery(paste("select * from", factorsSuvery_table))
+factors <- factorsSuvery_table_out@values
+apply(factors, 2, missingNess)
+apply(symptomSurvey, 2, table)
+str(symptomSurvey)
+
+```
+
+
+```{r}
+relapseSuvery_table = "syn9872551"
+relapseSuvery_table_out <- synTableQuery(paste("select * from", relapseSuvery_table))
+relapseSuvery <- relapseSuvery_table_out@values
+apply(relapseSuvery, 2, missingNess)
+head(relapseSuvery)
+
+```
+
+
+```{r}
+tremorActivity_table = "syn9920297"
+tremorActivity_table <- synTableQuery(paste("select * from", tremorActivity_table))
+tremorActivity <- tremorActivity_table@values
+apply(tremorActivity, 2, missingNess)
+head(relapseSuvery)
+
+
+#https://www.synapse.org/#!Synapse:syn9920297/tables/
+#two accel and tremor motion
+# onboard - device motion processing ?
+# skip hand - data still present sometime
+```
+
+
+```{r}
+#Multiple version of tables
+# data and external groups
+
+```
+
