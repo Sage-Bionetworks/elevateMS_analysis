@@ -1,22 +1,103 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "ElevateMS - on-going summary"
+output:
+  html_document: default
+  html_notebook: default
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.path='Figs/', echo=FALSE, warning=FALSE, message=FALSE)
+```
 
 ```{r}
 Sys.setenv(TZ='GMT')
 library(synapseClient)
 synapseLogin()
+library(install.load)
+install_load(c('tidyverse', 'data.table', 'lubridate'))
 ```
 
 
-#### elevate-ms-appVersion
+```{r}
+masterTable <- "syn9758009"  #poorly named elevate-ms-appVersion
+#remove all testing users and records created before Monday, August 14, 2017 12:00:00 AM (GMT)
+userActivity <- synTableQuery(paste("select * from", masterTable, "WHERE dataGroups NOT LIKE '%test%' AND createdOn > 1502668800000"))
+userActivity <- userActivity@values
+
+#Data Manipulation
+userActivity <- userActivity %>% dplyr::mutate(createdOnTimeZone = as.numeric(createdOnTimeZone)/100,
+                                               createdOn = lubridate::ymd_hms(createdOn, tz='UTC'))
+
+
+#get start dates for people 
+userStartDates <- userActivity %>% dplyr::group_by(healthCode) %>% 
+  dplyr::summarise(startDate = min(lubridate::date(createdOn)))
+
+userActivity <- userActivity %>% inner_join(userStartDates)
+
+userActivity <- userActivity %>% dplyr::mutate(createdOn_localTime = createdOn + lubridate::hours(createdOnTimeZone),
+                                               day = as.numeric(lubridate::date(createdOn) - startDate ) + 1)
+```
+
+------
+
+### Summary stats
+
+1. Total users: `r n_distinct(userActivity$healthCode)`
+2. MS patients: `r userActivity %>% dplyr::filter(dataGroups %like% 'ms_patient') %>% .$healthCode %>% n_distinct()`
+3. Controls: `r userActivity %>% dplyr::filter(dataGroups %like% 'control') %>% .$healthCode %>% n_distinct()`
+
+
+
+
+
+
 ```{r}
 
+
+table(userActivity$dataGroups) / nrow(userActivity) * 100
+
+table(userActivity$originalTable)
+
+View(userActivity)
+
+```
+
+
+```{r, eval=F}
+
+
+#r sum(is.na(userActivity$dataGroups) | userActivity$dataGroups == '')
+
+table(userActivity$appVersion)
+
+unique(userActivity$dataGroups)
+
+userActivity$createdOn
+
+
+as.numeric(userActivity$createdOnTimeZone) / 100
+
+str(userActivity)
+
+table()
+
+cat(names(table(userActivity$dataGroups)))
+View(userActivity)
+
+```
+
+
+
+
+
+
+
+
+
+
+#### elevate-ms-appVersion
+```{r, eval=F}
 missingNess <- function(col){
   missingVals <- sum(is.na(col)) + sum(col == '', na.rm = T)
   (missingVals / length(col)) * 100
@@ -30,7 +111,7 @@ apply(appVersion, 2, missingNess)
 ```
 
 
-```{r}
+```{r, eval=F}
 elevateMS_walking_table = "syn9934066"
 walkingTable <- synTableQuery(paste("select * from", elevateMS_walking_table))
 walking <- walkingTable@values
@@ -66,7 +147,7 @@ lapply(outFiles, function(x) mpowertools::getWalkFeatures(x))
 ```
 
 
-```{r}
+```{r, eval=F}
 dailyCheckins_table = "syn9758010"
 dailyCheckin <- synTableQuery(paste("select * from", dailyCheckins_table))
 dailyCheckin <- dailyCheckin@values
@@ -78,7 +159,7 @@ apply(dailyCheckin, 2, table)
 
 
 
-```{r}
+```{r, eval=F}
 tapping_table = "syn9765504"
 tapping_table_out <- synTableQuery(paste("select * from", tapping_table))
 tapping <- tapping_table_out@values
@@ -93,7 +174,7 @@ syn9765504
 ```
 
 
-```{r}
+```{r, eval=F}
 symptomSuvery_table = "syn9765702"
 symptomSuvery_table_out <- synTableQuery(paste("select * from", symptomSuvery_table))
 symptomSurvey <- symptomSuvery_table_out@values
@@ -110,7 +191,7 @@ symptomSurvey$symptomTiming.json.choiceAnswers[10]
 
 
 
-```{r}
+```{r, eval=F}
 factorsSuvery_table = "syn9819608"
 factorsSuvery_table_out <- synTableQuery(paste("select * from", factorsSuvery_table))
 factors <- factorsSuvery_table_out@values
@@ -121,7 +202,7 @@ str(symptomSurvey)
 ```
 
 
-```{r}
+```{r, eval=F}
 relapseSuvery_table = "syn9872551"
 relapseSuvery_table_out <- synTableQuery(paste("select * from", relapseSuvery_table))
 relapseSuvery <- relapseSuvery_table_out@values
@@ -131,7 +212,7 @@ head(relapseSuvery)
 ```
 
 
-```{r}
+```{r, eval=F}
 tremorActivity_table = "syn9920297"
 tremorActivity_table <- synTableQuery(paste("select * from", tremorActivity_table))
 tremorActivity <- tremorActivity_table@values
@@ -146,9 +227,4 @@ head(relapseSuvery)
 ```
 
 
-```{r}
-#Multiple version of tables
-# data and external groups
-
-```
 
