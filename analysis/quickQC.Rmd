@@ -6,6 +6,7 @@ output:
 ---
 
 ```{r global_options, include=FALSE}
+rm(list=ls())
 knitr::opts_chunk$set(fig.path='Figs/', echo=FALSE, warning=FALSE, message=FALSE)
 ```
 
@@ -14,7 +15,13 @@ Sys.setenv(TZ='GMT')
 library(synapseClient)
 synapseLogin()
 library(install.load)
-install_load(c('tidyverse', 'data.table', 'lubridate'))
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr'))
+install_load('ggthemes', 'gridExtra')
+```
+
+```{r}
+DAYS_SINCE_LAUNCH = as.numeric(Sys.Date() - lubridate::ymd("2017-08-14"))
+WEEKS_SINCE_LAUNCH = ( (DAYS_SINCE_LAUNCH - 1) %/% 7) + 1
 ```
 
 
@@ -26,42 +33,181 @@ userActivity <- userActivity@values
 
 #Data Manipulation
 userActivity <- userActivity %>% dplyr::mutate(createdOnTimeZone = as.numeric(createdOnTimeZone)/100,
-                                               createdOn = lubridate::ymd_hms(createdOn, tz='UTC'))
-
-
+                                               createdOn = lubridate::ymd_hms(createdOn, tz='UTC'),
+                                               originalTable = gsub('elevate-ms-', '', originalTable))
 #get start dates for people 
 userStartDates <- userActivity %>% dplyr::group_by(healthCode) %>% 
-  dplyr::summarise(startDate = min(lubridate::date(createdOn)))
-
+  dplyr::summarise(participantStartDate = min(lubridate::date(createdOn)))
 userActivity <- userActivity %>% inner_join(userStartDates)
 
-userActivity <- userActivity %>% dplyr::mutate(createdOn_localTime = createdOn + lubridate::hours(createdOnTimeZone),
-                                               day = as.numeric(lubridate::date(createdOn) - startDate ) + 1)
+userActivity <- userActivity %>% 
+  dplyr::mutate(createdOn_localTime = createdOn + lubridate::hours(createdOnTimeZone),
+                participant_day = as.numeric(lubridate::date(createdOn) - participantStartDate ) + 1,
+                participant_week = ((participant_day - 1) %/% 7 ) + 1,
+                study_day = as.numeric(lubridate::date(createdOn) - lubridate::ymd("2017-08-14")) + 1,
+                study_week = ((study_day - 1) %/% 7 ) + 1,
+                currentDate = Sys.Date()
+                )
 ```
-
-------
-
-### Summary stats
-
-1. Total users: `r n_distinct(userActivity$healthCode)`
-2. MS patients: `r userActivity %>% dplyr::filter(dataGroups %like% 'ms_patient') %>% .$healthCode %>% n_distinct()`
-3. Controls: `r userActivity %>% dplyr::filter(dataGroups %like% 'control') %>% .$healthCode %>% n_distinct()`
-
-
-
-
 
 
 ```{r}
+total_elevateMS_users <- n_distinct(userActivity$healthCode)
+MS_patients <- userActivity %>% dplyr::filter(dataGroups %like% 'ms_patient') %>% .$healthCode %>% n_distinct()
+controls <- userActivity %>% dplyr::filter(dataGroups %like% 'control') %>% .$healthCode %>% n_distinct()
+MS_patients_dataContrib <- round(table(userActivity$dataGroups) / nrow(userActivity) * 100, digits=2)[2]
+```
 
 
-table(userActivity$dataGroups) / nrow(userActivity) * 100
+----------
 
-table(userActivity$originalTable)
 
-View(userActivity)
+#### Summary stats
+* Weeks since launch(Aug 14, 2017): `r  WEEKS_SINCE_LAUNCH`
+* Total users:   `r total_elevateMS_users`
+* MS patients:    `r MS_patients`
+* Controls:       `r controls`
+* Data Contributed (MS patients): `r MS_patients_dataContrib` 
+
+
+---------
+
+
+#### Errors Detected
+
+```{r}
+records_with_wrong_createdOn_dates <- sum(lubridate::date(lubridate::ymd_hms(userActivity$createdOn)) > Sys.Date())
+```
+
+
+```{r}
+#filter bad data
+userActivity <- userActivity %>% dplyr::filter(lubridate::ymd_hms(createdOn)  <= Sys.Date())
+```
+
+
+* Records with malformed timestamp -  `r records_with_wrong_createdOn_dates`
+
+-------
+
+### Heartbeat
+
+```{r}
+enrollment <- userActivity %>% select(healthCode, study_week, dataGroups) 
+enrollment <- enrollment[!duplicated(enrollment),]
+enrollment <- plyr::ldply(1:max(enrollment$study_week), function(x){
+  untilNow <- enrollment %>% filter(study_week < x) %>% .$healthCode %>% unique()
+  thisWeek <- enrollment %>% filter(study_week == x) %>% .$healthCode %>% unique()
+  newUsers_thisweek <- setdiff(thisWeek, untilNow)
+  res <- enrollment %>% select(healthCode, dataGroups)
+  res <- res[!duplicated(res),]
+  res <- res %>% filter(healthCode %in% newUsers_thisweek)
+  data.frame('week'=x,
+             'ms_patients' = res %>% filter(dataGroups == 'ms_patient') %>% nrow(),
+             'controls' = res %>% filter(dataGroups == 'control') %>% nrow()) %>%
+    gather(type, num, 2:3)
+})
+
+enrollment <- enrollment %>% mutate(type = factor(type))
+p1 <- ggplot(data=enrollment, aes(x=week, y=num, fill=type )) + geom_bar(stat="identity", position="dodge", width = .7) + theme_bw() + scale_x_discrete(limits=seq(1,max(enrollment$week),2))  + ylab('#people enrolled') + xlab('week since launch')
+p1 <- p1 + theme_few() + scale_fill_manual(values=c("#A5BE00", "#FC4E07"),  labels=c('Control', 'MS patient')) + theme(legend.position = c(0.85, 0.9))
+p1 <- p1 + theme(text = element_text(size=15)) + ggtitle('#Users joining per week')
+p1 <- p1 + geom_vline(xintercept=WEEKS_SINCE_LAUNCH, colour="grey40", size=1, linetype=3)
 
 ```
+
+
+```{r}
+### This is mainly to figure out the #users that have been in study for atleast #weeks irrespective of the data contributed
+user_time_in_study <- userActivity %>% dplyr::group_by(healthCode, dataGroups) %>%
+  dplyr::summarise(participantStartDate = min(lubridate::date(createdOn))) %>%
+  dplyr::mutate(currentDate = Sys.Date(),
+                days_in_study =  as.numeric(currentDate - participantStartDate) + 1,
+                weeks_in_study =  ((days_in_study - 1 ) %/% 7 ) + 1)
+
+userWeeks <- user_time_in_study %>% dplyr::group_by(dataGroups, weeks_in_study) %>%
+  dplyr::summarise(numUsers = n_distinct(healthCode))
+userWeeks <- userWeeks %>% ddply(.variables=c('dataGroups', 'weeks_in_study'),
+                    .fun = function(x){
+                      tmp <- userWeeks %>% dplyr::filter(weeks_in_study >=  unique(x$weeks_in_study) & dataGroups == unique(x$dataGroups))
+                      data.frame('totalUsersReachedThisWeek' = sum(tmp$numUsers))
+                    })
+
+#People active each week since study start
+userActiveEachWeek <- userActivity %>% dplyr::group_by(dataGroups, study_week) %>%
+  dplyr::summarise(uniqUsers = n_distinct(healthCode))
+
+p2 <- ggplot(data=userActiveEachWeek, aes(x=study_week, y=uniqUsers, fill=dataGroups )) + geom_bar(stat="identity", width = .5) + theme_bw() + scale_x_discrete(limits=seq(1,max(userActiveEachWeek$study_week),2))
+p2 <- p2 +  labs(col="User type\n") + scale_fill_manual(values=c("#A5BE00", "#FC4E07"), labels=c('Control', 'MS patient')) 
+p2 <- p2 + theme_few() + theme(legend.position = c(0.85, 0.9))
+p2 <- p2 + theme(text = element_text(size=15)) + ggtitle('#Users active each week') + ylab('#people') + xlab('week since launch')
+p2 <- p2 + geom_vline(xintercept=WEEKS_SINCE_LAUNCH, colour="grey40", size=1, linetype=3)
+```
+
+```{r,fig.width=15, fig.height=6}
+grid.arrange(p1,p2, ncol=2)
+```
+
+-------------
+
+### Compliance
+
+```{r, fig.width=7, fig.height=5, fig.align='center'}
+#Since the study is still going on we are not dividing by the all users rather number of unique users in each week of the study
+overallCompliance <- userActivity %>% dplyr::group_by(dataGroups, participant_week) %>%
+  dplyr::summarise(uniqUsers = n_distinct(healthCode))
+
+overallCompliance <- merge(overallCompliance, userWeeks, by.x=c('dataGroups', 'participant_week'),
+      by.y = c("dataGroups", "weeks_in_study"))
+overallCompliance <- overallCompliance %>% dplyr::mutate(percent = round( (uniqUsers /totalUsersReachedThisWeek)*100, digits=2))
+
+p3 <- ggplot(data=overallCompliance, aes(x=participant_week, y=percent )) + geom_bar(stat="identity", position="dodge", width = .4) + theme_bw() + scale_x_discrete(limits=seq(1,max(overallCompliance$participant_week),2)) + ggtitle('percent active users per week')
+p3 <- p3 + theme_few() + scale_fill_manual(values=c('#00AFBB')) +  theme(text = element_text(size=15))
+p3 <- p3 + xlab('#weeks enrolled') +  theme(text = element_text(size=15))
+```
+
+
+```{r}
+neuroQOL_surveys <- userActivity %>% filter(originalTable %like% 'NeuroQOL' & dataGroups == 'ms_patient')
+neuroQOL_surveys_compliance <- neuroQOL_surveys %>% group_by(dataGroups, participant_week, originalTable) %>% 
+  dplyr::summarise(num = n_distinct(healthCode))
+neuroQOL_surveys_compliance <- merge(neuroQOL_surveys_compliance, userWeeks, by.x=c('dataGroups', 'participant_week'), by.y=c('dataGroups', 'weeks_in_study'))
+neuroQOL_surveys_compliance <- neuroQOL_surveys_compliance %>% dplyr::mutate(percent = round((num/totalUsersReachedThisWeek) * 100, digits=2))
+neuroQOL_surveys_compliance['Neuro_QOL_type'] = neuroQOL_surveys_compliance$originalTable
+neuroQOL_surveys_compliance$originalTable <- NULL
+neuroQOL_surveys_compliance['Neuro_QOL_type'] = gsub('NeuroQOL-', '',neuroQOL_surveys_compliance$`Neuro_QOL_type`)
+p4 <- ggplot(data=neuroQOL_surveys_compliance, aes(x=participant_week, y=percent, color=Neuro_QOL_type ))  + geom_point() + geom_line(size=1.5)
+p4 <- p4 + theme_few() +  scale_color_manual(values=c( "#2EC4B6", "#E71D36", "#FF9F1C")) 
+p4 <- p4 +  ggtitle('% Neuro-QOL Completed')  + xlab('#weeks enrolled') +  theme(text = element_text(size=15))
+
+
+```
+
+```{r}
+activeSensor_tasks <- userActivity %>% 
+  filter( (originalTable %like% 'Tremor' | originalTable %like% 'Tapping' | originalTable %like%  'Walking' | originalTable %like% 'Brain') & dataGroups == 'ms_patient' )
+activeSensor_tasks_compliance <- activeSensor_tasks %>% group_by(dataGroups, participant_week, originalTable) %>% 
+  dplyr::summarise(num = n_distinct(healthCode))
+activeSensor_tasks_compliance <- merge(activeSensor_tasks_compliance, userWeeks, by.x=c('dataGroups', 'participant_week'), by.y=c('dataGroups', 'weeks_in_study'))
+activeSensor_tasks_compliance <- activeSensor_tasks_compliance %>% dplyr::mutate(percent = round((num/totalUsersReachedThisWeek) * 100, digits=2))
+activeSensor_tasks_compliance['sensorActivity'] = activeSensor_tasks_compliance$originalTable
+activeSensor_tasks_compliance$originalTable <- NULL
+activeSensor_tasks_compliance['sensorActivity'] = gsub(' Activity.*', '',activeSensor_tasks_compliance$`sensorActivity`, perl=T)
+activeSensor_tasks_compliance['sensorActivity'] = gsub('-.*', '',activeSensor_tasks_compliance$`sensorActivity`, perl=T)
+
+p5 <- ggplot(data=activeSensor_tasks_compliance, aes(x=participant_week, y=percent, color=sensorActivity ))  + geom_point() + geom_line(size=1.5)
+p5 <- p5 + theme_few() +  scale_color_manual(values=c( "#2EC4B6", "#E71D36", "#FF9F1C", "#011627")) 
+p5 <- p5 +  ggtitle('% Active(non-survey) tasks completed')  + xlab('#weeks enrolled') +  theme(text = element_text(size=15))
+```
+
+
+```{r,fig.width=15, fig.height=10}
+grid.arrange(p3,p4,p5, ncol=2)
+```
+
+-------------
+
+
 
 
 ```{r, eval=F}
@@ -91,12 +237,6 @@ View(userActivity)
 
 
 
-
-
-
-
-
-#### elevate-ms-appVersion
 ```{r, eval=F}
 missingNess <- function(col){
   missingVals <- sum(is.na(col)) + sum(col == '', na.rm = T)
