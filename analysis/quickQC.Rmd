@@ -211,33 +211,6 @@ grid.arrange(p3,p4,p5, ncol=2)
 
 
 ```{r, eval=F}
-
-
-#r sum(is.na(userActivity$dataGroups) | userActivity$dataGroups == '')
-
-table(userActivity$appVersion)
-
-unique(userActivity$dataGroups)
-
-userActivity$createdOn
-
-
-as.numeric(userActivity$createdOnTimeZone) / 100
-
-str(userActivity)
-
-table()
-
-cat(names(table(userActivity$dataGroups)))
-View(userActivity)
-
-```
-
-
-
-
-
-```{r, eval=F}
 missingNess <- function(col){
   missingVals <- sum(is.na(col)) + sum(col == '', na.rm = T)
   (missingVals / length(col)) * 100
