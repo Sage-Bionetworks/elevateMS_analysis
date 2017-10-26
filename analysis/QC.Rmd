@@ -1,5 +1,6 @@
 ---
 title: "ElevateMS - on-going summary"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document: default
   html_notebook: default
@@ -16,7 +17,7 @@ library(synapseClient)
 synapseLogin()
 library(install.load)
 install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr'))
-install_load('ggthemes', 'gridExtra')
+install_load('ggthemes', 'gridExtra', 'devtools')
 ```
 
 ```{r}
@@ -53,8 +54,8 @@ userActivity <- userActivity %>%
 
 ```{r}
 total_elevateMS_users <- n_distinct(userActivity$healthCode)
-MS_patients <- userActivity %>% dplyr::filter(dataGroups %like% 'ms_patient') %>% .$healthCode %>% n_distinct()
-controls <- userActivity %>% dplyr::filter(dataGroups %like% 'control') %>% .$healthCode %>% n_distinct()
+num_MS_patients <- userActivity %>% dplyr::filter(dataGroups %like% 'ms_patient') %>% .$healthCode %>% n_distinct()
+num_controls <- userActivity %>% dplyr::filter(dataGroups %like% 'control') %>% .$healthCode %>% n_distinct()
 MS_patients_dataContrib <- round(table(userActivity$dataGroups) / nrow(userActivity) * 100, digits=2)[2]
 ```
 
@@ -65,8 +66,8 @@ MS_patients_dataContrib <- round(table(userActivity$dataGroups) / nrow(userActiv
 #### Summary stats
 * Weeks since launch(Aug 14, 2017): `r  WEEKS_SINCE_LAUNCH`
 * Total users:   `r total_elevateMS_users`
-* MS patients:    `r MS_patients`
-* Controls:       `r controls`
+* MS patients:    `r num_MS_patients`
+* Controls:       `r num_controls`
 * Data Contributed (MS patients): `r MS_patients_dataContrib` 
 
 
@@ -90,7 +91,7 @@ userActivity <- userActivity %>% dplyr::filter(lubridate::ymd_hms(createdOn)  <=
 
 -------
 
-### Heartbeat
+### Enrollment summary
 
 ```{r}
 enrollment <- userActivity %>% select(healthCode, study_week, dataGroups) 
@@ -115,6 +116,7 @@ p1 <- p1 + theme(text = element_text(size=15)) + ggtitle('#Users joining per wee
 p1 <- p1 + geom_vline(xintercept=WEEKS_SINCE_LAUNCH, colour="grey40", size=1, linetype=3)
 
 ```
+
 
 
 ```{r}
@@ -168,19 +170,17 @@ p3 <- p3 + xlab('#weeks enrolled') +  theme(text = element_text(size=15))
 
 
 ```{r}
-neuroQOL_surveys <- userActivity %>% filter(originalTable %like% 'NeuroQOL' & dataGroups == 'ms_patient')
-neuroQOL_surveys_compliance <- neuroQOL_surveys %>% group_by(dataGroups, participant_week, originalTable) %>% 
+pro_surveys <- userActivity %>% filter( ( originalTable %like% 'NeuroQOL' | originalTable %like% 'MSIS') & dataGroups == 'ms_patient')
+pro_surveys_compliance <- pro_surveys %>% group_by(dataGroups, participant_week, originalTable) %>% 
   dplyr::summarise(num = n_distinct(healthCode))
-neuroQOL_surveys_compliance <- merge(neuroQOL_surveys_compliance, userWeeks, by.x=c('dataGroups', 'participant_week'), by.y=c('dataGroups', 'weeks_in_study'))
-neuroQOL_surveys_compliance <- neuroQOL_surveys_compliance %>% dplyr::mutate(percent = round((num/totalUsersReachedThisWeek) * 100, digits=2))
-neuroQOL_surveys_compliance['Neuro_QOL_type'] = neuroQOL_surveys_compliance$originalTable
-neuroQOL_surveys_compliance$originalTable <- NULL
-neuroQOL_surveys_compliance['Neuro_QOL_type'] = gsub('NeuroQOL-', '',neuroQOL_surveys_compliance$`Neuro_QOL_type`)
-p4 <- ggplot(data=neuroQOL_surveys_compliance, aes(x=participant_week, y=percent, color=Neuro_QOL_type ))  + geom_point() + geom_line(size=1.5)
-p4 <- p4 + theme_few() +  scale_color_manual(values=c( "#2EC4B6", "#E71D36", "#FF9F1C")) 
-p4 <- p4 +  ggtitle('% Neuro-QOL Completed')  + xlab('#weeks enrolled') +  theme(text = element_text(size=15))
-
-
+pro_surveys_compliance <- merge(pro_surveys_compliance, userWeeks, by.x=c('dataGroups', 'participant_week'), by.y=c('dataGroups', 'weeks_in_study'))
+pro_surveys_compliance <- pro_surveys_compliance %>% dplyr::mutate(percent = round((num/totalUsersReachedThisWeek) * 100, digits=2))
+pro_surveys_compliance['Neuro_QOL_type'] = pro_surveys_compliance$originalTable
+pro_surveys_compliance$originalTable <- NULL
+pro_surveys_compliance['Neuro_QOL_type'] = gsub('NeuroQOL-', '',pro_surveys_compliance$`Neuro_QOL_type`)
+p4 <- ggplot(data=pro_surveys_compliance, aes(x=participant_week, y=percent, color=Neuro_QOL_type ))  + geom_point() + geom_line(size=1.5)
+p4 <- p4 + theme_few() +  scale_color_manual(values=c( "#2EC4B6", "#E71D36", "#FF9F1C", '#95C623')) 
+p4 <- p4 +  ggtitle('% Surveys Completed')  + xlab('#weeks enrolled') +  theme(text = element_text(size=15)) 
 ```
 
 ```{r}
@@ -201,12 +201,110 @@ p5 <- p5 +  ggtitle('% Active(non-survey) tasks completed')  + xlab('#weeks enro
 ```
 
 
+
+
+```{r}
+
+otherShortSurveys <-  userActivity %>% 
+  filter( (originalTable %like% 'Daily Check' | originalTable %like% 'Relapses Survey' | originalTable %like%  'Symptoms Survey' ) & dataGroups == 'ms_patient' )
+otherShortSurveys_compliance <- otherShortSurveys %>% group_by(dataGroups, participant_week, originalTable) %>% 
+  dplyr::summarise(num = n_distinct(healthCode))
+otherShortSurveys_compliance <- merge(otherShortSurveys_compliance, userWeeks, by.x=c('dataGroups', 'participant_week'), by.y=c('dataGroups', 'weeks_in_study'))
+otherShortSurveys_compliance <- otherShortSurveys_compliance %>% dplyr::mutate(percent = round((num/totalUsersReachedThisWeek) * 100, digits=2))
+otherShortSurveys_compliance['otherSurveys'] = otherShortSurveys_compliance$originalTable
+otherShortSurveys_compliance$originalTable <- NULL
+otherShortSurveys_compliance['otherSurveys'] = gsub('-v1', '',otherShortSurveys_compliance$`otherSurveys`, perl=T)
+
+p6 <- ggplot(data=otherShortSurveys_compliance, aes(x=participant_week, y=percent, color=otherSurveys ))  + geom_point() + geom_line(size=1.5)
+p6 <- p6 + theme_few() +  scale_color_manual(values=c( "#2EC4B6", "#E71D36", "#FF9F1C")) 
+p6 <- p6 +  ggtitle('% Other short surveys tasks completed')  + xlab('#weeks enrolled') +  theme(text = element_text(size=15))
+```
+
+
 ```{r,fig.width=15, fig.height=10}
-grid.arrange(p3,p4,p5, ncol=2)
+grid.arrange(p3,p4,p5,p6, ncol=2)
 ```
 
 -------------
 
+
+### Demographics Summary
+
+```{r}
+demog <-  synTableQuery(paste("select * from syn10295288"))@values
+demog <- demog %>% filter(dataGroups %in% c('control', 'ms_patient'))
+demog$metadata.json.dataGroups <- NULL
+colnames(demog) <- gsub('.json.answer', '',colnames(demog))
+colnames(demog)  <- gsub('metadata.json.', '',colnames(demog))
+
+#for each user find the last entered date of demog info
+selected_vals <- demog %>% mutate(startDate = lubridate::ymd_hms(startDate)) %>%
+  dplyr::group_by(healthCode) %>% 
+  dplyr::summarise(startDate = max(startDate))
+demog <- merge(demog, selected_vals)
+
+tmp_df <- data.frame(dataGroups = c('control', 'ms_patient'),
+                     num = c(num_controls, num_MS_patients), stringsAsFactors = F)
+
+percent_demog_data_compliance =  round( (n_distinct(demog$healthCode)/total_elevateMS_users) *100, digits=2)
+
+```
+
+
+
+* Demographics data avaialble for : `r  n_distinct(demog$healthCode)` individuals | `r percent_demog_data_compliance` %
+
+
+```{r}
+gender = demog %>% inner_join(tmp_df) %>% dplyr::group_by(dataGroups, gender, num) %>% dplyr::summarise(prop =n_distinct(healthCode)) %>% mutate(prop = round((prop / num)*100, digits=2))
+p2 <- ggplot(data=gender, aes(x=gender, y=prop, fill=dataGroups )) + geom_bar(stat="identity", position="dodge", width = .7) + theme_bw()  + ylab('percent')
+p2 <- p2 + theme_few() + scale_fill_manual(values=c("#A5BE00", "#FC4E07"),  labels=c('Control', 'MS patient')) + theme(legend.position = c(0.85, 0.8))
+p2 <- p2 + theme(text = element_text(size=15)) + ggtitle('Gender')
+```
+
+
+```{r}
+employment = demog %>% inner_join(tmp_df) %>% dplyr::group_by(dataGroups, employment, num) %>% dplyr::summarise(prop =n_distinct(healthCode)) %>% mutate(prop = round((prop / num)*100, digits=2))
+p1 <- ggplot(data=employment, aes(x=employment, y=prop, fill=dataGroups )) + geom_bar(stat="identity", width = .7) + theme_bw()  + ylab('percent')
+p1 <- p1 + theme_few() + scale_fill_manual(values=c("#A5BE00", "#FC4E07"),  labels=c('Control', 'MS patient')) + theme(legend.position = c(0.85, 0.8))
+p1 <- p1 + theme(text = element_text(size=15)) + ggtitle('Employment type')
+```
+
+
+```{r,fig.width=15, fig.height=5}
+grid.arrange(p1,p2, ncol=2)
+```
+
+--------
+
+### Participant City
+```{r, fig.width=15, fig.height=9}
+install_load('zipcode', 'maps', 'viridis', 'leaflet' )
+
+data(zipcode)
+zipcode['zipcode_firstThree'] = substr(zipcode$zip, 1,3)
+zipcode <- zipcode %>% dplyr::group_by(zipcode_firstThree) %>% 
+  dplyr::summarise(longitude = median(longitude), latitude = median(latitude))
+
+demog['zipcode_firstThree'] = substr(demog$zipcode, 1,3)
+tmp_user_region <- merge(demog, zipcode)
+
+
+#load us map data
+all_states <- map_data("state")
+#plot all states with ggplot
+p <- ggplot()
+p <- p + geom_polygon( data=all_states, aes(x=long, y=lat, group = group),colour="white", fill="grey90" ) 
+p <- p + geom_point( data=tmp_user_region, aes(x=longitude, y=latitude, color=dataGroups), size=1.6) + theme_few()
+p + scale_color_manual(values=c("#A5BE00", "#FC4E07"),  labels=c('Control', 'MS patient')) + 
+  theme(legend.position = c(0.85, 0.8), legend.text = element_text(size=15), legend.title = element_text(size=0),
+        axis.line=element_blank(), axis.text.x=element_blank(),
+          axis.text.y=element_blank(),axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+          panel.grid.minor=element_blank(),plot.background=element_blank())
+```
 
 
 
