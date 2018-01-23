@@ -1,0 +1,463 @@
+---
+title: "ElevateMS - Analysis (on-going)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(fig.path='Figs/', echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+Sys.setenv(TZ='GMT')
+library(synapseClient)
+synapseLogin()
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr'))
+install_load('ggthemes', 'gridExtra', 'devtools', 'DT', 'lattice')
+```
+
+
+
+```{r}
+#source("loadData.R")
+source("analysis/loadData.R")
+
+# Loads > trigger_survey df
+triggers <- getTriggerData()
+dailyCheckins <- getDailyCheckin()
+relapses <- getRelapseData()
+symptoms <- getSymptomsData()
+
+nQOL_uppExtremity <- get_nQOL_uppExtremity() 
+nQOL_lowExtremity  <- get_nQOL_lowExtremity()
+nQOL_cognition  <- get_nQOL_cognition()
+
+tapF <- getTappingF() %>% select(-tapping_left.json.TappingSamples, -tapping_right.json.TappingSamples, -recordId, -tapping_left.json.ButtonRectLeft, 
+                                 -tapping_right.json.ButtonRectRight, -tapping_left.json.ButtonRectRight, -tapping_left.json.endDate, -timeZone, 
+                                 -metadata.json.dataGroups, -metadata.json.endDate.timezone,
+                                 -tapping_left.json.endDate.timezone, -metadata.json.taskIdentifier, -createdOnTimeZone, -userSharingScope, -createdOn,
+                                 -phoneInfo, -uploadDate, -externalId, -validationErrors, -accelerometer_tapping_right.json.items,
+                                 -accelerometer_tapping_left.json.items, -tapping_right.json.ButtonRectLeft, -tapping_right.json.endDate, -tapping_right.json.endDate.timezone,
+                                 -tapping_right.json.startDate, -tapping_right.json.startDate.timezone, -tapping_left.json.startDate, -tapping_left.json.startDate.timezone,
+                                 -tapping_right.json.TappingViewSize, -tapping_left.json.TappingViewSize, -metadata.json.scheduledActivityGuid, -idx, 
+                                 -metadata.json.taskRunUUID, -metadata.json.startDate.timezone, -metadata.json.startDate, -metadata.json.endDate, -tapping_right_json_file,
+                                 -tapping_left_json_file)
+tapF_week_averaged =  tapF %>% select( -activity_start_timestamp_GMT, -elevateMS_startDate_GMT,  -activity_start_timestamp_local, -study_week,
+                        -study_day, -error, -appVersion) %>% filter(dataGroups == 'ms_patient') %>%
+         group_by(healthCode, participant_week, dataGroups, hand) %>% dplyr::summarise_all(.funs=c(tmp_mean)) %>% select(-participant_day)
+
+walkF <- getWalkingF() 
+restF <- getRestF()
+
+# colnames(userActivity)
+# x <- userActivity %>% select(healthCode, userSharingScope)
+# x <- x[!duplicated(x),]
+# table(x$userSharingScope)
+```
+
+
+### Top MS Triggers 
+```{r, fig.align='center', fig.width=6, fig.height=6}
+
+#currently MS Symptoms and Triggers are mixed. Take out all the SYMPTOMS keywords 
+
+#symptoms_keywords <- rjson::fromJSON(file = synGet("syn11343575")@filePath)
+
+symptoms_keywords <- c('anxiety', 'brain_fog' ,'depression', 'fatigue', 'memory_and_attention_issues',
+                       'mood_swings', 'speech_problems', 'clumsiness', 'cramping', 'stiff_muscles', 'problems_with_coordination', 
+                       'walking_difficulties', 'tremor', 'weakness', 'back_pain', 'eye_pain',
+                       'headache', 'arm_and_or_leg', 'overall_muscle_and_nerve_pain', 'abnormality_of_taste',
+                       'challenges_with_balance', 'burning_sensation' ,'pins_and_needles_sensation', 
+                       'reduced_sensation_of_touch', 'tongue_numbness', 'uncomfortable_tingling', 'itching', 'hearing_loss',
+                       'vision_problems','sexual_problems', 'bladder_problems', 'bowel_problems', 
+                       'swallowing_problems', 'breathing_problems', 'dizziness_and_vertigo', 'seizures')
+
+#Word cloud
+all_triggers <- unlist(lapply(triggers$triggers, function(x) unlist(strsplit(x, ','))))
+#filter out symptoms
+all_triggers <- all_triggers[!all_triggers %in% symptoms_keywords]
+all_triggers_freq <- table(all_triggers)
+wordcloud(words = names(all_triggers_freq), freq = as.numeric(all_triggers_freq), min.freq = 1,
+          max.words=50, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+--------
+
+```{r, fig.align='center', fig.width=6, fig.height=6}
+tmp_df <- sort(prop.table(all_triggers_freq)*100,decreasing=T)
+tmp_df <- data.frame(topWords = factor(names(tmp_df), levels=rev(names(tmp_df))), percent = as.numeric(tmp_df))
+ggplot(data=tmp_df, aes(x=topWords, y=percent)) + geom_bar(stat="identity") + coord_flip() + theme_few()
+```
+
+
+-----------
+
+
+### Top MS Symptoms 
+```{r, fig.align='center', fig.width=6, fig.height=6}
+n_distinct(symptoms$healthCode)
+n_distinct(symptoms$recordId)
+
+all_symptoms_freq <- table(symptoms$symptom)
+wordcloud(words = names(all_symptoms_freq), freq = as.numeric(all_symptoms_freq), min.freq = 1,
+          max.words=50, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+-------
+
+
+```{r, fig.align='center', fig.width=6, fig.height=8}
+tmp_df <- sort(prop.table(all_symptoms_freq)*100,decreasing=T)
+tmp_df <- data.frame(topWords = factor(names(tmp_df), levels=rev(names(tmp_df))), percent = as.numeric(tmp_df))
+ggplot(data=tmp_df, aes(x=topWords, y=percent)) + geom_bar(stat="identity") + coord_flip() + theme_few()
+```
+
+
+--------
+
+```{r, fig.align='center', fig.width=10, fig.height=8}
+
+symptoms_by_severity <- ddply(.data=symptoms, .var=c('severity'), .fun= function(x){
+  symptoms_freq = table(x$symptom)
+  tmp_df <- sort(prop.table(symptoms_freq)*100,decreasing=T)
+  tmp_df <- data.frame(topWords = factor(names(tmp_df), levels=rev(names(tmp_df))), percent = as.numeric(tmp_df))
+})
+
+severity_plots <- lapply(c('severe', 'moderate'), function(sev){
+  ggdotchart(symptoms_by_severity %>% filter(severity == sev), x = "topWords", y = "percent",
+           sorting = "descending",                       # Sort value in descending order
+           rotate = TRUE,                                # Rotate vertically
+           dot.size = 2,                                 # Large dot size
+           y.text.col = TRUE,                            # Color y text by groups
+           ggtheme = theme_pubr()                        # ggplot2 theme
+           )+
+  theme_cleveland() + ggtitle(sev)
+})
+grid.arrange(grobs=severity_plots, ncol=2)
+```
+
+
+
+
+-----------
+
+#### When are people interacting with App
+
+```{r, fig.align='center', fig.width=10, fig.height=6}
+#### When are people interacting with App
+appTouches <- rbind(dailyCheckins %>% select(activity_start_timestamp_local) %>% mutate(activity = 'dailyCheckin'),
+                    tapF %>% select(activity_start_timestamp_local) %>% mutate(activity = 'tapping'),
+                    walkF %>% select(activity_start_timestamp_local) %>% mutate(activity = 'walk'),
+                    triggers %>% select(activity_start_timestamp_local) %>% mutate(activity = 'triggers'),
+                    symptoms %>% select(activity_start_timestamp_local) %>% mutate(activity='symptoms'),
+                    userActivity %>% filter(originalTable == 'Tremor Activity-v5') %>% 
+                      mutate(activity_start_timestamp_local = createdOn_localTime) %>% select(activity_start_timestamp_local) %>%
+                      mutate(activity='tremor'))
+appTouches <- appTouches %>% dplyr::mutate(hod = lubridate::hour(appTouches$activity_start_timestamp_local))
+appTouches$activity = factor(appTouches$activity, levels=c('tapping', 'tremor', 'walk', 'dailyCheckin', 'symptoms', 'triggers'))
+p1 <- ggplot(data=appTouches, aes(x=hod, fill=activity)) + geom_density(alpha=.6) + theme_few() + facet_grid(.  ~ activity) 
+p1 <- p1 + xlab('hour of day') + theme(legend.position = "none")
+p1
+```
+
+
+------------
+
+
+### Daily check-in's
+```{r, fig.align='center', fig.width=6, fig.height=5}
+tmp_df <- dailyCheckins %>% select(healthCode, mood_mobility, mood_pain, mood_health) %>% gather(type, value, 2:4) %>% 
+  dplyr::mutate(type = gsub('mood_', '', type), value = as.numeric(value))
+
+ggdensity(tmp_df, x = "value", add = "mean", rug = TRUE,  color = "type", fill = "type",
+          palette = c("#00AFBB", "#E7B800", "#E71D36")) + xlab('participant self reported daily check-in score')
+```
+
+
+
+```{r, eval=F}
+dailyCheckins_var_per_person <- dailyCheckins %>% group_by(healthCode) %>% 
+  dplyr::summarise(health = var(mood_health, na.rm = T),
+                   pain = var(mood_pain, na.rm = T),
+                   mobility = var(mood_mobility, na.rm = T)) %>% 
+  tidyr::gather(area, var, 2:4)
+ggplot(data=dailyCheckins_var_per_person, aes(x=area, y=var)) + geom_boxplot()
+```
+
+
+--------
+
+### Relapses
+
+* Number of relapse events: `r nrow(relapses)`
+* Number of participants with relapses: `r n_distinct(relapses$healthCode)`
+```{r fig.align='center', fig.width=12, fig.height=10}
+users_that_relapsed <- unique(relapses$healthCode)
+x <- relapses %>% select(healthCode, dataGroups)
+x <- x[!duplicated(x),]
+
+
+MS_patients_that_relapsed <- relapses %>% dplyr::filter(dataGroups %in% 'ms_patient') %>% .$healthCode %>% unique()
+
+MS_patients_that_relapsed_flt <- dailyCheckins %>% filter(healthCode %in% MS_patients_that_relapsed) %>% 
+  group_by(healthCode) %>% 
+  dplyr::summarise(n = length(mood_health)) %>% filter(n > 7) %>%  arrange(desc(n)) %>% .$healthCode
+
+#id = 'f59987b2-6a3b-430f-aa9d-60f6b466b6a9'
+n_of_1_plots <- lapply(MS_patients_that_relapsed_flt[1:6], function(id){
+  df <- dailyCheckins %>% dplyr::filter(healthCode == id) %>%
+  tidyr::gather(mood, score, 12:14)
+  relapse = relapses %>% filter(healthCode == id)
+  p <- ggplot(data=df, aes(x=participant_day, y=score, color=mood, group=mood)) + geom_point() + theme_bw()
+  p <- p + scale_x_continuous(breaks=seq(1,max(df$participant_day),5))
+  p <- p + geom_vline(xintercept = relapse$participant_day, linetype="longdash", 
+                color = "grey50", size=.5) + theme(text = element_text(size=12))
+})
+grid.arrange(grobs=n_of_1_plots, ncol=2)
+```
+
+
+
+---------
+
+
+
+### Correlation between survey's (__PRO's__) and sensor based activities
+
+####  Tapping
+
+```{r, fig.align='center', fig.width=10, fig.height=5}
+tmp_mean <- function(x){
+  mean(x, na.rm = T)
+}
+
+get_tapF_nQOL_cors <- function(tapF, nQOL_survey){
+  nQOL_survey['T_Score'] = nQOL_survey['T-Score']
+  nQOL_survey['T-Score'] <- NULL
+  nQOL_survey <- nQOL_survey %>% select(healthCode, T_Score, rawScore, participant_week)
+  tmp_df <- merge(tapF_week_averaged, nQOL_survey)
+  tmp_df <- tmp_df %>% tidyr::gather(feature, value, c(5:47) ) %>% 
+    dplyr::mutate(value = as.numeric(value), T_Score = as.numeric(T_Score))
+  cor_res <- tmp_df %>% dplyr::group_by(hand, feature) %>% 
+                dplyr::summarise(n= length(value),
+                                 totalIndividuals = n_distinct(healthCode),
+                                 cor = cor(value, T_Score, use="complete.obs", method="spearman"),
+                                 p.val = cor.test(value, T_Score, use="complete.obs", method="spearman")[['p.value']])
+  cor_res
+}
+
+cor_tapF_nQOL_cog <- get_tapF_nQOL_cors(tapF, nQOL_cognition) %>% group_by(hand) %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Cognition')
+cor_tapF_nQOL_uppExt <- get_tapF_nQOL_cors(tapF, nQOL_uppExtremity) %>% group_by(hand) %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Upper Extremity')
+cor_tapF_nQOL_lowExt <- get_tapF_nQOL_cors(tapF, nQOL_lowExtremity) %>% group_by(hand) %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Lower Extremity')
+cor_tapF <- rbind(cor_tapF_nQOL_cog, cor_tapF_nQOL_lowExt, cor_tapF_nQOL_uppExt)
+View(cor_tapF)
+library(grid)
+p1 <- ggplot(cor_tapF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point()  + facet_grid( . ~ survey )
+p1 + scale_color_manual(values=c("#2EC4B6", "#E71D36")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+```
+
+
+---------
+
+####  Walking
+
+```{r, fig.align='center', fig.width=10, fig.height=5}
+get_walkF_nQOL_cors <- function(walkF, nQOL_survey){
+  nQOL_survey['T_Score'] = nQOL_survey['T-Score']
+  nQOL_survey['T-Score'] <- NULL
+  nQOL_survey <- nQOL_survey %>% select(healthCode, T_Score, rawScore, participant_week)
+  tmp_df <- merge(walkF, nQOL_survey) %>% filter(dataGroups == 'ms_patient')
+  tmp_df <- tmp_df %>% tidyr::gather(feature, value, 28:140) %>% 
+    dplyr::mutate(value = as.numeric(value), T_Score = as.numeric(T_Score))
+  tmp_df %>% dplyr::group_by(feature) %>% 
+    dplyr::summarise(cor = cor(value, T_Score, use="complete.obs", method="spearman"),
+                     p.val = cor.test(value, T_Score, use="complete.obs", method="spearman")[['p.value']])
+}
+
+cor_walkF_nQOL_cog <- get_walkF_nQOL_cors(walkF, nQOL_cognition) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Cognition')
+cor_walkF_nQOL_uppExt <- get_walkF_nQOL_cors(walkF, nQOL_uppExtremity) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Upper Extremity')
+cor_walkF_nQOL_lowExt <- get_walkF_nQOL_cors(walkF, nQOL_lowExtremity) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Lower Extremity')
+
+cor_walkF <- rbind(cor_walkF_nQOL_cog, cor_walkF_nQOL_uppExt, cor_walkF_nQOL_lowExt)
+p1 <- ggplot(cor_walkF, aes(x=cor, y=-log10(p.val.adj))) + geom_point() + theme_few() + facet_grid( . ~ survey )
+p1 + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8)
+
+```
+
+
+------------
+
+#### Rest
+
+```{r, fig.align='center', fig.width=10, fig.height=5}
+get_restF_nQOL_cors <- function(restF, nQOL_survey){
+  nQOL_survey['T_Score'] = nQOL_survey['T-Score']
+  nQOL_survey['T-Score'] <- NULL
+  nQOL_survey <- nQOL_survey %>% select(healthCode, T_Score, rawScore, participant_week)
+  tmp_df <- merge(restF, nQOL_survey) %>% filter(dataGroups == 'ms_patient')
+  tmp_df <- tmp_df %>% tidyr::gather(feature, value, 28:46) %>% 
+    dplyr::mutate(value = as.numeric(value), T_Score = as.numeric(T_Score))
+  tmp_df %>% dplyr::group_by(feature) %>% 
+    dplyr::summarise(cor = cor(value, T_Score, use="complete.obs", method="spearman"),
+                     p.val = cor.test(value, T_Score, use="complete.obs", method="spearman")[['p.value']])
+}
+
+cor_restF_nQOL_cog <- get_restF_nQOL_cors(restF, nQOL_cognition) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Cognition')
+cor_restF_nQOL_uppExt <- get_restF_nQOL_cors(restF, nQOL_uppExtremity) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Upper Extremity')
+cor_restF_nQOL_lowExt <- get_restF_nQOL_cors(restF, nQOL_lowExtremity) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Lower Extremity')
+
+cor_restF <- rbind(cor_restF_nQOL_cog, cor_restF_nQOL_uppExt, cor_restF_nQOL_lowExt)
+
+p1 <- ggplot(cor_restF, aes(x=cor, y=-log10(p.val.adj))) + geom_point() + theme_few() + facet_grid( . ~ survey )
+p1 + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8)
+
+```
+
+
+
+---------
+
+####  Tremor - TBD
+ 
+```{r, eval=F, fig.align='center', fig.width=10, fig.height=5}
+get_tremorF_nQOL_cors <- function(tremorF, nQOL_survey){
+  nQOL_survey['T_Score'] = nQOL_survey['T-Score']
+  nQOL_survey['T-Score'] <- NULL
+  nQOL_survey <- nQOL_survey %>% select(healthCode, T_Score, rawScore, participant_week)
+  tmp_df <- merge(tremorF, nQOL_survey) %>% filter(dataGroups == 'ms_patient')
+  tmp_df <- tmp_df %>% tidyr::gather(feature, value, 28:140) %>% 
+    dplyr::mutate(value = as.numeric(value), T_Score = as.numeric(T_Score))
+  tmp_df %>% dplyr::group_by(side,feature) %>% 
+    dplyr::summarise(cor = cor(value, T_Score, use="complete.obs", method="spearman"),
+                     p.val = cor.test(value, T_Score, use="complete.obs", method="spearman")[['p.value']])
+}
+
+cor_tremorF_nQOL_cog <- get_tremorF_nQOL_cors(tremorF, nQOL_cognition) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Cognition')
+cor_tremorF_nQOL_uppExt <- get_tremorF_nQOL_cors(tremorF, nQOL_uppExtremity) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Upper Extremity')
+cor_tremorF_nQOL_lowExt <- get_tremorF_nQOL_cors(tremorF, nQOL_lowExtremity) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Lower Extremity')
+
+cor_tremorF <- rbind(cor_tremorF_nQOL_cog, cor_tremorF_nQOL_uppExt, cor_tremorF_nQOL_lowExt)
+p1 <- ggplot(cor_tremorF, aes(x=cor, y=-log10(p.val.adj), color=side)) + geom_point() + theme_few() + facet_grid( . ~ survey )
+p1 + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + scale_color_manual(values=c("#2EC4B6", "#E71D36")) + geom_hline(yintercept=2, color='grey30', size=.8)
+```
+
+
+---------
+
+#### Correlation data table
+
+```{r}
+df1 <- cor_tapF %>% as.data.frame() %>% dplyr::mutate(activity = 'tapping') %>% select(-hand)
+#df2 <- cor_tremorF %>% as.data.frame() %>% dplyr::mutate(activity = 'tremor') %>% select(-side) 
+df3 <- cor_walkF %>% dplyr::mutate(activity = 'walk')
+df4 <- cor_restF %>% dplyr::mutate(activity='rest')
+cor_values <- rbind(df1, df3,df4) %>% select(activity, survey, feature, cor, p.val.adj) %>%
+  dplyr::mutate(cor = round(cor, digits=3),
+                log10_pval.adj = round(-log10(p.val.adj), digits=2)) %>% arrange(log10_pval.adj) %>% select(-p.val.adj)
+datatable(cor_values, options = list(pageLength = 10), rownames=F)
+```
+
+-----------
+
+####  Daily Check-in's vs Surveys
+
+```{r, fig.align='center', fig.width=10, fig.height=5}
+get_dailyCheckin_nQOL_cors <- function(dailyCheckins, nQOL_survey){
+  nQOL_survey['T_Score'] = nQOL_survey['T-Score']
+  nQOL_survey['T-Score'] <- NULL
+  nQOL_survey <- nQOL_survey %>% select(healthCode, T_Score, rawScore, participant_day)
+  tmp_df <- merge(dailyCheckins, nQOL_survey) %>% filter(dataGroups == 'ms_patient')
+  tmp_df <- tmp_df %>% tidyr::gather(feature, value, 13:15) %>% 
+    dplyr::mutate(value = as.numeric(value), T_Score = as.numeric(T_Score))
+  tmp_df %>% dplyr::group_by(feature) %>% 
+    dplyr::summarise(cor = cor(value, T_Score, use="complete.obs", method="spearman"),
+                     p.val = cor.test(value, T_Score, use="complete.obs", method="spearman")[['p.value']])
+}
+cor_dailyCheckin_nQOL_cog <- get_dailyCheckin_nQOL_cors(dailyCheckins, nQOL_cognition) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Cognition')
+
+cor_dailyCheckin_nQOL_uppExt <- get_dailyCheckin_nQOL_cors(dailyCheckins, nQOL_uppExtremity) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Upper Extremity')
+
+cor_dailyCheckin_nQOL_lowExt <- get_dailyCheckin_nQOL_cors(dailyCheckins, nQOL_lowExtremity) %>% 
+  dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'), survey = 'nQOL Lower Extremity')
+
+cor_dailyCheckin_nQOL <- rbind(cor_dailyCheckin_nQOL_cog, cor_dailyCheckin_nQOL_uppExt, cor_dailyCheckin_nQOL_lowExt) %>% 
+  mutate(log10_p.val.adj = round(-log10(p.val.adj), digits=3),
+         cor = round(cor, digits=2)) %>% 
+  arrange(log10_p.val.adj)  %>% select(survey, feature, cor, log10_p.val.adj)
+
+datatable(cor_dailyCheckin_nQOL, options = list(pageLength = 10), rownames=F)
+```
+
+
+-------
+
+### Scatter plot  - Top Objective features vs survey's
+
+
+```{r, fig.align='center', fig.width=10, fig.height=5}
+
+get_scatter_plot <- function(features, survey, selected_feature){
+  survey['T_Score'] = survey['T-Score']
+  survey['T-Score'] <- NULL
+  survey <- survey %>% select(healthCode, T_Score, rawScore, participant_week)
+  tmp_df <- merge(features, survey) %>% filter(dataGroups == 'ms_patient')
+  
+  ggscatter(tmp_df, x ='T_Score' , y = selected_feature,
+            size = .3,
+            add = "reg.line",  # Add regressin line
+            add.params = list(color = "grey10", fill = "lightgray"),
+            conf.int = TRUE, 
+            cor.coef = TRUE,
+            cor.method = "spearman",
+            cor.coef.size = 4.5,
+            cor.coeff.args = list(method = "pearson", fontface="italic",
+                                label.x.npc = "right", colour = "black",
+                                label.y.npc = "top")
+   )
+}
+```
+
+
+```{r}
+p1 <- get_scatter_plot(tapF_week_averaged, nQOL_uppExtremity, 'numberTaps')
+p2 <- get_scatter_plot(tapF_week_averaged, nQOL_uppExtremity, 'maxTapInter')
+p <- grid.arrange(p1,p2, ncol=2)
+ggsave("plots/tapping_top_features_scatterPlots.png", p, height=5, width=7, units="in")
+ggsave("plots/tapping_top_features_scatterPlots.tiff", p, height=5, width=7, units="in")
+```
+
+
+```{r}
+p1 <- get_scatter_plot(walkF, nQOL_uppExtremity, 'P0FY')
+p2 <- get_scatter_plot(walkF, nQOL_uppExtremity, 'cvAA')
+grid.arrange(p1,p2, ncol=2)
+```
+
+
+```{r}
+p1 <- get_scatter_plot(restF, nQOL_uppExtremity, 'iqrAA')
+p2 <- get_scatter_plot(restF, nQOL_uppExtremity, 'q3AA')
+grid.arrange(p1,p2, ncol=2)
+```
+
+
