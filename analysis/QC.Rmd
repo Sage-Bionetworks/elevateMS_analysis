@@ -1,6 +1,5 @@
 ---
 title: "ElevateMS - on-going summary"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document: default
   html_notebook: default
@@ -8,6 +7,7 @@ output:
 
 ```{r global_options, include=FALSE}
 rm(list=ls())
+##date: '`r format(Sys.time(), ''%d %B, %Y'')`'
 knitr::opts_chunk$set(fig.path='Figs/', echo=FALSE, warning=FALSE, message=FALSE)
 ```
 
@@ -24,7 +24,6 @@ install_load('ggthemes', 'gridExtra', 'devtools')
 stringfy <- function(x){
   gsub('[\\[\"\\]]','',x, perl=T) 
 }
-
 DAYS_SINCE_LAUNCH = as.numeric(Sys.Date() - lubridate::ymd("2017-08-14"))
 WEEKS_SINCE_LAUNCH = ( (DAYS_SINCE_LAUNCH - 1) %/% 7) + 1
 ```
@@ -40,7 +39,6 @@ userActivity <- userActivity@values
 userActivity <- userActivity %>% dplyr::mutate(createdOnTimeZone = as.numeric(createdOnTimeZone)/100,
                                                createdOn = lubridate::ymd_hms(createdOn, tz='UTC'),
                                                originalTable = gsub('elevate-ms-', '', originalTable))
-
 #get start dates for people 
 userStartDates <- userActivity %>% dplyr::group_by(healthCode) %>% 
   dplyr::summarise(participantStartDate = min(lubridate::date(createdOn)))
@@ -132,6 +130,10 @@ user_time_in_study <- userActivity %>% dplyr::group_by(healthCode, dataGroups) %
                 days_in_study =  as.numeric(currentDate - participantStartDate) + 1,
                 weeks_in_study =  ((days_in_study - 1 ) %/% 7 ) + 1)
 
+#to avoid situations when no user in their timeline is in a particular week. For example on 12/4/2017 no user was in week 2
+#tmp = data.frame(weeks_in_study = 1:max(user_time_in_study$weeks_in_study))
+#View(merge(tmp,user_time_in_study, all.x=T))
+
 userWeeks <- user_time_in_study %>% dplyr::group_by(dataGroups, weeks_in_study) %>%
   dplyr::summarise(numUsers = n_distinct(healthCode))
 userWeeks <- userWeeks %>% ddply(.variables=c('dataGroups', 'weeks_in_study'),
@@ -139,7 +141,6 @@ userWeeks <- userWeeks %>% ddply(.variables=c('dataGroups', 'weeks_in_study'),
                       tmp <- userWeeks %>% dplyr::filter(weeks_in_study >=  unique(x$weeks_in_study) & dataGroups == unique(x$dataGroups))
                       data.frame('totalUsersReachedThisWeek' = sum(tmp$numUsers))
                     })
-
 #People active each week since study start
 userActiveEachWeek <- userActivity %>% dplyr::group_by(dataGroups, study_week) %>%
   dplyr::summarise(uniqUsers = n_distinct(healthCode))
