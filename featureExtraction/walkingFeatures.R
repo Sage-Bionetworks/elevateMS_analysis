@@ -1,21 +1,14 @@
 # elevateMS walking feature extraction
 
+#CLEAN START
+rm(list=ls())
+library("install.load")
 # load all necessary libraries
-library(synapseClient)
-library(plyr)
-library(dplyr)
-library(ggplot2)
-library(doMC)
-library(jsonlite)
-library(parallel)
-library(tidyr)
-library(lubridate)
-library(stringr)
-library(sqldf)
-library(parsedate)
-library(githubr) # to install githubr run: library(devtools); devtools::install_github("brian-bot/githubr")
-library(mpowertools) # to install mpowertools run: library(devtools); devtools::install_github("Sage-Bionetworks/mpowertools")
-
+install_load('synapseClient', 'plyr', 'dplyr' ,'ggplot2', 'doMC', 'jsonlite')
+install_load('parallel', 'tidyr', 'lubridate' , 'stringr', 'sqldf')
+# to install githubr run: library(devtools); devtools::install_github("brian-bot/githubr")
+# to install mpowertools run: library(devtools); devtools::install_github("Sage-Bionetworks/mpowertools")
+install_load('parsedate', 'githubr', 'mpowertools' )
 # login to Synapse
 synapseLogin()
 
@@ -43,7 +36,8 @@ outbound_Walking_json_files <- data.frame(outbound_Walking_json_fileId =names(ou
 outbound_Walking_json_files <- outbound_Walking_json_files %>%
   distinct(outbound_Walking_json_file, .keep_all = TRUE)
 
-actv_walking <- merge(actv_walking,outbound_Walking_json_files, by.x="deviceMotion_walking_outbound.json.items", by.y="outbound_Walking_json_fileId", all=TRUE)
+actv_walking <- merge(actv_walking,outbound_Walking_json_files, by.x="deviceMotion_walking_outbound.json.items", 
+                      by.y="outbound_Walking_json_fileId", all=TRUE)
 
 # add walking json files columns
 actv_walking <- actv_walking %>% mutate(outbound_Walking_json_file = as.character(outbound_Walking_json_file))
@@ -60,39 +54,54 @@ if (detectCores() >= 2) {
 } else {
   runParallel <- FALSE
 }
-registerDoMC(detectCores() - 2)
+registerDoMC(detectCores() - 1)
 
 walkFeatures <-
   ddply(
     .data = actv_walking, .variables = colnames(actv_walking),
     .fun = function(row) {
-      getWalkFeatures(row$outbound_Walking_json_file)
+      mpowertools::getWalkFeatures(row$outbound_Walking_json_file)
     },
     .parallel = TRUE
   )
 
-
 # Only keep the non-redundant data
 walkingFeatures <- walkFeatures %>% filter(recordId %in% selected_records)
 
-## Remove unnecessary columns
-# columns_to_drop <- c("accelerometer_walking_outbound.json.items",
-#                      "pedometer_walking_outbound.json.items",
-#                      "accelerometer_walking_rest.json.items",
-#                      "deviceMotion_walking_rest.json.items",     
-#                      "metadata.json.scheduledActivityGuid",
-#                      "metadata.json.taskRunUUID",
-#                      "metadata.json.startDate",                  
-#                      "metadata.json.startDate.timezone",
-#                      "metadata.json.endDate",
-#                      "metadata.json.endDate.timezone",           
-#                      "metadata.json.dataGroups",
-#                      "metadata.json.taskIdentifier")
-# cols_to_keep <- !colnames(walkingFeatures) %in% columns_to_drop
-# walkingFeatures <- walkingFeatures[, cols_to_keep]
 
-# View the data
-# View(walkingFeatures)
+##### Pedo Features
+outbound_pedometer_json_files <- synDownloadTableColumns(actv_walking_syntable, "pedometer_walking_outbound.json.items")
+outbound_pedometer_json_files <- data.frame(outbound_pedometer_json_fileId =names(outbound_pedometer_json_files),
+                                            outbound_pedometer_json_file = as.character(outbound_pedometer_json_files)) %>%
+  dplyr::mutate(outbound_pedometer_json_fileId = as.character(outbound_pedometer_json_fileId),
+                outbound_pedometer_json_file = as.character(outbound_pedometer_json_file))
+outbound_pedometer_json_files <- outbound_pedometer_json_files %>% 
+  distinct(outbound_pedometer_json_file, .keep_all = TRUE)
+
+registerDoMC(detectCores()-2)
+#extract pedometere features
+pedoFeatures <- ddply(.data=outbound_pedometer_json_files, 
+                      .variables=colnames(outbound_pedometer_json_files), 
+                      .parallel=T,
+                      .fun = function(row) { 
+                        tryCatch({ mpowertools::getPedometerFeatures(row$outbound_pedometer_json_file)},
+                                 error = function(err){
+                                   print(paste0('Unable to process ', row$outbound_pedometer_json_file))
+                                   stop(err) })  
+                      })
+pedoFeatures['error_pedometer_features'] = pedoFeatures$error
+pedoFeatures$error <- NULL
+pedoFeatures$outbound_pedometer_json_file <- NULL
+
+
+dim(actv_walking)
+dim(walkFeatures)
+
+
+### Merge Walking and Pedometer features
+walkingFeatures <- merge(walkingFeatures, pedoFeatures, all=T,
+                          by.x="pedometer_walking_outbound.json.items",
+                          by.y="outbound_pedometer_json_fileId")
 
 #############
 # Final Data
