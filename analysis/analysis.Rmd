@@ -36,15 +36,24 @@ nQOL_uppExtremity <- get_nQOL_uppExtremity()
 nQOL_lowExtremity  <- get_nQOL_lowExtremity()
 nQOL_cognition  <- get_nQOL_cognition()
 
-tapF <- getTappingF() %>% select(-tapping_left.json.TappingSamples, -tapping_right.json.TappingSamples, -recordId, -tapping_left.json.ButtonRectLeft, 
-                                 -tapping_right.json.ButtonRectRight, -tapping_left.json.ButtonRectRight, -tapping_left.json.endDate, -timeZone, 
+tapF <- getTappingF() %>% select(-tapping_left.json.TappingSamples, -tapping_right.json.TappingSamples, 
+                                 -recordId, -tapping_left.json.ButtonRectLeft, 
+                                 -tapping_right.json.ButtonRectRight, -tapping_left.json.ButtonRectRight,
+                                 -tapping_left.json.endDate, -timeZone, 
                                  -metadata.json.dataGroups, -metadata.json.endDate.timezone,
-                                 -tapping_left.json.endDate.timezone, -metadata.json.taskIdentifier, -createdOnTimeZone, -userSharingScope, -createdOn,
-                                 -phoneInfo, -uploadDate, -externalId, -validationErrors, -accelerometer_tapping_right.json.items,
-                                 -accelerometer_tapping_left.json.items, -tapping_right.json.ButtonRectLeft, -tapping_right.json.endDate, -tapping_right.json.endDate.timezone,
-                                 -tapping_right.json.startDate, -tapping_right.json.startDate.timezone, -tapping_left.json.startDate, -tapping_left.json.startDate.timezone,
-                                 -tapping_right.json.TappingViewSize, -tapping_left.json.TappingViewSize, -metadata.json.scheduledActivityGuid, -idx, 
-                                 -metadata.json.taskRunUUID, -metadata.json.startDate.timezone, -metadata.json.startDate, -metadata.json.endDate, -tapping_right_json_file,
+                                 -tapping_left.json.endDate.timezone, 
+                                 -metadata.json.taskIdentifier, -createdOnTimeZone,
+                                 -userSharingScope, -createdOn, -phoneInfo, -uploadDate, -externalId, 
+                                 -validationErrors, -accelerometer_tapping_right.json.items,
+                                 -accelerometer_tapping_left.json.items, -tapping_right.json.ButtonRectLeft,
+                                 -tapping_right.json.endDate, -tapping_right.json.endDate.timezone,
+                                 -tapping_right.json.startDate, -tapping_right.json.startDate.timezone,
+                                 -tapping_left.json.startDate, -tapping_left.json.startDate.timezone,
+                                 -tapping_right.json.TappingViewSize, -tapping_left.json.TappingViewSize,
+                                 -metadata.json.scheduledActivityGuid, -idx, 
+                                 -metadata.json.taskRunUUID, 
+                                 -metadata.json.startDate.timezone, -metadata.json.startDate,
+                                 -metadata.json.endDate, -tapping_right_json_file,
                                  -tapping_left_json_file)
 tapF_week_averaged =  tapF %>% select( -activity_start_timestamp_GMT, -elevateMS_startDate_GMT,  -activity_start_timestamp_local, -study_week,
                         -study_day, -error, -appVersion) %>% filter(dataGroups == 'ms_patient') %>%

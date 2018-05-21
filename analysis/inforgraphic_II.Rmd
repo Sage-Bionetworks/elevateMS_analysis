@@ -1,0 +1,245 @@
+---
+title: "ElevateMS - Infographic II"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: default
+  html_notebook: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(fig.path='Figs/', echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+Sys.setenv(TZ='GMT')
+library(synapseClient)
+synapseLogin()
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr'))
+install_load('ggthemes', 'gridExtra', 'devtools', 'DT', 'lattice')
+#source("analysis/loadData.R")
+source("loadData.R")
+```
+
+
+
+```{r, cache=T}
+# Loads > trigger_survey df
+triggers <- getTriggerData()
+dailyCheckins <- getDailyCheckin()
+relapses <- getRelapseData()
+symptoms <- getSymptomsData()
+
+nQOL_uppExtremity <- get_nQOL_uppExtremity() 
+nQOL_lowExtremity  <- get_nQOL_lowExtremity()
+nQOL_cognition  <- get_nQOL_cognition()
+
+tapF <- getTappingF() %>% select(-tapping_left.json.TappingSamples, -tapping_right.json.TappingSamples, 
+                                 -recordId, -tapping_left.json.ButtonRectLeft, 
+                                 -tapping_right.json.ButtonRectRight, -tapping_left.json.ButtonRectRight,
+                                 -tapping_left.json.endDate, -timeZone, 
+                                 -metadata.json.dataGroups, -metadata.json.endDate.timezone,
+                                 -tapping_left.json.endDate.timezone, -metadata.json.taskIdentifier, -createdOnTimeZone,
+                                 -userSharingScope, -createdOn, -phoneInfo, -uploadDate, -externalId, 
+                                 -validationErrors, -accelerometer_tapping_right.json.items,
+                                 -accelerometer_tapping_left.json.items, -tapping_right.json.ButtonRectLeft,
+                                 -tapping_right.json.endDate, -tapping_right.json.endDate.timezone,
+                                 -tapping_right.json.startDate, -tapping_right.json.startDate.timezone,
+                                 -tapping_left.json.startDate, -tapping_left.json.startDate.timezone,
+                                 -tapping_right.json.TappingViewSize, -tapping_left.json.TappingViewSize,
+                                 -metadata.json.scheduledActivityGuid, -idx, 
+                                 -metadata.json.taskRunUUID, -metadata.json.startDate.timezone, -metadata.json.startDate,
+                                 -metadata.json.endDate, -tapping_right_json_file,
+                                 -tapping_left_json_file)
+
+tmp_mean <- function(x){
+  mean(x, na.rm = T)
+}
+tapF_week_averaged =  tapF %>% select( -activity_start_timestamp_GMT, -elevateMS_startDate_GMT,  -activity_start_timestamp_local, -study_week,
+                        -study_day, -error, -appVersion) %>% filter(dataGroups == 'ms_patient') %>%
+         group_by(healthCode, participant_week, dataGroups, hand) %>% dplyr::summarise_all(.funs=c(tmp_mean)) %>% select(-participant_day)
+
+walkF <- getWalkingF() 
+restF <- getRestF()
+demog <- get_demographics()
+```
+
+#### Latest enrollment map
+
+```{r}
+install_load('plotly', "zipcode")
+
+#load the zipcode level data summarized by first three digits of zipcode
+data(zipcode)
+states = data.frame(state = state.abb, state.name = tolower(state.name))
+tmp_zipcode <- zipcode %>% inner_join(states)
+tmp_zipcode['zipcode_firstThree'] = substr(tmp_zipcode$zip, 1,3)
+tmp_zipcode <- tmp_zipcode %>% dplyr::group_by(state, state.name, zipcode_firstThree) %>% 
+  dplyr::summarise(longitude = median(longitude), latitude = median(latitude)) %>% as.data.frame() %>%
+  dplyr::mutate(state = state.name) %>% dplyr::select(-state.name)
+
+#create the new col to match to tmp_zipcode
+demog['zipcode_firstThree'] = substr(demog$zipcode, 1,3)
+tmp_user_region <- merge(demog, tmp_zipcode)
+g <- list(
+  scope = 'usa',
+  projection = list(type = 'albers usa'),
+  showland = TRUE,
+  landcolor = toRGB("gray90"),
+  subunitwidth = 1,
+  countrywidth = 1,
+  subunitcolor = toRGB("white"),
+  countrycolor = toRGB("white")
+)
+p <- plot_geo(tmp_user_region, locationmode = 'USA-states') %>%
+  add_markers( x = ~longitude, y = ~latitude, color=~dataGroups, opacity=.8, colors=c("#A5BE00", "#FC4E07")) %>%
+  layout(title='', geo=g) %>% layout(legend = list(x = 0.9, y = 0.9))
+p
+#p  %>% export(file = "enrollment.svg", selenium = RSelenium::rsDriver(browser = "chrome"))
+```
+
+
+
+####  What percentage of people have someone else in the same zip code?  Or "on average x% of you have someone else in your zip code also participating in elevateMS
+```{r}
+summary(as.numeric(table(demog$zipcode_firstThree)))
+```
+
+
+
+-----
+
+
+#### Timing of day of usage (i.e. same as we had for first infographic but different focus)
+Already done before  -- let me know if a new one is needed
+
+
+----
+
+
+####  How popular are each of the activities (tapping is performed x times, walking y times etc...)
+```{r}
+df <- userActivity %>% dplyr::group_by(dataGroups, originalTable) %>% dplyr::summarise(n= n()) %>% spread(dataGroups, n) %>% arrange(desc(ms_patient))
+colnames(df) <- c('activity', 'control', 'MS')
+knitr::kable(df)
+```
+
+
+####  How often are each symptom reported?  
+```{r}
+symptoms_keywords <- c('anxiety', 'brain_fog' ,'depression', 'fatigue', 'memory_and_attention_issues',
+                       'mood_swings', 'speech_problems', 'clumsiness', 'cramping', 'stiff_muscles', 'problems_with_coordination', 
+                       'walking_difficulties', 'tremor', 'weakness', 'back_pain', 'eye_pain',
+                       'headache', 'arm_and_or_leg', 'overall_muscle_and_nerve_pain', 'abnormality_of_taste',
+                       'challenges_with_balance', 'burning_sensation' ,'pins_and_needles_sensation', 
+                       'reduced_sensation_of_touch', 'tongue_numbness', 'uncomfortable_tingling', 'itching', 'hearing_loss',
+                       'vision_problems','sexual_problems', 'bladder_problems', 'bowel_problems', 
+                       'swallowing_problems', 'breathing_problems', 'dizziness_and_vertigo', 'seizures')
+
+top_symptoms <- sort( round(prop.table(table(symptoms$symptom))*100, digits=2), decreasing = T)[1:10]
+top_symptoms <- data.frame(symptom = names(top_symptoms), percent=as.numeric(top_symptoms))
+knitr::kable(top_symptoms)
+```
+
+
+#### What percentage of people report each symptom?
+```{r}
+df <- symptoms %>% group_by(symptom, dataGroups) %>% dplyr::summarise(people = n_distinct(healthCode)) %>% spread(dataGroups, people) %>% arrange(desc(ms_patient))
+colnames(df) = c('symptom' , 'reported_by_how_many_people')
+df <- df[1:10,]
+knitr::kable(df)
+```
+
+
+####  How often are each trigger reported?  
+```{r}
+tmp <- ddply(.data=triggers, .variables = c('healthCode', 'dataGroups', 'participant_week', 'participant_day'), 
+      .fun = function(df){ 
+         data.frame(trigger = unlist(strsplit(df$triggers, ',')))
+        })
+
+top_triggers <- sort( round(prop.table(table(tmp$trigger))*100, digits=2), decreasing = T)[1:10]
+top_triggers <- data.frame(symptom = names(top_triggers), percent=as.numeric(top_triggers))
+knitr::kable(top_triggers)
+```
+---------
+
+#### What percentage of people report each trigger?
+```{r}
+tmp <- ddply(.data=triggers, .variables = c('healthCode', 'dataGroups', 'participant_week', 'participant_day'), 
+      .fun = function(df){ 
+         data.frame(trigger = unlist(strsplit(df$triggers, ',')))
+        })
+df <- tmp %>% group_by(trigger, dataGroups) %>% dplyr::summarise(people = n_distinct(healthCode)) %>% spread(dataGroups, people) %>% arrange(desc(ms_patient))
+colnames(df) = c('trigger' , 'reported_by_how_many_people')
+df <- df[1:10,]
+knitr::kable(df)
+```
+--------
+
+
+##### How far have people walked in walk test?
+_I belv the unit is meters_
+```{r}
+knitr::kable(walkF %>% group_by(dataGroups) %>% dplyr::summarise( totalDistance = sum(distance, na.rm=T)))
+```
+
+
+--------
+
+##### Total Steps taken?
+```{r}
+knitr::kable(walkF %>% group_by(dataGroups) %>% dplyr::summarise( totalSteps = sum(numberOfSteps, na.rm=T)))
+```
+
+
+--------
+
+
+##### How many taps have been made 
+```{r}
+knitr::kable(tapF %>% group_by(dataGroups) %>% dplyr::summarise( totalTaps = sum(numberTaps, na.rm=T)))
+```
+
+--------
+
+##### What is the average temperature (F)
+```{r}
+weather <- get_weatherData()
+summary(weather$currentTemperature)
+```
+
+
+--------
+
+```{r}
+ggplot(data=weather, aes(x=currentTemperature)) + geom_histogram(binwidth = 1) + theme_minimal()
+ggplot(data=weather, aes(x=currentTemperature)) + geom_density() + theme_minimal()
+```
+
+--------
+
+
+##### What is the average Pressure (miliBar)
+```{r}
+summary(weather$atmosphericPressure)
+```
+
+---------
+
+##### How many are participating beyond 12 weeks?  What are they doing after 12 weeks?
+```{r}
+tmp <- userActivity %>% filter(participant_week > 12)
+knitr::kable(tmp %>% group_by(dataGroups) %>% dplyr::summarise('people'  = n_distinct(healthCode)))
+
+df <- tmp %>% dplyr::group_by(dataGroups, originalTable) %>% dplyr::summarise(n= n()) %>% spread(dataGroups, n) %>% arrange(desc(ms_patient))
+colnames(df) <- c('activity', 'control', 'MS')
+knitr::kable(df)
+```
+
+
+
+
