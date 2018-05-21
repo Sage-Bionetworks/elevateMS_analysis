@@ -106,7 +106,6 @@ walkingFeatures <- merge(walkingFeatures, pedoFeatures, all=T,
 #############
 # Final Data
 #############
-
 # upload your file to Synapse with provenance
 # to learn more about provenance in Synapse, go to http://docs.synapse.org/articles/provenance.html
 
@@ -116,6 +115,9 @@ thisRepo <- getRepo(repository = "Sage-Bionetworks/elevateMS_analysis",
                     ref="branch", 
                     refName="master")
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
+
+#the above code dint work so temp hack
+thisFile <- "https://github.com/Sage-Bionetworks/elevateMS_analysis/blob/master/featureExtraction/walkingFeatures.R"
 
 # name and describe this activity
 activityName = "Extract walking features"
