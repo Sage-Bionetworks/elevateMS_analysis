@@ -1,7 +1,7 @@
 rm(list=ls())
 Sys.setenv(TZ='GMT')
-library(synapseClient)
-synapseLogin()
+library(synapser)
+synapser::synLogin()
 library(install.load)
 install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr'))
 install_load('ggthemes', 'gridExtra')
@@ -26,7 +26,7 @@ insert_study_times <- function(df, timeStampCol, timeZoneCol, userStartDates){
 
 loadTable <- function(tableSynID){
   df <- synTableQuery(paste("select * from", tableSynID))
-  df <- df@values 
+  df <- df$asDataFrame()
   df %>% filter(healthCode %in% STUDY_HEALTHCODES)
 }
 
@@ -38,11 +38,13 @@ getUserActivity <- function(){
   masterTable <- "syn9758009"  #poorly named elevate-ms-appVersion
   #remove all testing users and records created before Monday, August 14, 2017 12:00:00 AM (GMT)
   userActivity <- synTableQuery(paste("select * from", masterTable, "WHERE dataGroups NOT LIKE '%test%' AND createdOn > 1502668800000"))
-  userActivity <- userActivity@values
+  userActivity <- userActivity$asDataFrame()
   
   #Data Manipulation
-  userActivity <- userActivity %>% dplyr::mutate(createdOnTimeZone = as.numeric(createdOnTimeZone)/100,
-                                                 createdOn = lubridate::ymd_hms(createdOn, tz='UTC'),
+  userActivity <- userActivity %>% dplyr::mutate(# Ignoring the fraction timezones for issues with conversion to local times
+                                                 #createdOnTimeZone = as.numeric( createdOnTimeZone %/% 100 + ((createdOnTimeZone %% 100)/60)),
+                                                 createdOnTimeZone =  createdOnTimeZone %/% 100,
+                                                 createdOn =  lubridate::as_datetime(createdOn / 1000, tz='UTC'),
                                                  originalTable = gsub('elevate-ms-', '', originalTable))
   
   #get start dates for people 
@@ -74,29 +76,31 @@ NUM_CONTROLS <- userActivity %>% dplyr::filter(dataGroups %like% 'control') %>% 
 
 
 get_demographics <- function(){
-  demog <-  synTableQuery(paste("select * from syn10295288"))@values
+  demog <-  synTableQuery(paste("select * from syn10295288"))
+  demog <- demog$asDataFrame() 
+  demog$ROW_ID <- NULL
+  demog$ROW_VERSION <-NULL
   demog$metadata.json.dataGroups <- NULL
   colnames(demog) <- gsub('.json.answer', '',colnames(demog))
   colnames(demog)  <- gsub('metadata.json.', '',colnames(demog))
   demog <- demog %>% dplyr::select(-scheduledActivityGuid, -endDate, -endDate.timezone, -appVersion, -phoneInfo, -validationErrors, -startDate.timezone, -createdOn, -createdOnTimeZone, -recordId, -uploadDate, -externalId) %>%
     filter(dataGroups %in% c('control', 'ms_patient') & healthCode %in% STUDY_HEALTHCODES) %>%
-    dplyr::mutate(startDate = as.Date(lubridate::ymd_hms(startDate)))
+    dplyr::mutate(startDate = as.Date(lubridate::as_datetime(startDate/1000)))
   
   demog <- ddply(.data = demog, .variables = c('healthCode'), .fun = function(x){
     x <- x %>% arrange(desc(startDate))
     x[1,]
   })
   
-  
-  race <- demog %>% tidyr::gather(race, value, 7:16) %>% dplyr::filter(value == 'TRUE') %>% 
+  race <- demog %>% tidyr::gather(race, value, 7:16) %>% dplyr::filter(value == 'true') %>% 
     dplyr::mutate(race = gsub('race.','',race)) %>% select(healthCode, race) %>% group_by(healthCode) %>%
     dplyr::summarise(race = paste(race,collapse=','))
   demog <- merge(demog, race) %>% select(-c(7:16))
   
-  profiles <- synTableQuery(paste("select * from syn10235463"))@values
+  profiles <- synTableQuery(paste("select * from syn10235463"))$asDataFrame()
   profiles <- profiles %>% dplyr::filter(healthCode %in% STUDY_HEALTHCODES) %>%
     dplyr::transmute(healthCode = healthCode, 
-                     startDate = as.Date(lubridate::ymd_hms(createdOn)),
+                     startDate = as.Date(lubridate::as_datetime(createdOn/1000)),
                      zipcode = demographics.zipcode, age = demographics.age,
                      gender = demographics.gender, height = demographics.height,
                      weight = demographics.weight, education = demographics.education,
@@ -122,16 +126,11 @@ get_demographics <- function(){
   demog_derived_from_profiles <- demog_derived_from_profiles %>% 
     dplyr::select(healthCode, age, dataGroups, userSharingScope, gender, height,
                   weight, zipcode, education, health_insurance, employment, startDate, race)
-  
-  
-  
-  #tmp_df <- data.frame(dataGroups = c('control', 'ms_patient'),
-  #                     num = c(num_controls, num_MS_patients), stringsAsFactors = F)
-  
-  # percent_demog_data_compliance =  round( (n_distinct(demog$healthCode)/total_elevateMS_users) *100, digits=2)
-  # percent_demog_data_from_profiles_compliance =  round( (n_distinct(demog_derived_from_profiles$healthCode)/total_elevateMS_users) *100, digits=2)
-  demog_total <- rbind(demog, demog_derived_from_profiles)
+
+  demog_total <- rbind(demog, demog_derived_from_profiles %>% select(colnames(demog)))
 }
+
+
 
 
 
