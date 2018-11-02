@@ -23,6 +23,8 @@ synapser::synLogin()
 # Required functions
 ##############
 processTappingFile <- function(tappingJsonFileLocation){
+  # Read the Json File and process it into mhealthtools format
+  
   tapData <-   tryCatch({
     tap_data <- jsonlite::fromJSON(as.character(tappingJsonFileLocation)) %>% 
       dplyr::mutate(TapCoordinate = stringr::str_replace_all(TapCoordinate,"[{}}]", "")) %>%
@@ -34,6 +36,20 @@ processTappingFile <- function(tappingJsonFileLocation){
     NA # NAs are handled in mhealthtools
   })
 }
+
+featuresFromColumn <- function(dat,column,processingFunction, parallel = F){
+  # Apply the processingFunction to each row of the column in the dataframe dat
+
+  plyr::ddply(
+    .data = dat,
+    .variables = colnames(dat),
+    .parallel = parallel,
+    .fun = function(row) {
+      return(processingFunction(row[column]))
+    }
+  ) 
+}
+
 
 #############
 # Download Synapse Table, and select and download required columns, figure out filepath locations
@@ -64,9 +80,13 @@ tapping.tbl$tapping_left.json.TappingSamples <- as.character(tapping.tbl$tapping
 tapping.tbl$tapping_right.json.TappingSamples <- as.character(tapping.tbl$tapping_right.json.TappingSamples)
 
 tapping.tbl.meta = data.table::rbindlist(list(tapping.tbl %>%
-                                                left_join(do.call(cbind, tapping.json.loc))),
+                                                dplyr::left_join(do.call(cbind, tapping.json.loc))),
                                          use.names = T, fill = T) %>%
   as.data.frame
+
+## Convert column format from factors to strings for the fileLocations
+tapping.tbl.meta$tapping_left.fileLocation.TappingSamples <- as.character(tapping.tbl.meta$tapping_left.fileLocation.TappingSamples)
+tapping.tbl.meta$tapping_right.fileLocation.TappingSamples <- as.character(tapping.tbl.meta$tapping_right.fileLocation.TappingSamples)
 
 #############
 # Extract Tapping features
@@ -79,29 +99,25 @@ if (detectCores() >= 2) {
 doMC::registerDoMC(detectCores() - 2)
 
 # extract LEFT hand tapping features
-left_hand_tapping_features <-
-  plyr::ddply(
-    .data = tapping.tbl.meta,
-    .variables = colnames(tapping.tbl.meta),
-    .parallel = runParallel,
-    .fun = function(row) {
-      tapData <- processTappingFile(as.character(row$tapping_left.fileLocation.TappingSamples))
-      return(mhealthtools::get_tapping_features(tapData))
-    }
-    ) %>% 
+left_hand_tapping_features <- featuresFromColumn(
+  dat = tapping.tbl.meta,
+  column = 'tapping_left.fileLocation.TappingSamples',
+  processingFunction = function(tapJsonLocation){
+    tapData <- processTappingFile(tapJsonLocation)
+    return(mhealthtools::get_tapping_features(tapData))
+  },
+  parallel = runParallel) %>% 
   dplyr::mutate(hand = 'left')
 
 # extract RIGHT hand tapping features
-right_hand_tapping_features <-
-  plyr::ddply(
-    .data = tapping.tbl.meta,
-    .variables = colnames(tapping.tbl.meta),
-    .parallel = runParallel,
-    .fun = function(row) {
-      tapData <- processTappingFile(as.character(row$tapping_right.fileLocation.TappingSamples))
-      return(mhealthtools::get_tapping_features(tapData))
-    }
-  ) %>% 
+right_hand_tapping_features <- featuresFromColumn(
+  dat = tapping.tbl.meta,
+  column = 'tapping_right.fileLocation.TappingSamples',
+  processingFunction = function(tapJsonLocation){
+    tapData <- processTappingFile(tapJsonLocation)
+    return(mhealthtools::get_tapping_features(tapData))
+  },
+  parallel = runParallel) %>% 
   dplyr::mutate(hand = 'right')
 
 tapping_features <- dplyr::full_join(left_hand_tapping_features, right_hand_tapping_features)
