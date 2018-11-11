@@ -13,9 +13,7 @@ library(synapser)
 library(plyr)
 library(dplyr)
 library(ggplot2)
-library(doMC)
 library(jsonlite)
-library(parallel)
 library(tidyr)
 library(lubridate)
 library(stringr)
@@ -86,14 +84,15 @@ passive.data.all <- passive.data.all %>%
 # Github link
 gtToken = 'github_token.txt';
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- 'passiveData.R'
+thisFileName <- 'featureExtraction/passiveData.R'
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch", refName='master')
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # Write to Synapse
-write.csv(passive.data.all,file = paste0('allPassiveData',ref.name,'.csv'),na="")
+fileName <- paste0('allPassiveData','.csv')
+write.csv(passive.data.all,file = fileName,na="")
 PARENT_FOLDER = 'syn10140063'
-obj = File(paste0('allPassiveData',ref.name,'.csv'), 
-           name = paste0('allPassiveData',ref.name,'.csv'), 
+obj = File(fileName, 
+           name = fileName, 
            parentId = PARENT_FOLDER)
 obj = synStore(obj,  used = passive.tbl.id, executed = thisFile)
