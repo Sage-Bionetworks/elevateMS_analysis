@@ -78,8 +78,8 @@ synapser::synLogin()
 Sys.setenv(TZ='GMT')
 
 rest.tbl.id = 'syn10278766' # Walking Activity-v2
-rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
-# rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id))
+# rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
+rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id))
 rest.tbl <- rest.tbl.syn$asDataFrame()
 
 ## Convert createdOn into an understandable datetime format
