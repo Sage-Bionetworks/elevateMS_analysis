@@ -13,7 +13,7 @@ library(synapser)
 library(plyr)
 library(dplyr)
 library(ggplot2)
-# library(doMC)
+library(doMC)
 library(jsonlite)
 library(parallel)
 library(tidyr)
@@ -78,8 +78,8 @@ synapser::synLogin()
 Sys.setenv(TZ='GMT')
 
 rest.tbl.id = 'syn10278766' # Walking Activity-v2
-# rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
-rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id))
+rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
+# rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id))
 rest.tbl <- rest.tbl.syn$asDataFrame()
 
 ## Convert createdOn into an understandable datetime format
@@ -161,7 +161,9 @@ rest_features <- featuresFromColumn(
   parallel = runParallel 
 )
   
-  
+rest_features <- rest_features %>% 
+  dplyr::select(-deviceMotion_walking_rest.fileLocation.items,
+                -ROW_ID, -ROW_VERSION)  
   
 #############
 # Upload data to Synapse
@@ -175,7 +177,7 @@ rest_features <- featuresFromColumn(
 gtToken = 'github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisFileName <- "featureExtraction/restFeatures.R" # location of file inside github repo
-thisRepo <- getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", 
+thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
