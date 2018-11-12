@@ -13,7 +13,7 @@ library(synapser)
 library(plyr)
 library(dplyr)
 library(ggplot2)
-# library(doMC)
+library(doMC)
 library(jsonlite)
 library(parallel)
 library(tidyr)
@@ -174,8 +174,8 @@ walk_features <- featuresFromColumn(
 # A github token is required to access the elevateMS_analysis repository as it is private
 gtToken = 'github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/walkFeatures.R" # location of file inside github repo
-thisRepo <- getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", 
+thisFileName <- "featureExtraction/walkingFeatures.R" # location of file inside github repo
+thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
