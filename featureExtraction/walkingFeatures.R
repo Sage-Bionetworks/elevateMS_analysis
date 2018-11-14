@@ -238,7 +238,8 @@ walk_features_3 <- featuresFromColumn(
   parallel = runParallel 
 )
 
-walk_features <- rbind(walk_features_1, walk_features_2, walk_features_3)
+walk_features <- rbind(walk_features_1, walk_features_2, walk_features_3) %>% 
+  unique()
 walk_features <- walk_features %>% 
   dplyr::select(-deviceMotion_walking_outbound.fileLocation.items,
                 -ROW_ID, -ROW_VERSION)  
