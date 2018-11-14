@@ -121,9 +121,9 @@ doMC::registerDoMC(detectCores() - 2)
 
 # restJsonLocation <- rest.tbl.meta$deviceMotion_walking_rest.fileLocation.items[1]
 
-
 # extract Rest features
 rest.tbl.meta.noNA.act <- rest.tbl.meta[!is.na(rest.tbl.meta$deviceMotion_walking_rest.fileLocation.items),]
+
 rest.tbl.meta.noNA <- rest.tbl.meta.noNA.act[1:500,]
 rest_features_1 <- featuresFromColumn(
   dat = rest.tbl.meta.noNA,
@@ -161,6 +161,7 @@ rest_features_1 <- featuresFromColumn(
   },
   parallel = runParallel 
 )
+
 rest.tbl.meta.noNA <- rest.tbl.meta.noNA.act[501:1000,]
 rest_features_2 <- featuresFromColumn(
   dat = rest.tbl.meta.noNA,
@@ -198,6 +199,7 @@ rest_features_2 <- featuresFromColumn(
   },
   parallel = runParallel 
 )
+
 rest.tbl.meta.noNA <- rest.tbl.meta.noNA.act[1001:1526,]
 rest_features_3 <- featuresFromColumn(
   dat = rest.tbl.meta.noNA,
