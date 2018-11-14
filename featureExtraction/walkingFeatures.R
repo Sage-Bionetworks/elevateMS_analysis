@@ -267,7 +267,7 @@ activityDescription = "Extract walk features from walking activity-v2"
 
 # upload to Synapse
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "WalkFeatures.tsv" # name your file
+OUTPUT_FILE <- "WalkingFeatures.tsv" # name your file
 write.table(walk_features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
