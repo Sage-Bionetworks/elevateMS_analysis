@@ -89,9 +89,10 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # Write to Synapse
 fileName <- paste0('walkingPedometerFeatures','.csv')
-write.csv(passive.data.all,file = fileName,na="")
+write.csv(walk.data.all,file = fileName,na="")
 PARENT_FOLDER = 'syn10140063'
 obj = File(fileName, 
            name = fileName, 
            parentId = PARENT_FOLDER)
-obj = synStore(obj,  used = passive.tbl.id, executed = thisFile)
+obj = synStore(obj,  used = walk.tbl.id, executed = thisFile)
+unlink(fileName)

@@ -69,9 +69,10 @@ passive.data.all <- apply(passive.tbl.meta,1,function(x){
   error = function(e){ NA })
 }) %>% plyr::ldply(data.frame) %>% 
   dplyr::select(numberOfSteps, floorsDescended,startDate,distance,averageActivePace,
-                endDate, floorsAscended,recordId) %>% 
-  na.omit() %>% 
-  unique()
+                endDate, floorsAscended,recordId) 
+# %>% 
+#   na.omit() %>% 
+#   unique()
 
 passive.data.all <- passive.data.all %>% 
   dplyr::inner_join(passive.tbl.meta %>% 
