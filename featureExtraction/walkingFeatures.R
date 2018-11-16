@@ -23,38 +23,20 @@ library(sqldf)
 library(parsedate)
 library(githubr) 
 # devtools::install_github("brian-bot/githubr")
-library(mhealthtools) 
-# devtools::install_github("Sage-Bionetworks/mhealthtools")
+
+
+####### -- NOTE -- #######
+# We will be using mpowertools for walking features since mhealthtools
+# does not have a good feature extraction pipeline for walk
+####### -- NOTE -- #######
+
+library(mpowertools) 
+# devtools::install_github("Sage-Bionetworks/mpowertools")
+
 
 #############
 # Required functions
 ##############
-processWalkFile <- function(walkJsonFileLocation){
-  # Read the Json File and process it into mhealthtools format
-  
-  walkData <-   tryCatch({
-    walk_data <- jsonlite::fromJSON(as.character(walkJsonFileLocation))
-    
-    accel_data <- walk_data$userAcceleration
-    accel_data$t <- walk_data$timestamp - walk_data$timestamp[1]
-    
-    gyro_data <- walk_data$rotationRate
-    gyro_data$t <- walk_data$timestamp - walk_data$timestamp[1]
-    
-    grav_data <- walk_data$gravity
-    grav_data$t <- walk_data$timestamp - walk_data$timestamp[1]
-    
-    walk_data <- list(accelerometer = accel_data,
-                      gyroscope = gyro_data,
-                      gravity = grav_data)
-  }, error = function(err) {
-    walk_data <- list(accelerometer = NA,
-                      gyroscope = NA,
-                      gravity = NA)
-    # NAs are handled in mhealthtools
-  })
-}
-
 featuresFromColumn <- function(dat,column,processingFunction, parallel = F){
   # Apply the processingFunction to each row of the column in the dataframe dat
   
@@ -129,34 +111,8 @@ walk_features_1 <- featuresFromColumn(
   dat = walk.tbl.meta.noNA,
   column = "deviceMotion_walking_outbound.fileLocation.items",
   processingFunction = function(walkJsonLocation){
-    walkData <- processWalkFile(walkJsonLocation)
-    samplingRate <- mhealthtools:::get_sampling_rate(walkData$accelerometer)
-    walkFeatures <- mhealthtools::get_walk_features(
-      accelerometer_data = walkData$accelerometer,
-      gyroscope_data = walkData$gyroscope,
-      gravity_data = walkData$gravity,
-      funs = mhealthtools:::default_kinematic_features(samplingRate)
-    ) 
-    walkFeatures <- walkFeatures$extracted_features
-    walkFeatures <- walkFeatures %>% 
-      dplyr::select(-window, -error) %>% 
-      unique() %>%
-      tidyr::unite(sensor.measure, sensor, measurementType) %>% 
-      dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
-                      sensor.measure == 'gyroscope_velocity') %>% 
-      tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
-      tidyr::gather(Feature, Value,-sensor, -measurementType, -axis, -IMF) %>%
-      dplyr::group_by(Feature, sensor, measurementType, axis, IMF) %>% 
-      dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
-                       md = stats::median(Value, na.rm = T)) %>% 
-      tidyr::unite(feature, Feature, sensor, measurementType, axis, IMF)
-    a.iqr <- data.frame(walkFeatures$iqr) %>% 
-      data.table::transpose() %>%
-      `colnames<-`(paste0(walkFeatures$feature,'_iqr'))
-    a.md <- data.frame(walkFeatures$md) %>% 
-      data.table::transpose() %>%
-      `colnames<-`(paste0(walkFeatures$feature,'_md'))
-    walkFeatures <- cbind(a.iqr, a.md)
+    walkJsonLocation <- as.character(walkJsonLocation)
+    walkFeatures <- mpowertools::getWalkFeatures(walkJsonLocation) 
     return(walkFeatures)  
   },
   parallel = runParallel 
@@ -167,78 +123,39 @@ walk_features_2 <- featuresFromColumn(
   dat = walk.tbl.meta.noNA,
   column = "deviceMotion_walking_outbound.fileLocation.items",
   processingFunction = function(walkJsonLocation){
-    walkData <- processWalkFile(walkJsonLocation)
-    samplingRate <- mhealthtools:::get_sampling_rate(walkData$accelerometer)
-    walkFeatures <- mhealthtools::get_walk_features(
-      accelerometer_data = walkData$accelerometer,
-      gyroscope_data = walkData$gyroscope,
-      gravity_data = walkData$gravity,
-      funs = mhealthtools:::default_kinematic_features(samplingRate)
-    ) 
-    walkFeatures <- walkFeatures$extracted_features
-    walkFeatures <- walkFeatures %>% 
-      dplyr::select(-window, -error) %>% 
-      unique() %>%
-      tidyr::unite(sensor.measure, sensor, measurementType) %>% 
-      dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
-                      sensor.measure == 'gyroscope_velocity') %>% 
-      tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
-      tidyr::gather(Feature, Value,-sensor, -measurementType, -axis, -IMF) %>%
-      dplyr::group_by(Feature, sensor, measurementType, axis, IMF) %>% 
-      dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
-                       md = stats::median(Value, na.rm = T)) %>% 
-      tidyr::unite(feature, Feature, sensor, measurementType, axis, IMF)
-    a.iqr <- data.frame(walkFeatures$iqr) %>% 
-      data.table::transpose() %>%
-      `colnames<-`(paste0(walkFeatures$feature,'_iqr'))
-    a.md <- data.frame(walkFeatures$md) %>% 
-      data.table::transpose() %>%
-      `colnames<-`(paste0(walkFeatures$feature,'_md'))
-    walkFeatures <- cbind(a.iqr, a.md)
+    walkJsonLocation <- as.character(walkJsonLocation)
+    walkFeatures <- mpowertools::getWalkFeatures(walkJsonLocation) 
     return(walkFeatures)  
   },
   parallel = runParallel 
 )
 
-walk.tbl.meta.noNA <- walk.tbl.meta.noNA.act[1001:1526,]
+walk.tbl.meta.noNA <- walk.tbl.meta.noNA.act[1001:1500,]
 walk_features_3 <- featuresFromColumn(
   dat = walk.tbl.meta.noNA,
   column = "deviceMotion_walking_outbound.fileLocation.items",
   processingFunction = function(walkJsonLocation){
-    walkData <- processWalkFile(walkJsonLocation)
-    samplingRate <- mhealthtools:::get_sampling_rate(walkData$accelerometer)
-    walkFeatures <- mhealthtools::get_walk_features(
-      accelerometer_data = walkData$accelerometer,
-      gyroscope_data = walkData$gyroscope,
-      gravity_data = walkData$gravity,
-      funs = mhealthtools:::default_kinematic_features(samplingRate)
-    ) 
-    walkFeatures <- walkFeatures$extracted_features
-    walkFeatures <- walkFeatures %>% 
-      dplyr::select(-window, -error) %>% 
-      unique() %>%
-      tidyr::unite(sensor.measure, sensor, measurementType) %>% 
-      dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
-                      sensor.measure == 'gyroscope_velocity') %>% 
-      tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
-      tidyr::gather(Feature, Value,-sensor, -measurementType, -axis, -IMF) %>%
-      dplyr::group_by(Feature, sensor, measurementType, axis, IMF) %>% 
-      dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
-                       md = stats::median(Value, na.rm = T)) %>% 
-      tidyr::unite(feature, Feature, sensor, measurementType, axis, IMF)
-    a.iqr <- data.frame(walkFeatures$iqr) %>% 
-      data.table::transpose() %>%
-      `colnames<-`(paste0(walkFeatures$feature,'_iqr'))
-    a.md <- data.frame(walkFeatures$md) %>% 
-      data.table::transpose() %>%
-      `colnames<-`(paste0(walkFeatures$feature,'_md'))
-    walkFeatures <- cbind(a.iqr, a.md)
+    walkJsonLocation <- as.character(walkJsonLocation)
+    walkFeatures <- mpowertools::getWalkFeatures(walkJsonLocation) 
     return(walkFeatures)  
   },
   parallel = runParallel 
 )
 
-walk_features <- rbind(walk_features_1, walk_features_2, walk_features_3) %>% 
+walk.tbl.meta.noNA <- walk.tbl.meta.noNA.act[1501:nrow(walk.tbl.meta.noNA.act),]
+walk_features_4 <- featuresFromColumn(
+  dat = walk.tbl.meta.noNA,
+  column = "deviceMotion_walking_outbound.fileLocation.items",
+  processingFunction = function(walkJsonLocation){
+    walkJsonLocation <- as.character(walkJsonLocation)
+    walkFeatures <- mpowertools::getWalkFeatures(walkJsonLocation) 
+    return(walkFeatures)  
+  },
+  parallel = runParallel 
+)
+
+walk_features <- rbind(walk_features_1, walk_features_2,
+                       walk_features_3, walk_features_4) %>% 
   unique()
 walk_features <- walk_features %>% 
   dplyr::select(-deviceMotion_walking_outbound.fileLocation.items,
