@@ -179,30 +179,35 @@ tremor_features_left_1 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[501:1000,]
 tremor_features_left_2 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1001:1500,]
 tremor_features_left_3 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1501:2000,]
 tremor_features_left_4 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:nrow(tremor.tbl.meta.noNA.left),]
 tremor_features_left_5 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
                               tremor_features_left_3, tremor_features_left_4,
@@ -216,30 +221,35 @@ tremor_features_right_1 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[501:1000,]
 tremor_features_right_2 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1001:1500,]
 tremor_features_right_3 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1501:2000,]
 tremor_features_right_4 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2001:nrow(tremor.tbl.meta.noNA.right),]
 tremor_features_right_5 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
+gc()
 
 tremor_features_right <- rbind(tremor_features_right_1, tremor_features_right_2,
                               tremor_features_right_3, tremor_features_right_4,
