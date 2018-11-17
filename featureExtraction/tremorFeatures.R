@@ -176,35 +176,35 @@ tremor.tbl.meta.noNA.left <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_t
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1:500,]
 tremor_features_left_1 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
+  dat_ = tremor.tbl.meta.noNA,
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[501:1000,]
 tremor_features_left_2 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
+  dat_ = tremor.tbl.meta.noNA,
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1001:1500,]
 tremor_features_left_3 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
+  dat_ = tremor.tbl.meta.noNA,
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1501:2000,]
 tremor_features_left_4 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
+  dat_ = tremor.tbl.meta.noNA,
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:nrow(tremor.tbl.meta.noNA.left),]
 tremor_features_left_5 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
+  dat_ = tremor.tbl.meta.noNA,
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
 gc()
@@ -283,7 +283,7 @@ write.table(tremor_features_left, OUTPUT_FILE, sep="\t", row.names=F, quote=F, n
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
-         used = rest.tbl.id,
+         used = tremor.tbl.id,
          executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
 unlink(OUTPUT_FILE)
 
@@ -294,6 +294,6 @@ write.table(tremor_features_right, OUTPUT_FILE, sep="\t", row.names=F, quote=F, 
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
-         used = rest.tbl.id,
+         used = tremor.tbl.id,
          executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
 unlink(OUTPUT_FILE)
