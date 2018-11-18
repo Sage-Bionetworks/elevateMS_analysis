@@ -203,6 +203,8 @@ tremor_features_left_4 <- extractTremorFeatures(
 gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:nrow(tremor.tbl.meta.noNA.left),]
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA[-30,]
+# removing that since that particular json has 39 timestamp samples, so less than our window length
 tremor_features_left_5 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
