@@ -9,21 +9,14 @@
 ##############
 # Required libraries
 ##############
-library(synapser)
-library(plyr)
-library(dplyr)
-library(ggplot2)
-library(doMC)
-library(jsonlite)
-library(parallel)
-library(tidyr)
-library(lubridate)
-library(stringr)
-library(sqldf)
-library(parsedate)
-library(githubr) 
-# devtools::install_github("brian-bot/githubr")
-library(data.table)
+rm(list=ls())
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c( 'tidyverse', 'synapser', 'data.table', 'lubridate', 'ggpubr'))
+install_load('ggthemes', 'gridExtra', "bit64", "sqldf", "parsedate")
+install_load('tm', 'doMC',  'SnowballC', 'wordcloud', 'RColorBrewer', "githubr")
+install_load("scales", "ggsci", "jsonlite", "parallel", "stringr", "data.table")
+#devtools::install_github("brian-bot/githubr")
 ## Synapse Login
 synapser::synLogin()
 
