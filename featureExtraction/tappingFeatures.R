@@ -3,12 +3,11 @@
 # Purpose: Extract Tapping features
 # Author: Abhishek Pratap, Meghasyam Tummalacherla
 ############################################################################
-rm(list=ls())
-gc()
 
 ##############
 # Required libraries
 ##############
+rm(list=ls())
 library(install.load)
 install.load::install_load(c('plyr', 'dplyr', 'doMC', 'jsonlite', 'parallel', 'tidyr', 'lubridate'))
 install.load::install_load(c('stringr', 'sqldf', 'parsedate', 'synapser'))
@@ -60,9 +59,6 @@ tapping.tbl <- tapping.tbl.syn$asDataFrame()
 
 ## Convert createdOn into an understandable datetime format
 tapping.tbl$createdOn <- lubridate::as_datetime(tapping.tbl$createdOn/1000)
-
-## Account for timezone change, if column is in local time
-# tapping.tbl$createdOn <- tapping.tbl$createdOn - 60*60*as.numeric(tapping.tbl$createdOnTimeZone)/100
 
 ## Download required columns i,e the JSON files
 columnsToDownload = c("tapping_left.json.TappingSamples",
@@ -154,6 +150,6 @@ synapser::synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
          used = tapping.tbl.id,
-         executed = list(, 
+         executed = list("https://github.com/Sage-Bionetworks/elevateMS_analysis/blob/master/featureExtraction/tappingFeatures.R", 
                          "https://github.com/Sage-Bionetworks/mhealthtools"))
 unlink(OUTPUT_FILE)

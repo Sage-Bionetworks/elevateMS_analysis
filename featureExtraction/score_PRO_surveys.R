@@ -283,14 +283,15 @@ synStore(File(outFile, parentId = PARENT_FOLDER),
 unlink(outFile) 
 cat('-----------\n')
 
-tmp <- rbind(nQOL_lowExtremity.full %>% select(rawScore, old_rawScore, TScore) %>% mutate(survey='lowExtremity'),
-      nQOLcog.full %>% select(rawScore, old_rawScore, TScore) %>% mutate(survey='cog'),
-      nQOL_uppExtremity.full %>% select(rawScore, old_rawScore, TScore) %>% mutate(survey='uppExtremity'))
 
-head(tmp)
 
-ggplot(data=tmp %>% gather(type, value, rawScore, old_rawScore), aes(x=value, fill=type)) + geom_density(alpha=.7) + theme_bw()
-ggplot(data=tmp, aes(x=TScore, fill=survey)) + geom_density(alpha=.7) + theme_bw()
+
+# tmp <- rbind(nQOL_lowExtremity.full %>% select(rawScore, old_rawScore, TScore) %>% mutate(survey='lowExtremity'),
+#       nQOLcog.full %>% select(rawScore, old_rawScore, TScore) %>% mutate(survey='cog'),
+#       nQOL_uppExtremity.full %>% select(rawScore, old_rawScore, TScore) %>% mutate(survey='uppExtremity'))
+# 
+# ggplot(data=tmp %>% gather(type, value, rawScore, old_rawScore), aes(x=value, fill=type)) + geom_density(alpha=.7) + theme_bw()
+# ggplot(data=tmp, aes(x=TScore, fill=survey)) + geom_density(alpha=.7) + theme_bw()
 
 
 # #####
