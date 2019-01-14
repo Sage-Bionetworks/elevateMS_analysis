@@ -23,20 +23,38 @@ library(sqldf)
 library(parsedate)
 library(githubr) 
 # devtools::install_github("brian-bot/githubr")
-
-
-####### -- NOTE -- #######
-# We will be using mpowertools for walking features since mhealthtools
-# does not have a good feature extraction pipeline for walk
-####### -- NOTE -- #######
-
-library(mpowertools) 
-# devtools::install_github("Sage-Bionetworks/mpowertools")
-
+library(mhealthtools) 
+# devtools::install_github("Sage-Bionetworks/mhealthtools")
 
 #############
 # Required functions
 ##############
+processWalkFile <- function(walkJsonFileLocation){
+  # Read the Json File and process it into mhealthtools format
+  
+  walkData <-   tryCatch({
+    walk_data <- jsonlite::fromJSON(as.character(walkJsonFileLocation))
+    
+    accel_data <- walk_data$userAcceleration
+    accel_data$t <- walk_data$timestamp - walk_data$timestamp[1]
+    
+    gyro_data <- walk_data$rotationRate
+    gyro_data$t <- walk_data$timestamp - walk_data$timestamp[1]
+    
+    grav_data <- walk_data$gravity
+    grav_data$t <- walk_data$timestamp - walk_data$timestamp[1]
+    
+    walk_data <- list(accelerometer = accel_data,
+                      gyroscope = gyro_data,
+                      gravity = grav_data)
+  }, error = function(err) {
+    walk_data <- list(accelerometer = NA,
+                      gyroscope = NA,
+                      gravity = NA)
+    # NAs are handled in mhealthtools
+  })
+}
+
 featuresFromColumn <- function(dat,column,processingFunction, parallel = F){
   # Apply the processingFunction to each row of the column in the dataframe dat
   
@@ -101,7 +119,7 @@ if (detectCores() >= 2) {
 }
 doMC::registerDoMC(detectCores() - 2)
 
-# walkJsonLocation <- walk.tbl.meta$deviceMotion_walking_outbound.fileLocation.items[1]
+walkJsonLocation <- walk.tbl.meta$deviceMotion_walking_outbound.fileLocation.items[1]
 
 # extract Walk features
 walk.tbl.meta.noNA.act <- walk.tbl.meta[!is.na(walk.tbl.meta$deviceMotion_walking_outbound.fileLocation.items),]
@@ -111,9 +129,26 @@ walk_features_1 <- featuresFromColumn(
   dat = walk.tbl.meta.noNA,
   column = "deviceMotion_walking_outbound.fileLocation.items",
   processingFunction = function(walkJsonLocation){
-    walkJsonLocation <- as.character(walkJsonLocation)
-    walkFeatures <- mpowertools::getWalkFeatures(walkJsonLocation) 
-    return(walkFeatures)  
+    walkData <- processWalkFile(walkJsonLocation)
+    samplingRate <- mhealthtools:::get_sampling_rate(walkData$accelerometer)
+    walkFeatures <- mhealthtools::get_walk_features(
+      accelerometer_data = walkData$accelerometer,
+      gyroscope_data = walkData$gyroscope,
+      IMF=1
+    ) 
+    walkFeatures <- walkFeatures$extracted_features
+    walkFeatures1 <- walkFeatures %>% 
+      unique() %>%
+      tidyr::unite(sensor.measure, sensor, measurementType) %>% 
+      dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
+                      sensor.measure == 'gyroscope_velocity') %>% 
+      tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
+      tidyr::gather(Feature, Value,-sensor, -measurementType, -axis) %>% 
+      tidyr::unite(feature.name, Feature, sensor, measurementType, axis) 
+    
+    walkFeatures <- data.frame(walkFeatures1$Value) %>% 
+      data.table::transpose() %>% 
+      `colnames<-`(walkFeatures1$feature.name)
   },
   parallel = runParallel 
 )
@@ -123,42 +158,63 @@ walk_features_2 <- featuresFromColumn(
   dat = walk.tbl.meta.noNA,
   column = "deviceMotion_walking_outbound.fileLocation.items",
   processingFunction = function(walkJsonLocation){
-    walkJsonLocation <- as.character(walkJsonLocation)
-    walkFeatures <- mpowertools::getWalkFeatures(walkJsonLocation) 
-    return(walkFeatures)  
+    walkData <- processWalkFile(walkJsonLocation)
+    samplingRate <- mhealthtools:::get_sampling_rate(walkData$accelerometer)
+    walkFeatures <- mhealthtools::get_walk_features(
+      accelerometer_data = walkData$accelerometer,
+      gyroscope_data = walkData$gyroscope,
+      IMF=1
+    ) 
+    walkFeatures <- walkFeatures$extracted_features
+    walkFeatures1 <- walkFeatures %>% 
+      unique() %>%
+      tidyr::unite(sensor.measure, sensor, measurementType) %>% 
+      dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
+                      sensor.measure == 'gyroscope_velocity') %>% 
+      tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
+      tidyr::gather(Feature, Value,-sensor, -measurementType, -axis) %>% 
+      tidyr::unite(feature.name, Feature, sensor, measurementType, axis) 
+    
+    walkFeatures <- data.frame(walkFeatures1$Value) %>% 
+      data.table::transpose() %>% 
+      `colnames<-`(walkFeatures1$feature.name)
   },
   parallel = runParallel 
 )
 
-walk.tbl.meta.noNA <- walk.tbl.meta.noNA.act[1001:1500,]
+walk.tbl.meta.noNA <- walk.tbl.meta.noNA.act[1001:1612,]
 walk_features_3 <- featuresFromColumn(
   dat = walk.tbl.meta.noNA,
   column = "deviceMotion_walking_outbound.fileLocation.items",
   processingFunction = function(walkJsonLocation){
-    walkJsonLocation <- as.character(walkJsonLocation)
-    walkFeatures <- mpowertools::getWalkFeatures(walkJsonLocation) 
-    return(walkFeatures)  
+    walkData <- processWalkFile(walkJsonLocation)
+    samplingRate <- mhealthtools:::get_sampling_rate(walkData$accelerometer)
+    walkFeatures <- mhealthtools::get_walk_features(
+      accelerometer_data = walkData$accelerometer,
+      gyroscope_data = walkData$gyroscope,
+      IMF=1
+    ) 
+    walkFeatures <- walkFeatures$extracted_features
+    walkFeatures1 <- walkFeatures %>% 
+      unique() %>%
+      tidyr::unite(sensor.measure, sensor, measurementType) %>% 
+      dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
+                      sensor.measure == 'gyroscope_velocity') %>% 
+      tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
+      tidyr::gather(Feature, Value,-sensor, -measurementType, -axis) %>% 
+      tidyr::unite(feature.name, Feature, sensor, measurementType, axis) 
+    
+    walkFeatures <- data.frame(walkFeatures1$Value) %>% 
+      data.table::transpose() %>% 
+      `colnames<-`(walkFeatures1$feature.name)
   },
   parallel = runParallel 
 )
 
-walk.tbl.meta.noNA <- walk.tbl.meta.noNA.act[1501:nrow(walk.tbl.meta.noNA.act),]
-walk_features_4 <- featuresFromColumn(
-  dat = walk.tbl.meta.noNA,
-  column = "deviceMotion_walking_outbound.fileLocation.items",
-  processingFunction = function(walkJsonLocation){
-    walkJsonLocation <- as.character(walkJsonLocation)
-    walkFeatures <- mpowertools::getWalkFeatures(walkJsonLocation) 
-    return(walkFeatures)  
-  },
-  parallel = runParallel 
-)
-
-walk_features <- rbind(walk_features_1, walk_features_2,
-                       walk_features_3, walk_features_4) %>% 
+walk_features <- rbind(walk_features_1, walk_features_2, walk_features_3) %>% 
   unique()
 walk_features <- walk_features %>% 
-  dplyr::select(-deviceMotion_walking_outbound.fileLocation.items,
+  dplyr::select(-deviceMotion_walking_walk.fileLocation.items,
                 -ROW_ID, -ROW_VERSION)  
 
 #############
@@ -172,7 +228,7 @@ walk_features <- walk_features %>%
 # A github token is required to access the elevateMS_analysis repository as it is private
 gtToken = 'github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/walkingFeatures.R" # location of file inside github repo
+thisFileName <- "featureExtraction/walkingFeatures_mhealthtools.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
@@ -184,11 +240,11 @@ activityDescription = "Extract walk features from walking activity-v2"
 
 # upload to Synapse
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "WalkingFeatures.tsv" # name your file
+OUTPUT_FILE <- "WalkFeatures_mhealthtools.tsv" # name your file
 write.table(walk_features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
          used = walk.tbl.id,
-         executed = list(thisFile, "https://github.com/itismeghasyam/mpowertools"))
+         executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
 unlink(OUTPUT_FILE)

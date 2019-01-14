@@ -78,7 +78,8 @@ synapser::synLogin()
 Sys.setenv(TZ='GMT')
 
 rest.tbl.id = 'syn10278766' # Walking Activity-v2
-rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
+# rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
+rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id))
 rest.tbl <- rest.tbl.syn$asDataFrame()
 
 ## Convert createdOn into an understandable datetime format
@@ -118,11 +119,15 @@ if (detectCores() >= 2) {
 }
 doMC::registerDoMC(detectCores() - 2)
 
-restJsonLocation <- rest.tbl.meta$deviceMotion_walking_rest.fileLocation.items[1]
+# restJsonLocation <- rest.tbl.meta$deviceMotion_walking_rest.fileLocation.items[1]
+
 # extract Rest features
-rest_features <- featuresFromColumn(
-  dat = rest.tbl.meta,
-  column = "deviceMotion_walking_rest.json.items",
+rest.tbl.meta.noNA.act <- rest.tbl.meta[!is.na(rest.tbl.meta$deviceMotion_walking_rest.fileLocation.items),]
+
+rest.tbl.meta.noNA <- rest.tbl.meta.noNA.act[1:500,]
+rest_features_1 <- featuresFromColumn(
+  dat = rest.tbl.meta.noNA,
+  column = "deviceMotion_walking_rest.fileLocation.items",
   processingFunction = function(restJsonLocation){
     restData <- processRestFile(restJsonLocation)
     samplingRate <- mhealthtools:::get_sampling_rate(restData$accelerometer)
@@ -134,67 +139,139 @@ rest_features <- featuresFromColumn(
     ) 
     restFeatures <- restFeatures$extracted_features
     restFeatures <- restFeatures %>% 
-      dplyr::select(-window_index, -window_start_time,-window_end_time, -window) %>% 
-      unique() %>% 
+      dplyr::select(-window_start_time,-window_end_time, -window, -error) %>% 
+      unique() %>%
+      tidyr::unite(sensor.measure, sensor, measurementType) %>% 
+      dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
+                      sensor.measure == 'gyroscope_velocity') %>% 
+      tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
       tidyr::gather(Feature, Value,-sensor, -measurementType, -axis) %>%
       dplyr::group_by(Feature, sensor, measurementType, axis) %>% 
       dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
-                       md = stats::median(Value, na.rm = T))
+                       md = stats::median(Value, na.rm = T)) %>% 
+      tidyr::unite(feature, Feature, sensor, measurementType, axis)
+    a.iqr <- data.frame(restFeatures$iqr) %>% 
+      data.table::transpose() %>%
+      `colnames<-`(paste0(restFeatures$feature,'_iqr'))
+    a.md <- data.frame(restFeatures$md) %>% 
+      data.table::transpose() %>%
+      `colnames<-`(paste0(restFeatures$feature,'_md'))
+    restFeatures <- cbind(a.iqr, a.md)
   return(restFeatures)  
   },
   parallel = runParallel 
 )
-  
-  
-  
-#############
-# Final Data
-#############
 
+rest.tbl.meta.noNA <- rest.tbl.meta.noNA.act[501:1000,]
+rest_features_2 <- featuresFromColumn(
+  dat = rest.tbl.meta.noNA,
+  column = "deviceMotion_walking_rest.fileLocation.items",
+  processingFunction = function(restJsonLocation){
+    restData <- processRestFile(restJsonLocation)
+    samplingRate <- mhealthtools:::get_sampling_rate(restData$accelerometer)
+    restFeatures <- mhealthtools::get_rest_features(
+      accelerometer_data = restData$accelerometer,
+      gyroscope_data = restData$gyroscope,
+      gravity_data = restData$gravity,
+      funs = mhealthtools:::default_kinematic_features(samplingRate)
+    ) 
+    restFeatures <- restFeatures$extracted_features
+    restFeatures <- restFeatures %>% 
+      dplyr::select(-window_start_time,-window_end_time, -window, -error) %>% 
+      unique() %>%
+      tidyr::unite(sensor.measure, sensor, measurementType) %>% 
+      dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
+                      sensor.measure == 'gyroscope_velocity') %>% 
+      tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
+      tidyr::gather(Feature, Value,-sensor, -measurementType, -axis) %>%
+      dplyr::group_by(Feature, sensor, measurementType, axis) %>% 
+      dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
+                       md = stats::median(Value, na.rm = T)) %>% 
+      tidyr::unite(feature, Feature, sensor, measurementType, axis)
+    a.iqr <- data.frame(restFeatures$iqr) %>% 
+      data.table::transpose() %>%
+      `colnames<-`(paste0(restFeatures$feature,'_iqr'))
+    a.md <- data.frame(restFeatures$md) %>% 
+      data.table::transpose() %>%
+      `colnames<-`(paste0(restFeatures$feature,'_md'))
+    restFeatures <- cbind(a.iqr, a.md)
+    return(restFeatures)  
+  },
+  parallel = runParallel 
+)
+
+rest.tbl.meta.noNA <- rest.tbl.meta.noNA.act[1001:1526,]
+rest_features_3 <- featuresFromColumn(
+  dat = rest.tbl.meta.noNA,
+  column = "deviceMotion_walking_rest.fileLocation.items",
+  processingFunction = function(restJsonLocation){
+    restData <- processRestFile(restJsonLocation)
+    samplingRate <- mhealthtools:::get_sampling_rate(restData$accelerometer)
+    restFeatures <- mhealthtools::get_rest_features(
+      accelerometer_data = restData$accelerometer,
+      gyroscope_data = restData$gyroscope,
+      gravity_data = restData$gravity,
+      funs = mhealthtools:::default_kinematic_features(samplingRate)
+    ) 
+    restFeatures <- restFeatures$extracted_features
+    restFeatures <- restFeatures %>% 
+      dplyr::select(-window_start_time,-window_end_time, -window, -error) %>% 
+      unique() %>%
+      tidyr::unite(sensor.measure, sensor, measurementType) %>% 
+      dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
+                      sensor.measure == 'gyroscope_velocity') %>% 
+      tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
+      tidyr::gather(Feature, Value,-sensor, -measurementType, -axis) %>%
+      dplyr::group_by(Feature, sensor, measurementType, axis) %>% 
+      dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
+                       md = stats::median(Value, na.rm = T)) %>% 
+      tidyr::unite(feature, Feature, sensor, measurementType, axis)
+    a.iqr <- data.frame(restFeatures$iqr) %>% 
+      data.table::transpose() %>%
+      `colnames<-`(paste0(restFeatures$feature,'_iqr'))
+    a.md <- data.frame(restFeatures$md) %>% 
+      data.table::transpose() %>%
+      `colnames<-`(paste0(restFeatures$feature,'_md'))
+    restFeatures <- cbind(a.iqr, a.md)
+    return(restFeatures)  
+  },
+  parallel = runParallel 
+)
+
+rest_features <- rbind(rest_features_1, rest_features_2, rest_features_3) %>% 
+  unique()
+rest_features <- rest_features %>% 
+  dplyr::select(-deviceMotion_walking_rest.fileLocation.items,
+                -ROW_ID, -ROW_VERSION)  
+  
+#############
+# Upload data to Synapse
+#############
 # upload file to Synapse with provenance
 # to learn more about provenance in Synapse, go to http://docs.synapse.org/articles/provenance.html
 
-## Get commits from github 
-thisFileName <- "restFeatures.R" # name of file in github
-thisRepo <- getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", 
+## Github link
+# Copy paste the github token string and store it as 'github_token.txt' file
+# A github token is required to access the elevateMS_analysis repository as it is private
+gtToken = 'github_token.txt'
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisFileName <- "featureExtraction/restFeatures.R" # location of file inside github repo
+thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # name and describe this activity
-activityName = "Extract tapping features"
-activityDescription = "Extract tapping features from tapping activity v2"
+activityName = "Extract rest features"
+activityDescription = "Extract rest features from walking activity-v2"
 
 # upload to Synapse
-OUTPUT_FOLDER_ID <- "syn10140063" # synId of folder to upload your file to
+synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
 OUTPUT_FILE <- "RestFeatures.tsv" # name your file
-write.table(restFeaturesDf, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
-synStore(File(OUTPUT_FILE, parentId=OUTPUT_FOLDER_ID),
+write.table(rest_features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
+synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
-         used = INPUT_REST_ACTIVITY_TABLE_SYNID,
-         executed = list(thisFile, "https://github.com/Sage-Bionetworks/mpowertools"))
+         used = rest.tbl.id,
+         executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
 unlink(OUTPUT_FILE)
-
-
-
-
-################# TEST ZONE ######################
-kinetic.ftr = ftrs %>%
-  tidyr::unite(rid, recordId, Assay, sensor, measurementType, IMF, axis, Window, sep = '.') %>%
-  dplyr::select(-contains('EnergyInBand')) %>%
-  dplyr::left_join(energy.ftr.cmbn) %>%
-  tidyr::separate(rid, c('recordId', 'Assay', 'sensor', 'measurementType', 'IMF', 'axis', 'Window'), sep = '\\.') %>%
-  dplyr::select(-recordId, -Assay, -axis, -Window) %>%
-  tidyr::gather(Feature, Value, -healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
-  dplyr::group_by(Feature, healthCode, gender, MS, sensor, measurementType, IMF) %>%
-  dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
-                   md = stats::median(Value, na.rm = T))
-
-aa1 <- aa 
-aa <- aa1 %>% 
-  tidyr::gather(Feature, Value,-sensor, -measurementType, -axis) %>%
-  dplyr::group_by(Feature, sensor, measurementType, axis) %>% 
-  dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
-                   md = stats::median(Value, na.rm = T))
-  
