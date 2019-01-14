@@ -13,9 +13,9 @@ library(install.load)
 install.load::install_load(c('plyr', 'dplyr', 'doMC', 'jsonlite', 'parallel', 'tidyr', 'lubridate'))
 install.load::install_load(c('stringr', 'sqldf', 'parsedate', 'synapser'))
 library(githubr) 
-# devtools::install_github("brian-bot/githubr")
+#devtools::install_github("brian-bot/githubr")
+#devtools::install_github("Sage-Bionetworks/mhealthtools")
 library("mhealthtools")
-# devtools::install_github("Sage-Bionetworks/mhealthtools")
 ## Synapse Login
 synapser::synLogin()
 
@@ -122,8 +122,6 @@ right_hand_tapping_features <- featuresFromColumn(
 
 tapping_features <- dplyr::full_join(left_hand_tapping_features, right_hand_tapping_features)
 
-## View the data
-# View(tapping_features)
 
 #############
 # Upload data to Synapse
@@ -134,13 +132,15 @@ tapping_features <- dplyr::full_join(left_hand_tapping_features, right_hand_tapp
 ## Github link
 # Copy paste the github token string and store it as 'github_token.txt' file
 # A github token is required to access the elevateMS_analysis repository as it is private
-gtToken = 'github_token.txt'
-githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/tappingFeatures.R" # location of file inside github repo
-thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
-                    ref="branch", 
-                    refName="master")
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
+
+### Commenting out - doesnt work across users without 
+# gtToken = 'github_token.txt'
+# githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+# thisFileName <- "featureExtraction/tappingFeatures.R" # location of file inside github repo
+# thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
+#                     ref="branch", 
+#                     refName="master")
+# thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # name and describe this activity
 activityName = "Extract tapping features"
@@ -154,5 +154,6 @@ synapser::synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
          used = tapping.tbl.id,
-         executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
+         executed = list(, 
+                         "https://github.com/Sage-Bionetworks/mhealthtools"))
 unlink(OUTPUT_FILE)
