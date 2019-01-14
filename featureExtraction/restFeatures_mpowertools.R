@@ -123,7 +123,7 @@ rest_features_2 <- featuresFromColumn(
   parallel = runParallel 
 )
 
-rest.tbl.meta.noNA <- rest.tbl.meta.noNA.act[1001:1569,]
+rest.tbl.meta.noNA <- rest.tbl.meta.noNA.act[1001:1500,]
 rest_features_3 <- featuresFromColumn(
   dat = rest.tbl.meta.noNA,
   column = "deviceMotion_walking_rest.fileLocation.items",
@@ -135,7 +135,20 @@ rest_features_3 <- featuresFromColumn(
   parallel = runParallel 
 )
 
-rest_features <- rbind(rest_features_1, rest_features_2, rest_features_3) %>% 
+rest.tbl.meta.noNA <- rest.tbl.meta.noNA.act[1500:nrow(rest.tbl.meta.noNA.act),]
+rest_features_4 <- featuresFromColumn(
+  dat = rest.tbl.meta.noNA,
+  column = "deviceMotion_walking_rest.fileLocation.items",
+  processingFunction = function(restJsonLocation){
+    restJsonLocation <- as.character(restJsonLocation)
+    restFeatures <- mpowertools::getRestFeatures(restJsonLocation) 
+    return(restFeatures)  
+  },
+  parallel = runParallel 
+)
+
+rest_features <- rbind(rest_features_1, rest_features_2,
+                       rest_features_3, rest_features_4) %>% 
   unique()
 rest_features <- rest_features %>% 
   dplyr::select(-deviceMotion_walking_rest.fileLocation.items,
@@ -170,5 +183,5 @@ synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
          used = rest.tbl.id,
-         executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
+         executed = list(thisFile, "https://github.com/itismeghasyam/mpowertools"))
 unlink(OUTPUT_FILE)

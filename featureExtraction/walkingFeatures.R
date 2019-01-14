@@ -190,5 +190,5 @@ synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
          used = walk.tbl.id,
-         executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
+         executed = list(thisFile, "https://github.com/itismeghasyam/mpowertools"))
 unlink(OUTPUT_FILE)

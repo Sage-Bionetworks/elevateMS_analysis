@@ -119,7 +119,7 @@ if (detectCores() >= 2) {
 }
 doMC::registerDoMC(detectCores() - 2)
 
-# walkJsonLocation <- walk.tbl.meta$deviceMotion_walking_outbound.fileLocation.items[1]
+walkJsonLocation <- walk.tbl.meta$deviceMotion_walking_outbound.fileLocation.items[1]
 
 # extract Walk features
 walk.tbl.meta.noNA.act <- walk.tbl.meta[!is.na(walk.tbl.meta$deviceMotion_walking_outbound.fileLocation.items),]
@@ -228,7 +228,7 @@ walk_features <- walk_features %>%
 # A github token is required to access the elevateMS_analysis repository as it is private
 gtToken = 'github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/walkFeatures_mhealthtools.R" # location of file inside github repo
+thisFileName <- "featureExtraction/walkingFeatures_mhealthtools.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
