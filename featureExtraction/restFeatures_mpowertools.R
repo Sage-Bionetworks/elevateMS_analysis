@@ -165,7 +165,7 @@ rest_features <- rest_features %>%
 # A github token is required to access the elevateMS_analysis repository as it is private
 gtToken = 'github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/restFeatures.R" # location of file inside github repo
+thisFileName <- "featureExtraction/restFeatures_mpowertools.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
@@ -177,7 +177,7 @@ activityDescription = "Extract rest features from walking activity-v2"
 
 # upload to Synapse
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "RestFeatures_mpowertools.tsv" # name your file
+OUTPUT_FILE <- "RestFeatures.tsv" # name your file
 write.table(rest_features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
