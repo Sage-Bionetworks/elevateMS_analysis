@@ -100,6 +100,6 @@ PARENT_FOLDER = 'syn10140063'
 write.table(wpai_all, file=outFile, sep="\t", quote=F, row.names = F)
 synStore(File(outFile, parentId = PARENT_FOLDER), 
          used=all.used.ids,
-         executed='https://github.com/Sage-Bionetworks/elevateMS_analysis/blob/master/analysis/score_PRO_surveys.R')
+         executed='https://github.com/itismeghasyam/elevateMS_analysis/blob/master/featureExtraction/score_WPAI_surveys.R')
 unlink(outFile)              
 cat('-----------\n')
