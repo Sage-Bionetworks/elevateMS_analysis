@@ -45,8 +45,8 @@ score_wpai_shp <- function(wpai_answers){
   return(
     list(percent_work_time_missed_due_to_problem = 100*Q2/(Q2+Q4),
          percent_impairment_while_working_due_to_problem = 100*Q5/10,
-         percent_overall_work_impairment_due_to_problem = Q2/(Q2+Q4)+((1-(Q2/(Q2+Q4)))*(Q5/10)),
-         percent_activity_impairment_due_to_problem = Q6/10,
+         percent_overall_work_impairment_due_to_problem = 100*(Q2/(Q2+Q4)+((1-(Q2/(Q2+Q4)))*(Q5/10))),
+         percent_activity_impairment_due_to_problem = 100*Q6/10,
          recordId = recordId)
   )
 }
