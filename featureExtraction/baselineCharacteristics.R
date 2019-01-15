@@ -1,3 +1,9 @@
+library("install.load")
+# load all necessary libraries
+install_load('synapser', 'tidyverse' ,'data.table', 'jsonlite')
+install_load('parallel', 'tidyr', 'lubridate' , 'stringr', 'sqldf')
+synapser::synLogin()
+
 stringfy <- function(x){
   gsub('[\\[\"\\]]','',x, perl=T) 
 }
@@ -161,9 +167,13 @@ baselineChar <- baselineChar %>%
                 weight = as.numeric(weight))
 
 baselineChar[baselineChar == 'NA'] = NA
-cat('Use R object **baselineChar** to access cleaned baseline features') 
 
-
-
-
+outFile = 'elevateMS_baselineCharacteristics.tsv'
+PARENT_FOLDER = 'syn10140063'
+write.table(baselineChar, file=outFile, sep="\t", quote=F, row.names = F)
+synStore(File(outFile, parentId = PARENT_FOLDER), 
+         used=c('syn10295288', 'syn10235463', 'syn17057743'),
+         executed='https://github.com/Sage-Bionetworks/elevateMS_analysis/blob/master/featureExtraction/baselineCharacteristics.R'
+        )
+unlink(outFile) 
 
