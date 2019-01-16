@@ -79,11 +79,14 @@ extractTremorFeatures <- function(dat_, column_, runParallel_){
         accelerometer_data = tremorData$accelerometer,
         gyroscope_data = tremorData$gyroscope,
         gravity_data = tremorData$gravity,
-        funs = mhealthtools:::default_kinematic_features(samplingRate)
+        window_length = 256,
+        window_overlap = 0.5,
+        detrend = T,
+        frequency_filter = c(1,25)
       ) 
       tremorFeatures <- tremorFeatures$extracted_features
       tremorFeatures <- tremorFeatures %>% 
-        dplyr::select(-window_start_time,-window_end_time, -window, -error) %>% 
+        dplyr::select(-window_start_time,-window_end_time, -window) %>%
         unique() %>%
         tidyr::unite(sensor.measure, sensor, measurementType) %>% 
         dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
