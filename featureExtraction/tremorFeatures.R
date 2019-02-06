@@ -269,6 +269,8 @@ tremor_features_right_4 <- extractTremorFeatures(
 gc()
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2001:2500,]
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA[-441,] # Since this record has just 5 samples
+# and is throwing an error with mhealthtools
 tremor_features_right_5 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
