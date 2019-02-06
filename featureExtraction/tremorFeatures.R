@@ -75,29 +75,28 @@ extractTremorFeatures <- function(dat_, column_, runParallel_){
     processingFunction = function(tremorJsonLocation){
       tremorData <- processTremorFile(tremorJsonLocation)
       samplingRate <- mhealthtools:::get_sampling_rate(tremorData$accelerometer)
-      # tremorFeatures <- mhealthtools::get_tremor_features(
-      #   accelerometer_data = tremorData$accelerometer,
-      #   gyroscope_data = tremorData$gyroscope,
-      #   gravity_data = tremorData$gravity,
-      #   window_length = 256,
-      #   window_overlap = 0.5,
-      #   detrend = T,
-      #   frequency_filter = c(1,25),
-      #   IMF = 2,
-      #   derived_kinematics = T
-      # ) 
-      tremorFeatures <- mhealthtools::get_kinetic_tremor_features(
+      tremorFeatures <- mhealthtools::get_tremor_features(
         accelerometer_data = tremorData$accelerometer,
         gyroscope_data = tremorData$gyroscope,
         gravity_data = tremorData$gravity,
-        time_filter = c(1,9),
-        frequency_filter = c(1,25),
-        IMF = 2,
         window_length = 256,
         window_overlap = 0.5,
         detrend = T,
-        derived_kinematics = F
+        frequency_filter = c(1,25),
+        IMF = 2
       )
+      # tremorFeatures <- mhealthtools::get_kinetic_tremor_features(
+      #   accelerometer_data = tremorData$accelerometer,
+      #   gyroscope_data = tremorData$gyroscope,
+      #   gravity_data = tremorData$gravity,
+      #   time_filter = c(1,9),
+      #   frequency_filter = c(1,25),
+      #   IMF = 2,
+      #   window_length = 256,
+      #   window_overlap = 0.5,
+      #   detrend = T,
+      #   derived_kinematics = F
+      # )
       tremorFeatures <- tremorFeatures$extracted_features
       tremorFeatures <- tremorFeatures %>% 
         # dplyr::select(-window_start_time,-window_end_time, -window) %>% 
