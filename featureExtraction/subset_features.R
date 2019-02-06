@@ -5,6 +5,7 @@ gc()
 ## tremor feature subsetting
 library(tidyverse)
 library(synapser)
+library(githubr)
 synapser::synLogin()
 
 ## Downlaod the important features from mpower analysis
