@@ -33,5 +33,8 @@ dim(toClean)
 toRemove <- setdiff(toClean$healthCode, initialList$healthCode)
 
 
-write.table(data.frame(healthCode = toRemove), file = 'elevateMS_users_to_exclude.tsv', sep="\t", quote=F)
-synStore()
+write.table(data.frame(healthCode = toRemove), file = 'elevateMS_users_to_exclude.tsv', sep="\t", quote=F, row.names = F)
+synStore(File('elevateMS_users_to_exclude.tsv', parentId = 'syn10140063'),
+         executed='https://github.com/Sage-Bionetworks/elevateMS_analysis/blob/master/featureExtraction/create_ListofUsers_toExclude.R',
+         used = list('syn17869480', 'syn9758009'))
+unlink('elevateMS_users_to_exclude.tsv')

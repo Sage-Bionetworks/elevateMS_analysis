@@ -1,3 +1,4 @@
+rm(list=ls())
 library("install.load")
 # load all necessary libraries
 install_load('synapser', 'tidyverse' ,'data.table', 'jsonlite')
@@ -33,6 +34,7 @@ race <- demog %>% tidyr::gather(race, value, 8:17) %>% dplyr::filter(value == 't
   dplyr::summarise(race = paste(unique(race),collapse=','))
 demog <- merge(demog, race) %>% select(-c(8:17))
 demog <- demog %>% mutate(weight = weight/2.2) ##Pounds to Lb 
+
 
 ##Profiles
 profiles <- synTableQuery(paste("select * from syn10235463"))$asDataFrame()
@@ -166,7 +168,66 @@ baselineChar <- baselineChar %>%
   dplyr::mutate(height = as.numeric(height),
                 weight = as.numeric(weight))
 
+
+##Exclude Users based on Vanessa's offline analysis
+to_exclude_users <- fread(synGet("syn17870261")$path)
+baselineChar <- baselineChar %>% 
+  filter(! healthCode %in% to_exclude_users$healthCode) 
+
+#### Fixing errors
+baselineChar['error'] = NA
 baselineChar[baselineChar == 'NA'] = NA
+
+baselineChar <- baselineChar %>% 
+  mutate( error = case_when(
+    
+  #1. dataGroups = NA but other MS parameters currentDiagnosis & currentDiagnosisYear indicate MS patient
+  (is.na(dataGroups) | dataGroups == '')  & 
+  (!is.na(currentDiagnosis) & !is.na(currentDiagnosisYear))  ~ 'Ignore|dataGroups = NA and some MS related params',
+  
+  #2. dataGroups = NA but other MS parameters indicate currentDMT & firstDMTYear indicate MS patient
+  (is.na(dataGroups) | dataGroups == '')  & 
+  (!is.na(currentDMT) & !is.na(firstDMTYear))  ~ 'Ignore|dataGroups = NA and some MS related params',
+  
+  
+  #3. dataGroups = NA but other > 3 parameters indicate MS Params
+  (dataGroups == 'control')  & 
+    ( !is.na(currentDMT) | ! currentDiagnosis %in% c('no', 'notsure') | 
+        !is.na(currentDiagnosisYear) | !is.na(overallPhysicalAbility))  ~ 'Ignore|dataGroups = control and some MS related params',
+
+  #4. dataGroups = Control but other MS parameters indicate currentDMT & firstDMTYear indicate MS patient
+  (dataGroups == 'control')  &  (referred_by_clinician == T | !is.na(externalId))  ~ 'dataGroups = control and referred_by_clinician =T', 
+  
+  (is.na(dataGroups) | dataGroups == '') ~ 'Ignore|dataGroups = NA'
+
+))
+
+
+baselineChar <- baselineChar %>% 
+  mutate(dataGroups = case_when(
+    error == 'Ignore|dataGroups = control and some MS related params'   ~ 'Ignore',
+    error == 'Ignore|dataGroups = NA and some MS related params'    ~ 'Ignore',
+    error == 'Ignore|dataGroups = NA'                                      ~  'Ignore',
+    error == 'dataGroups = control and referred_by_clinician =T'  ~ 'ms_patient',
+    TRUE ~ .$dataGroups
+  )) 
+
+baselineChar <- baselineChar %>% 
+  mutate(YearsSinceDiagnosis =  as.numeric(lubridate::year(Sys.Date())) - as.numeric(currentDiagnosisYear),
+         YearsSinceFirstDMT = as.numeric(lubridate::year(Sys.Date())) - as.numeric(firstDMTYear))
+
+baselineChar <- baselineChar %>% 
+  mutate(health_insurance = case_when(
+    health_insurance %in% c('government insurance', 'medicare', 'medicaid') ~ 'government insurance',
+    health_insurance %in% c('other', 'rather not say') ~ 'other',
+    TRUE ~ .$health_insurance
+  )) 
+
+baselineChar <- baselineChar %>% mutate(group = case_when(
+  referred_by_clinician == T & dataGroups == 'ms_patient' ~ 'MS patients(clinical referral)',
+  referred_by_clinician == F & dataGroups == 'ms_patient' ~ 'MS patients',
+  dataGroups == 'control' ~ 'Controls'
+)) 
 
 outFile = 'elevateMS_baselineCharacteristics.tsv'
 PARENT_FOLDER = 'syn10140063'
