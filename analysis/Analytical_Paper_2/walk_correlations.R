@@ -22,6 +22,7 @@ neurCog_allWeeks_walkF <- get_neuroQOL_cors(walkF_week_averaged)
 
 p1 <- ggplot(neurCog_allWeeks_walkF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
 p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p1
 ggsave("analysis/Analytical_Paper_2/FIGURES/walkF_n_NeuroQOLs_corr_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
 
 ### Select top features
@@ -36,6 +37,7 @@ ggsave("analysis/Analytical_Paper_2/FIGURES/walkF_top_2_feature_scatterPlot_allW
 neurCog_firstCommonWeek_walkF <- get_neuroQOL_cors(walkF_week_averaged, use_first_common_week=T)
 p1 <- ggplot(neurCog_firstCommonWeek_walkF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
 p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p1
 ggsave("analysis/Analytical_Paper_2/FIGURES/walkF_n_NeuroQOLs_corr_firstCommonWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
 
 ### Select top features

@@ -78,15 +78,10 @@ tmp_get_anova_pval <- function(x){
 tmp_df <- tmp_df %>% mutate(p.val = unlist(glance  %>% map( tmp_get_anova_pval ))) %>%
   select(-glance, -data, -res)
 
-View(tmp_df)
-ggplot(data = tmp_restF_averaged %>% filter(feature == 'turningTime'),
-       aes(x=overallPhysicalAbility, y=value)) + geom_boxplot(width=0.7) + theme_bw()
-
-
 p <- ggboxplot(tmp_restF_averaged %>% filter(feature == 'turningTime'), 
                x = "overallPhysicalAbility", y = "value", 
                font.label = list(size=6, face="plain"),
-               ylab='Walking P0FY', width=.5, size=.3,
+               ylab='turning time', width=.5, size=.3,
                color = "#F25F5C")
 my_comparisons <- list( c("normal", "moderatedisability"), c("normal", "gaitdisability"))
 p <- p + stat_compare_means(comparisons = my_comparisons) + # Add pairwise comparisons p-value
