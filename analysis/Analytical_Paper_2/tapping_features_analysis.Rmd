@@ -90,6 +90,9 @@ p3 <- grid.arrange(p2,p1, nrow=1)
 
 <br>
 
+-----
+
+
 #####  Tapping features(first common week) with Neuro-QoLs
 
 ```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
@@ -116,23 +119,74 @@ ggsave("FIGURES/tapping_n_NeuroQOLs_top_2_features_scatterPlot_allWeeks.png", p3
 
 
 
+##### Correlation between Number of Taps(averaged across all weeks) and baseline PDDS survey
+
+```{r}
+##############
+##### 
+##############
+tmp_baselineChar <- baselineChar %>% 
+  filter(!is.na(overallPhysicalAbility)) %>%
+  filter(dataGroups == 'ms_patient') %>%
+  select(healthCode, overallPhysicalAbility) %>%
+  mutate(overallPhysicalAbility = factor(overallPhysicalAbility, levels=c('normal', 'milddisability', 'moderatedisability', 'gaitdisability')))
+
+tapF_averaged <- tapF_week_averaged %>% group_by(healthCode, hand, feature) %>% 
+  dplyr::summarise(value = mean(value, na.rm = T)) %>%
+  inner_join(tmp_baselineChar) %>%
+  mutate(overallPhysicalAbility = factor(overallPhysicalAbility, levels=c('normal', 'milddisability', 'moderatedisability', 'gaitdisability')))
+
+tmp_df <- tapF_averaged  %>%
+  group_by(feature, hand) %>%
+  nest() %>%
+  mutate(res = purrr::map(data, function(x){
+    anova(lm(value ~ overallPhysicalAbility, data=x))
+  })) %>%
+  mutate(glance = res %>% map(broom::tidy))
+
+tmp_get_anova_pval <- function(x){
+  x %>% filter(term == 'overallPhysicalAbility') %>% .$p.value
+}
+
+tmp_df<- tmp_df %>% 
+  mutate(p.val = unlist(glance  %>% map( tmp_get_anova_pval ))) %>%
+  select(-glance, -data, -res)
+```
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=100}
+p <- ggboxplot(tapF_averaged %>% filter(feature == 'numberTaps'), 
+               x = "overallPhysicalAbility", y = "value", 
+               font.label = list(size=6, face="plain"),
+               legend.title="hand", ylab='number of taps', width=.5, size=.3,
+               color = "hand", palette = c('#247BA0', '#F25F5C'))
+my_comparisons <- list( c("normal", "milddisability"), c("normal", "moderatedisability"))
+p <- p + stat_compare_means(comparisons = my_comparisons) + # Add pairwise comparisons p-value
+  stat_compare_means(label.y = 0, label.x = 1.2, label.size = 0.25) 
+p <- p + theme_few()
+p
+ggsave("FIGURES/numberTaps_ALLWeeks_with_physicalDisability_boxplot.png", p, height=4, width=8, units="in", dpi=300)
+```
+
+
+
 ```{r, syn.store, eval=F}
 # Knit html document and push to synapse
 #knitr::knit()
-html.obj = rmarkdown::render('tapping_features_analysis.Rmd', output_format = 'html_document')
-obj = File('Postural_tremor.html', parentId =)
+thisFilePrefix = "tapping_features_analysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt';
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
 
 
-# obj = synStore(obj, activityName = activityName, activityDescription = activityDescription,
-#                used = all.used.ids, executed = thisFile)
-# Set wiki to file preview
-# wiki.obj = WikiPage(owner = CODE, title = 'Postural tremor', markdown = paste0('${preview?entityId=',obj@properties$id,'}'))
-# wiki.obj = synStore(wiki.obj)
-# Modify wiki to file preview
-# wiki.obj = synGetWiki(CODE)
-# wiki.obj@properties$markdown = paste0('${preview?entityId=',obj@properties$id,'}')
-# wiki.obj = synStore(wiki.obj)
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
 
+unlink(paste0(thisFilePrefix, '.html'))
+
+###Store on Synapse
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
 
 ```
 
