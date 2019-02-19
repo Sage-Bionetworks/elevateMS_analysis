@@ -1,0 +1,112 @@
+
+---
+title: "Cross check of mpowertools walk features vs mhealthtools walk Features"
+author: "Meghasyam Tummalacherla"
+date: "`r base::date()`"
+output: html_document
+editor_options: 
+chunk_output_type: console
+---
+```{r libraries, eval=TRUE, include=FALSE, echo=FALSE}
+library(synapser)
+library(tidyverse)
+synapser::synLogin()
+```
+
+```{r download data, echo=FALSE, include=FALSE}
+processWalkFile <- function(walkJsonFileLocation){
+  # Read the Json File and process it into mhealthtools format
+  
+  walkData <-   tryCatch({
+    walk_data <- jsonlite::fromJSON(as.character(walkJsonFileLocation))
+    
+    accel_data <- walk_data$userAcceleration
+    accel_data$t <- walk_data$timestamp - walk_data$timestamp[1]
+    
+    gyro_data <- walk_data$rotationRate
+    gyro_data$t <- walk_data$timestamp - walk_data$timestamp[1]
+    
+    grav_data <- walk_data$gravity
+    grav_data$t <- walk_data$timestamp - walk_data$timestamp[1]
+    
+    walk_data <- list(accelerometer = accel_data,
+                      gyroscope = gyro_data,
+                      gravity = grav_data)
+  }, error = function(err) {
+    walk_data <- list(accelerometer = NA,
+                      gyroscope = NA,
+                      gravity = NA)
+    # NAs are handled in mhealthtools
+  })
+}
+synapser::synLogin()
+walk.tbl.id = 'syn10278766' # Walking Activity-v2
+# walk.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", walk.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
+walk.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", walk.tbl.id, " LIMIT 5"))
+walk.tbl <- walk.tbl.syn$asDataFrame()
+
+# ## Convert createdOn into an understandable datetime format
+# walk.tbl$createdOn <- lubridate::as_datetime(walk.tbl$createdOn/1000)
+
+## Account for timezone change, if column is in local time
+# walk.tbl$createdOn <- walk.tbl$createdOn - 60*60*as.numeric(walk.tbl$createdOnTimeZone)/100
+
+## Download required columns i,e the JSON files
+columnsToDownload = c("deviceMotion_walking_outbound.json.items") 
+
+walk.json.loc = lapply(columnsToDownload, function(col.name){
+  tbl.files = synapser::synDownloadTableColumns(walk.tbl.syn, col.name) %>%
+    lapply(function(x) data.frame(V1 = x)) %>% 
+    data.table::rbindlist(idcol = col.name) %>% 
+    plyr::rename(c('V1' = gsub('.json','.fileLocation', col.name)))
+})
+
+## Convert column format to be able to do join and merge filelocations
+walk.tbl$deviceMotion_walking_outbound.json.items <- as.character(walk.tbl$deviceMotion_walking_outbound.json.items)
+
+walk.tbl.meta = data.table::rbindlist(list(walk.tbl %>%
+                                             dplyr::left_join(do.call(cbind, walk.json.loc))),
+                                      use.names = T, fill = T) %>%
+  as.data.frame
+
+## Convert column format from factors to strings for the fileLocations
+walk.tbl.meta$deviceMotion_walking_outbound.fileLocation.items <- as.character(walk.tbl.meta$deviceMotion_walking_outbound.fileLocation.items)
+
+walk.tbl.meta.noNA.act <- walk.tbl.meta[!is.na(walk.tbl.meta$deviceMotion_walking_outbound.fileLocation.items),]
+```
+
+```{r feature extraction, include=FALSE, echo=FALSE}
+
+## mhealthtools
+walkJsonLocation <- walk.tbl.meta.noNA.act$deviceMotion_walking_outbound.fileLocation.items[1]
+walkData <- processWalkFile(walkJsonLocation)
+samplingRate <- mhealthtools:::get_sampling_rate(walkData$accelerometer)
+walkFeatures <- mhealthtools::get_walk_features(
+  accelerometer_data = walkData$accelerometer,
+  gyroscope_data = walkData$gyroscope,
+  IMF=1
+) 
+walkFeatures <- walkFeatures$extracted_features
+walkFeatures1 <- walkFeatures %>% 
+  unique() %>%
+  tidyr::unite(sensor.measure, sensor, measurementType) %>% 
+  dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
+                  sensor.measure == 'gyroscope_velocity') %>% 
+  tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
+  tidyr::gather(Feature, Value,-sensor, -measurementType, -axis) %>% 
+  tidyr::unite(feature.name, Feature, sensor, measurementType, axis) 
+
+walkFeatures_mhealthtools <- data.frame(walkFeatures1$Value) %>% 
+  data.table::transpose() %>% 
+  `colnames<-`(walkFeatures1$feature.name)
+
+walkFeatures_mpowertools <- mpowertools::getWalkFeatures(walkJsonLocation) 
+```
+
+```{r printthings}
+writeLines('Features in mpowertools')
+writeLines(names(walkFeatures_mpowertools))
+
+writeLines('Features in mhealthtools')
+writeLines(colnames(walkFeatures_mhealthtools))
+```

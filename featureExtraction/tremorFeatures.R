@@ -79,21 +79,38 @@ extractTremorFeatures <- function(dat_, column_, runParallel_){
         accelerometer_data = tremorData$accelerometer,
         gyroscope_data = tremorData$gyroscope,
         gravity_data = tremorData$gravity,
-        funs = mhealthtools:::default_kinematic_features(samplingRate)
-      ) 
+        window_length = 256,
+        window_overlap = 0.5,
+        detrend = T,
+        frequency_filter = c(1,25),
+        IMF = 2
+      )
+      # tremorFeatures <- mhealthtools::get_kinetic_tremor_features(
+      #   accelerometer_data = tremorData$accelerometer,
+      #   gyroscope_data = tremorData$gyroscope,
+      #   gravity_data = tremorData$gravity,
+      #   time_filter = c(1,9),
+      #   frequency_filter = c(1,25),
+      #   IMF = 2,
+      #   window_length = 256,
+      #   window_overlap = 0.5,
+      #   detrend = T,
+      #   derived_kinematics = F
+      # )
       tremorFeatures <- tremorFeatures$extracted_features
       tremorFeatures <- tremorFeatures %>% 
-        dplyr::select(-window_start_time,-window_end_time, -window, -error) %>% 
+        # dplyr::select(-window_start_time,-window_end_time, -window) %>% 
+        dplyr::select(-window) %>% 
         unique() %>%
-        tidyr::unite(sensor.measure, sensor, measurementType) %>% 
-        dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
-                        sensor.measure == 'gyroscope_velocity') %>% 
-        tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
-        tidyr::gather(Feature, Value,-sensor, -measurementType, -axis) %>%
-        dplyr::group_by(Feature, sensor, measurementType, axis) %>% 
+        # tidyr::unite(sensor.measure, sensor, measurementType) %>% 
+        # dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
+                        # sensor.measure == 'gyroscope_velocity') %>% 
+        # tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
+        tidyr::gather(Feature, Value,-sensor, -measurementType, -axis, -IMF) %>%
+        dplyr::group_by(Feature, sensor, measurementType, axis, IMF) %>% 
         dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
                          md = stats::median(Value, na.rm = T)) %>% 
-        tidyr::unite(feature, Feature, sensor, measurementType, axis)
+        tidyr::unite(feature, Feature, sensor, measurementType, axis, IMF)
       a.iqr <- data.frame(tremorFeatures$iqr) %>% 
         data.table::transpose() %>%
         `colnames<-`(paste0(tremorFeatures$feature,'_iqr'))
@@ -202,10 +219,15 @@ tremor_features_left_4 <- extractTremorFeatures(
   runParallel_ = runParallel)
 gc()
 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:nrow(tremor.tbl.meta.noNA.left),]
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA[-30,]
-# removing that since that particular json has 39 timestamp samples, so less than our window length
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:2500,]
 tremor_features_left_5 <- extractTremorFeatures(
+  dat_ = tremor.tbl.meta.noNA,
+  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  runParallel_ = runParallel)
+gc()
+
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2501:nrow(tremor.tbl.meta.noNA.left),]
+tremor_features_left_6 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA,
   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
@@ -213,7 +235,7 @@ gc()
 
 tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
                               tremor_features_left_3, tremor_features_left_4,
-                              tremor_features_left_5)
+                              tremor_features_left_5, tremor_features_left_6)
 
 ## right Hand Features
 tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),]
@@ -246,8 +268,17 @@ tremor_features_right_4 <- extractTremorFeatures(
   runParallel_ = runParallel)
 gc()
 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2001:nrow(tremor.tbl.meta.noNA.right),]
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2001:2500,]
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA[-441,] # Since this record has just 5 samples
+# and is throwing an error with mhealthtools
 tremor_features_right_5 <- extractTremorFeatures(
+  dat_ = tremor.tbl.meta.noNA, 
+  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+  runParallel_ = runParallel)
+gc()
+
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2501:nrow(tremor.tbl.meta.noNA.right),]
+tremor_features_right_6 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA, 
   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
@@ -255,7 +286,7 @@ gc()
 
 tremor_features_right <- rbind(tremor_features_right_1, tremor_features_right_2,
                               tremor_features_right_3, tremor_features_right_4,
-                              tremor_features_right_5)
+                              tremor_features_right_5, tremor_features_right_6)
 
 #############
 # Upload data to Synapse
