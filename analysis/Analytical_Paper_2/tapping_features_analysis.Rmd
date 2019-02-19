@@ -1,0 +1,138 @@
+---
+title: "elevateMS tapping features analysis"
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+
+<!-- ```{r knit2synapse1, eval=FALSE} -->
+<!-- library(install.load) -->
+<!-- devtools::install_github("Sage-Bionetworks/knit2synapse") -->
+<!-- install_load("synapser", "knit2synapse") -->
+<!-- synapser::synLogin() -->
+<!-- getwd() -->
+<!-- knit2synapse::knitToFolderEntity(file = "tapping_features_analysis.Rmd", -->
+<!--                                  parentId = "syn11678367", -->
+<!--                                  entityName = "Cluster energy features with postural tremor") -->
+<!-- ``` -->
+
+
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+
+
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools')
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install("ComplexHeatmap", version = "3.8")
+install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+
+source("../loadData.R")
+source("common_analysis_functions.R")
+```
+
+-----
+
+```{r}
+tmp_tapF <- tapF %>% filter(dataGroups == 'ms_patient') %>%
+  gather(feature, value, c(10:51,63)) %>%
+  select(-c(1:6)) 
+
+tapF_week_averaged =  tmp_tapF %>% select(healthCode, participant_week, hand, feature, value) %>%
+  group_by(healthCode, participant_week, hand, feature) %>% 
+  dplyr::summarise_all(.funs=c(mean), na.rm=T) 
+```
+
+<br>
+<br>
+
+#### Correlations of all tapping features with Neuro-QoLs
+```{r, neuroQoLCors, echo=T}
+
+## Correlations- All Weeks
+neurCog_allWeeks_tapF <- get_neuroQOL_cors(tapF_week_averaged, additional_group_by='hand', use_first_common_week=F)
+
+## Correlations- First common week
+neurCog_firstCommonWeek_tapF <- get_neuroQOL_cors(tapF_week_averaged, additional_group_by='hand', use_first_common_week=T)
+```
+
+<br>
+<br>
+
+##### Tapping features(All Weeks) with Neuro-QoLs
+
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
+install_load("grid")
+p1 <- ggplot(neurCog_allWeeks_tapF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
+p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p1
+ggsave("FIGURES/tapCorrelation_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
+```
+
+##### Scatter plot top 2 tapping features(All Weeks) 
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}
+p1 <- get_scatter_plot(tapF_week_averaged %>% filter(hand == 'left'), nQOL_uppExtremity_week_avg, 
+                       x='numberTaps', y='TScore', use_first_common_week = F)
+p2 <- get_scatter_plot(tapF_week_averaged %>% filter(hand == 'left'), nQOL_uppExtremity_week_avg, 
+                       x='meanTapInter', y='TScore', use_first_common_week = F)
+p3 <- grid.arrange(p2,p1, nrow=1)
+#ggsave("FIGURES/tapping_n_NeuroQOLs_top_2_features_scatterPlot_allWeeks.png", p3, height=3, width=9, units="in", dpi=150)
+```
+
+
+
+<br>
+
+#####  Tapping features(first common week) with Neuro-QoLs
+
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
+
+p2 <- ggplot(neurCog_firstCommonWeek_tapF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
+p2 <- p2 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) 
+p2 <- p2 + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p2
+ggsave("FIGURES/tap_N_NeuroQOLs_Correlation_firstCommonWeek_volcanoPlot.jpeg", plot=p2, height=4, width=10, units="in", dpi=300)
+```
+
+
+##### Scatter plot top 2 tapping features(first common week) 
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}
+p1 <- get_scatter_plot(tapF_week_averaged %>% filter(hand == 'left'), nQOL_uppExtremity_week_avg, 
+                       x='numberTaps', y='TScore', use_first_common_week = F)
+p2 <- get_scatter_plot(tapF_week_averaged %>% filter(hand == 'left'), nQOL_uppExtremity_week_avg, 
+                       x='meanTapInter', y='TScore', use_first_common_week = F)
+p3 <- grid.arrange(p2,p1, nrow=1)
+ggsave("FIGURES/tapping_n_NeuroQOLs_top_2_features_scatterPlot_allWeeks.png", p3, height=3, width=9, units="in", dpi=150)
+```
+
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+#knitr::knit()
+html.obj = rmarkdown::render('tapping_features_analysis.Rmd', output_format = 'html_document')
+obj = File('Postural_tremor.html', parentId =)
+
+
+# obj = synStore(obj, activityName = activityName, activityDescription = activityDescription,
+#                used = all.used.ids, executed = thisFile)
+# Set wiki to file preview
+# wiki.obj = WikiPage(owner = CODE, title = 'Postural tremor', markdown = paste0('${preview?entityId=',obj@properties$id,'}'))
+# wiki.obj = synStore(wiki.obj)
+# Modify wiki to file preview
+# wiki.obj = synGetWiki(CODE)
+# wiki.obj@properties$markdown = paste0('${preview?entityId=',obj@properties$id,'}')
+# wiki.obj = synStore(wiki.obj)
+
+
+```
+
