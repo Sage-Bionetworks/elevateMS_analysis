@@ -1,0 +1,80 @@
+---
+title: "elevateMS rest/balance features analysis"
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools')
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install("ComplexHeatmap", version = "3.8")
+install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+
+source("../loadData.R")
+source("common_analysis_functions.R")
+```
+
+-----
+
+
+```{r}
+nQOLs <- plyr::rbind.fill(nQOL_cognition %>% select(healthCode, TScore) %>% mutate(survey = 'nQOL Cognition'),
+           nQOL_uppExtremity %>% select(healthCode, TScore) %>% mutate(survey = 'nQOL Upper Extremity'),
+           nQOL_lowExtremity %>% select(healthCode, TScore) %>% mutate(survey = 'nQOL Lower Extremity'))
+
+nQOLs <- nQOLs  %>% inner_join(baselineChar %>% select(healthCode, dataGroups, referred_by_clinician)) %>%
+  filter(dataGroups == 'ms_patient')
+```
+  
+
+##### Neruo-QoL's distribution
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=100}
+p1 <- ggplot(data=nQOLs, aes(x=TScore, fill=dataGroups)) + geom_histogram() + theme_bw() + facet_grid( . ~ survey)
+p1 <- p1 + scale_fill_manual(values=c('#ff7f00'))
+p1
+ggsave('FIGURES/nQOLs_distribution.png', plot=p1, width=8, height = 4, units="in", dpi = 150)
+```
+
+
+##### Neruo-QoL's distribution facetd by clinical referral
+
+
+```{r fig.align='center', fig.width=10, fig.height=5, dpi=100}
+p2 <- ggplot(data=nQOLs, aes(x=TScore, fill=referred_by_clinician)) + geom_histogram(position="dodge") + theme_bw() + facet_grid( . ~ survey)
+p2 <- p2 + scale_fill_manual(values=c('#fdae61', '#0571b0'))
+p2
+ggsave('FIGURES/nQOLs_byClinicalReferral_distribution.png', plot=p2, width=8, height = 4, units="in", dpi = 150)
+
+```
+
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+thisFilePrefix = "neuroQOL_survey_analysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+
+thisFilePrefix = "neuroQOL_survey_analysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt';
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
+###Store on Synapse
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+unlink(paste0(thisFilePrefix, '.html'))
+```
