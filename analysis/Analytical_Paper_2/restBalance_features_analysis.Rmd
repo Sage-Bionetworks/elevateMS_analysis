@@ -96,12 +96,13 @@ ggsave("FIGURES/restF_top_2_feature_scatterPlot_allWeek.png", p3, height=3, widt
 ```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
 p1 <- ggplot(neurCog_firstCommonWeek_restF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
 p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p1
 ggsave("FIGURES/restF_n_NeuroQOLs_corr_firstCommonWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
 ```
 
 
 
-##### Correlation between Number of Taps(averaged across all weeks) and baseline PDDS survey
+##### Correlation between Number of Taps(across all weeks) and baseline PDDS survey
 
 ```{r}
 ##############
