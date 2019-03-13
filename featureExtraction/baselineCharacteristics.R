@@ -9,9 +9,7 @@ stringfy <- function(x){
   gsub('[\\[\"\\]]','',x, perl=T) 
 }
 
-
 START_DATE = lubridate::ymd("2017-08-14")
-
 
 demog <-  synTableQuery(paste("select * from syn10295288"))
 demog <- demog$asDataFrame() 
@@ -21,19 +19,27 @@ demog$metadata.json.dataGroups <- NULL
 colnames(demog) <- gsub('.json.answer', '',colnames(demog))
 colnames(demog)  <- gsub('metadata.json.', '',colnames(demog))
 demog <- demog %>%  filter(dataGroups %in% c('control', 'ms_patient')) %>%
-  dplyr::mutate(date_of_entry = as.Date(lubridate::as_datetime(startDate/1000))) %>%
+  dplyr::mutate(date_of_entry = as.Date(lubridate::as_datetime(startDate))) %>%
   dplyr::select(-scheduledActivityGuid, -endDate, -endDate.timezone, 
                 -validationErrors, -startDate.timezone, -startDate, -appVersion, 
                 -phoneInfo, -createdOn, -createdOnTimeZone, -recordId, -uploadDate) %>%
   dplyr::filter(date_of_entry >= START_DATE)
-
 demog$rawData <- NULL
+
+
+colnames(demog)
 ### Fix Race
-race <- demog %>% tidyr::gather(race, value, 8:17) %>% dplyr::filter(value == 'true') %>% 
-  dplyr::mutate(race = gsub('race.','',race)) %>% select(healthCode, race) %>% group_by(healthCode) %>%
+race <- demog %>% 
+  tidyr::gather(race, value, 8:17) %>% 
+  dplyr::filter(value == T) %>% 
+  dplyr::mutate(race = gsub('race.','',race)) %>% 
+  dplyr::select(healthCode, race) %>% 
+  dplyr::group_by(healthCode) %>%
   dplyr::summarise(race = paste(unique(race),collapse=','))
-demog <- merge(demog, race) %>% select(-c(8:17))
+demog <- merge(demog, race) %>% 
+  dplyr::select(-c(8:17))
 demog <- demog %>% mutate(weight = weight/2.2) ##Pounds to Lb 
+
 
 
 ##Profiles
@@ -41,7 +47,7 @@ profiles <- synTableQuery(paste("select * from syn10235463"))$asDataFrame()
 colnames(profiles) <- gsub('demographics.', '',colnames(profiles))
 profiles <- profiles %>% dplyr::select(-ROW_ID, -ROW_VERSION, -recordId, -rawData) %>%
   dplyr::mutate(race = stringfy(race),
-                date_of_entry = as.Date(lubridate::as_datetime(createdOn/1000))) %>%
+                date_of_entry = as.Date(lubridate::as_datetime(createdOn))) %>%
   dplyr::filter(date_of_entry >= START_DATE)
 
 demog_from_profiles <- profiles %>%
@@ -55,8 +61,8 @@ demog = rbind(demog, demog_from_profiles) %>%
                 weight = round(weight, digits=1)) %>%
   mutate_at(.funs = c(tolower),
             .vars = c('healthCode', 'externalId', 'dataGroups', 'userSharingScope',
-                      'gender','zipcode', 'education',
-                      'health_insurance', 'employment', 'race') ) %>%
+                      'gender','zipcode', 'education', 'race',
+                      'health_insurance', 'employment', 'date_of_entry') ) %>%
   distinct(healthCode, externalId, dataGroups, userSharingScope,
            gender, height, weight, zipcode, education,
            health_insurance, employment, race, .keep_all=T) 
@@ -64,7 +70,8 @@ demog = rbind(demog, demog_from_profiles) %>%
 demog_long <- demog %>% gather(feature, value, c(2:11, 13))
 
 tmp_select_val <- function(date_of_entry, value){
-    x <- data.frame(date_of_entry=date_of_entry, value=value) %>% arrange(date_of_entry) %>%
+    x <- data.frame(date_of_entry=date_of_entry, value=value) %>% 
+      arrange(date_of_entry) %>%
       na.omit()
     if (nrow(x) == 0){
       return('NA')
@@ -75,10 +82,10 @@ tmp_select_val <- function(date_of_entry, value){
 
 ### FOR QC    
 demog_summary <- demog_long %>% 
-group_by(healthCode, feature) %>% 
+  group_by(healthCode, feature) %>% 
   dplyr::summarise(n_uniq_values = length(unique(na.omit(value))),
-                 unique_values = paste(unique(na.omit(value)), collapse=","),
-                value = tmp_select_val(date_of_entry, value))
+                   unique_values = paste(unique(na.omit(value)), collapse=","),
+                   value = tmp_select_val(date_of_entry, value))
 
 
 #External ID's
@@ -87,15 +94,15 @@ externalIds <- fread(synGet("syn17057743")$path) %>%
   dplyr::rename(externalId = id) 
 true_externalIds = unique(externalIds$externalId)
 
-
 #### Final Demog Summary
 demog_clean <- demog_summary %>% select(-n_uniq_values, -unique_values) %>% 
   spread(feature, value) %>%
   dplyr::mutate(referred_by_clinician = ifelse(externalId %in% true_externalIds , T, F)) %>%
   dplyr::filter(dataGroups %in% c('ms_patient', 'control'))
 
+
 #### How many times people change their responses
-demog_changes <- demog_summary %>% select(-value) %>% spread(feature, n_uniq_values)
+# demog_changes <- demog_summary %>% select(-value) %>% spread(feature, n_uniq_values)
 
 ### Get the disease characteristics
 diseaseCharacteristics <- profiles %>%
@@ -122,7 +129,6 @@ diseaseChar_summary <- diseaseChar_long %>%
 diseaseChar_clean <- diseaseChar_summary %>% 
   select(-n_uniq_values, -unique_values) %>% 
   spread(feature, value)
-
 
 #### Overall baseline chars
 nrow(diseaseChar_clean)
@@ -228,6 +234,7 @@ baselineChar <- baselineChar %>% mutate(group = case_when(
   referred_by_clinician == F & dataGroups == 'ms_patient' ~ 'MS patients',
   dataGroups == 'control' ~ 'Controls'
 )) 
+
 
 outFile = 'elevateMS_baselineCharacteristics.tsv'
 PARENT_FOLDER = 'syn10140063'
