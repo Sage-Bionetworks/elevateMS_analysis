@@ -49,16 +49,16 @@ install_load("survival", "survminer")
 censor <- rep(1, nrow(userRetention))
 fit <- survfit(Surv(time=duration_in_study, event=censor) ~ group, 
                 data = userRetention )
-summary(fit)
+summary(fit)$table
 p1 <- ggsurvplot(fit, pval = TRUE, conf.int = TRUE, 
                  xlab = "days in study ", 
                  palette = c(COL_CONTROL, COL_MS_PATIENT, COL_MS_PATIENT_CLINICAL_REF),
-                 risk.table.y.text.col = F, risk.table.y.text = F, legend = "top",
+                 risk.table.y.text.col = F, risk.table.y.text = F, legend = "none",
                  surv.median.line = "hv", ggtheme = theme_light(base_size = 15))
 
 p1
-ggsave("analysis/engagement_Paper_1/FINAL_FIGS/survivalCurve_by_disease.png", plot=print(p1), height = 5, width = 8, units="in", dpi=100)
-ggsave("analysis/engagement_Paper_1/FINAL_FIGS/survivalCurve_by_disease.tiff", plot=print(p1), height = 5, width = 8, units="in", dpi=200)
+ggsave("analysis/engagement_Paper_1/FINAL_FIGS/survivalCurve_by_disease.png", plot=print(p1), height = 5, width = 6, units="in", dpi=100)
+ggsave("analysis/engagement_Paper_1/FINAL_FIGS/survivalCurve_by_disease.tiff", plot=print(p1), height = 5, width = 6, units="in", dpi=200)
 
 
 # EDA
@@ -73,7 +73,6 @@ ggforest(res.cox)
 cox.zph(res.cox)
 
 
-
 ### MS patients only - demographic vars - cox-PH models
 run_coxPH_model <- function(df, covariate){
   censor <- rep(1, nrow(df))
@@ -82,7 +81,7 @@ run_coxPH_model <- function(df, covariate){
   coxph(as.formula(formula), data = df)
 }
 
-featureWise_survival <- userRetention %>% filter(dataGroups == 'ms_patient') %>%
+featureWise_survival  <- userRetention %>% filter(dataGroups == 'ms_patient') %>%
   dplyr::select(duration_in_study, group, overallPhysicalAbility, employment,
          education, health_insurance,
          currentDMT, age_group, gender, race, raceMod) %>%
@@ -103,6 +102,7 @@ featureWise_survival <- userRetention %>% filter(dataGroups == 'ms_patient') %>%
 
 names(featureWise_survival$coxPH_model_test) <- featureWise_survival$feature
 featureWise_survival$coxPH_model_test
+names(featureWise_survival$anova_coxPH_model) <- featureWise_survival$feature
 featureWise_survival$anova_coxPH_model
 
 

@@ -109,8 +109,6 @@ users_LastWeek_inStudy <- userCompliance_data %>%
   group_by(healthCode, dataGroups, referred_by_clinician ) %>%
   dplyr::summarise(lastWeek = max(participant_week)) %>%
   dplyr::mutate(lastWeekCapat12 = ifelse(lastWeek >= 12, 12, lastWeek))
-View(users_LastWeek_inStudy)
-
 
 tmpGetUsers_with_xSensorTasks_per_Week <- function(healthCode, activitytype){
   data.frame(healthCode=healthCode, activitytype=activitytype) %>%
@@ -129,7 +127,6 @@ perWeek_activeUsers_inStudy <- userCompliance_data %>%
                    totalActiveUsers_withOneSensorTaskperWeek = tmpGetUsers_with_xSensorTasks_per_Week(healthCode,activitytype)) %>%
   dplyr::filter(participant_week <= 12) %>%
   dplyr::rename(week = participant_week)
-View(perWeek_activeUsers_inStudy)
 
 
 totalUsers_byWeek = users_LastWeek_inStudy %>% as.data.frame() %>%
@@ -173,7 +170,7 @@ p1 <- ggplot(data=compliance %>% filter(complianceType == 'withOneSensorTaskperW
              aes(x=week, y=percent, color=group))+ geom_point(size=1) + geom_line() 
 p1 <- p1 + scale_y_continuous(limits = c(0,100)) + geom_line(size=.8) + theme_light( base_size=15) + scale_x_continuous(breaks=seq(1,12,1))
 p1 <- p1 + scale_color_manual(name='',values=c(COL_MS_PATIENT, COL_MS_PATIENT_CLINICAL_REF, COL_CONTROL))
-p1 <- p1 + theme(legend.position="top") + xlab('weeks in study')
+p1 <- p1 + theme(legend.position="none") + xlab('weeks in study')
 p1
 ggsave("analysis/engagement_Paper_1/FINAL_FIGS/userCompliance.png", plot=print(p1), height = 5, width = 6, units="in", dpi=100)
 ggsave("analysis/engagement_Paper_1/FINAL_FIGS/userCompliance.tiff", plot=print(p1), height = 5, width = 6, units="in", dpi=200)

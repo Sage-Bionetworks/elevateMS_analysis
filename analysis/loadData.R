@@ -3,7 +3,6 @@ Sys.setenv(TZ='GMT')
 library(install.load)
 install_load(c( 'tidyverse', 'synapser', 'data.table', 'lubridate', 'ggpubr'))
 install_load('ggthemes', 'gridExtra', "bit64")
-install_load('tm', 'SnowballC', 'wordcloud', 'RColorBrewer')
 install_load("scales", "ggsci")
 #show_col(pal_npg("nrc")(10))
 #pal_npg("nrc")(10)
@@ -11,14 +10,21 @@ COL_MS_PATIENT = '#DC0000FF'
 COL_CONTROL = '#00A087FF'
 synapser::synLogin()
 
-
-
 START_DATE = lubridate::ymd("2017-08-14")
 PARENT_FOLDER = 'syn10140063'
 
+fixTimeZone <- function(x){
+  x <- as.integer(x)
+  mins <- x %% 100
+  hours <- x %/% 100
+  #total
+  #hours <- hours + mins/60
+  hours
+}
+
 insert_study_times <- function(df, timeStampCol, timeZoneCol, userStartDates){
-  df['timeZone'] = round((df[[timeZoneCol]] ) / 100, digits=0)
-  df['activity_start_timestamp_GMT'] = lubridate::as_datetime(df[[timeStampCol]]/ 1000)
+  df['timeZone'] = fixTimeZone(df[[timeZoneCol]])
+  df['activity_start_timestamp_GMT'] = lubridate::as_datetime(df[[timeStampCol]])
   df<- df %>%  inner_join(userStartDates) %>%
     dplyr::mutate(activity_start_timestamp_local = activity_start_timestamp_GMT + lubridate::hours(timeZone),
                   participant_day = as.numeric(lubridate::date(activity_start_timestamp_GMT) - elevateMS_startDate_GMT ) + 1,
@@ -29,38 +35,63 @@ insert_study_times <- function(df, timeStampCol, timeZoneCol, userStartDates){
   df
 }
 
-loadTable <- function(tableSynID){
+loadTable <- function(tableSynID, filter=T){
   df <- synTableQuery(paste("select * from", tableSynID))
   df <- df$asDataFrame()
-  df %>% filter(healthCode %in% STUDY_HEALTHCODES & dataGroups %in% c('control', 'ms_patient'))
+  if(filter == T){
+    df <- df %>% filter(healthCode %in% STUDY_HEALTHCODES & dataGroups %in% c('control', 'ms_patient'))  %>%
+      select(-dataGroups) %>%
+      inner_join( baselineChar %>% select(healthCode, dataGroups))
+  }
+  df
 }
 
-loadFile <- function(tableSynID){
-  fread(synGet(tableSynID)$path, data.table = F) %>%
-    dplyr::filter(healthCode %in% STUDY_HEALTHCODES & dataGroups %in% c('control', 'ms_patient'))
+loadFile <- function(tableSynID, filter=T){
+  df <- fread(synGet(tableSynID)$path, data.table = F) 
+    if(filter == T){
+      df <- df %>% filter(healthCode %in% STUDY_HEALTHCODES & dataGroups %in% c('control', 'ms_patient')) %>%
+        select(-dataGroups) %>%
+        inner_join( baselineChar %>% select(healthCode, dataGroups))
+    }
+  df
 }
 
 stringfy <- function(x){
   gsub('[\\[\"\\]]','',x, perl=T) 
 }
 
+
+
+#####
+#get cleaned demographics features
+####
+baselineChar <- loadFile('syn17115631', filter=F)
+
+# GLOBAL VARS
+STUDY_HEALTHCODES <- unique(baselineChar$healthCode)
+
 getUserActivity <- function(){
   masterTable <- "syn9758009"  #poorly named elevate-ms-appVersion
   #remove all testing users and records created before Monday, August 14, 2017 12:00:00 AM (GMT)
   userActivity <- synTableQuery(paste("select * from", masterTable, "WHERE dataGroups NOT LIKE '%test%' AND createdOn > 1502668800000"))
-  userActivity <- userActivity$asDataFrame()
+  userActivity <- userActivity$asDataFrame() 
+  
   
   #Data Manipulation
-  userActivity <- userActivity %>% dplyr::mutate(# Ignoring the fraction timezones for issues with conversion to local times
-                                                 #createdOnTimeZone = as.numeric( createdOnTimeZone %/% 100 + ((createdOnTimeZone %% 100)/60)),
-                                                 createdOnTimeZone =  createdOnTimeZone %/% 100,
-                                                 createdOn =  lubridate::as_datetime(createdOn / 1000, tz='UTC'),
-                                                 originalTable = gsub('elevate-ms-', '', originalTable))
+  userActivity <- userActivity %>% 
+    filter(createdOn >= START_DATE) %>%
+    filter(healthCode %in% STUDY_HEALTHCODES) %>%
+    select(-dataGroups) %>%
+    inner_join( baselineChar %>% select(healthCode, dataGroups)) %>%
+    dplyr::mutate(createdOnTimeZone =  fixTimeZone(createdOnTimeZone),
+                  createdOn =  lubridate::as_datetime(createdOn, tz='UTC'),
+                  originalTable = gsub('elevate-ms-', '', originalTable))
   
   #get start dates for people 
   userStartDates <- userActivity %>% dplyr::group_by(healthCode) %>% 
     dplyr::summarise(participantStartDate = min(lubridate::date(createdOn)))
   userActivity <- userActivity %>% inner_join(userStartDates)
+
   
   userActivity <- userActivity %>% 
     dplyr::mutate(createdOn_localTime = createdOn + lubridate::hours(createdOnTimeZone),
@@ -68,9 +99,7 @@ getUserActivity <- function(){
                   participant_week = ((participant_day - 1) %/% 7 ) + 1,
                   study_day = as.numeric(lubridate::date(createdOn) - lubridate::ymd("2017-08-14")) + 1,
                   study_week = ((study_day - 1) %/% 7 ) + 1,
-                  currentDate = Sys.Date()) %>%
-    filter(createdOn >= START_DATE)
-
+                  currentDate = Sys.Date())
 }
 
 userActivity <- getUserActivity()
@@ -79,19 +108,6 @@ userStartDates <- userActivity %>% dplyr::group_by(healthCode) %>%
   dplyr::summarise(elevateMS_startDate_GMT = min(lubridate::date(createdOn)))
 
 
-# GLOBAL VARS
-STUDY_HEALTHCODES <- unique(userActivity$healthCode)
-TOTAL_USERS <- n_distinct(userActivity$healthCode)
-NUM_MS_PATIENTS <- userActivity %>% dplyr::filter(dataGroups %like% 'ms_patient') %>% .$healthCode %>% n_distinct()
-NUM_CONTROLS <- userActivity %>% dplyr::filter(dataGroups %like% 'control') %>% .$healthCode %>% n_distinct()
-
-
-
-
-#####
-#get demographics features
-####
-baselineChar <- loadFile('syn17115631')
 
 
 ######
@@ -104,7 +120,7 @@ getTriggerData <- function(){
   timeZoneCol = 'metadata.json.startDate.timezone'
   df <- insert_study_times(df, timeStampCol, timeZoneCol, userStartDates)
   #keep  triggers only for MS patients
-  df <- df %>% filter(healthCode %in% STUDY_HEALTHCODES & dataGroups == 'ms_patient')  %>%
+  df <- df %>% filter(dataGroups == 'ms_patient')  %>%
     dplyr::mutate(trigger = myTriggers.json.choiceAnswers,
                   activityDuration = as.numeric(metadata.json.endDate - metadata.json.startDate)/1000,
                   trigger = stringfy(trigger)) %>% 
@@ -125,7 +141,6 @@ triggers <- triggers %>%
   mutate(trigger = purrr::map(.$trigger, tmp)) %>%
   unnest(trigger)
 
-
 ######
 #Relapse
 ######
@@ -135,8 +150,7 @@ getRelapseData <- function(){
   timeStampCol = 'metadata.json.startDate'
   timeZoneCol = 'metadata.json.startDate.timezone'
   df <- insert_study_times(df, timeStampCol=timeStampCol,
-                           timeZoneCol=timeZoneCol, userStartDates=userStartDates)
-  df %>% filter(healthCode %in% STUDY_HEALTHCODES)  %>%
+                           timeZoneCol=timeZoneCol, userStartDates=userStartDates) %>%
     dplyr::mutate(activityDuration = as.numeric(metadata.json.endDate - metadata.json.startDate) / 1000) %>%
     dplyr::select(-appVersion, -phoneInfo, -uploadDate, -createdOn, -validationErrors, -createdOnTimeZone, -recordId,
                   -userSharingScope, -metadata.json.startDate.timezone, -metadata.json.scheduledActivityGuid,
@@ -145,7 +159,6 @@ getRelapseData <- function(){
     filter(activity_start_timestamp_GMT >= START_DATE)
 }
 relapses <- getRelapseData()
-
 
 get_dsst_features <- function(){
   healthCode_to_externalID <- synTableQuery("select * from syn11439398")
@@ -170,7 +183,9 @@ get_dsst_features <- function(){
                   participant_week = ((participant_day - 1) %/% 7 ) + 1,
                   study_day = as.numeric(lubridate::date(activtyStartTime_GMT) - lubridate::ymd("2017-08-14")) + 1,
                   study_week = ((study_day - 1) %/% 7 ) + 1) %>%
-    dplyr::filter(participant_day >= 1)
+    dplyr::filter(participant_day >= 1) %>%
+    inner_join( baselineChar %>% select(healthCode, dataGroups)) %>%
+    filter(healthCode %in% STUDY_HEALTHCODES)
 }
 dsst <- get_dsst_features()
 
@@ -180,7 +195,7 @@ getSymptomsData <- function(){
   timeStampCol = 'metadata.json.startDate'
   timeZoneCol = 'metadata.json.startDate.timezone'
   df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
-  df <- df %>% filter(healthCode %in% STUDY_HEALTHCODES & symptomTiming.json.choiceAnswers != 'NA' & dataGroups == 'ms_patient' ) %>%
+  df <- df %>% filter(symptomTiming.json.choiceAnswers != 'NA' & dataGroups == 'ms_patient' ) %>%
     dplyr::mutate(activityDuration = as.numeric(metadata.json.endDate - metadata.json.startDate)/1000) %>%
     dplyr::select(-appVersion, -phoneInfo, -uploadDate, -createdOn, -createdOnTimeZone, -metadata.json.startDate.timezone,
                   -metadata.json.endDate.timezone, -metadata.json.taskRunUUID, -metadata.json.scheduledActivityGuid,
@@ -212,7 +227,6 @@ getSymptomsData <- function(){
 }
 symptoms <- getSymptomsData()
 
-
 ######
 #Daily Check-in's
 ######
@@ -222,23 +236,21 @@ getDailyCheckin <- function(){
   timeStampCol = 'createdOn'
   timeZoneCol = 'createdOnTimeZone'
   df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
-  df %>% dplyr::filter(healthCode %in% STUDY_HEALTHCODES)
 }
 dailyCheckins <- getDailyCheckin()
-
 
 #TappingF
 getTappingF <- function(){
   df <- loadFile("syn10648415")
   timeStampCol = 'metadata.json.startDate'
   timeZoneCol = 'metadata.json.startDate.timezone'
+  df[[timeStampCol]]  = lubridate::as_datetime(df[[timeStampCol]] / 1000)
   df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
   df <- df %>%  inner_join(userStartDates) %>%
     dplyr::mutate(activity_start_timestamp_local = activity_start_timestamp_GMT + lubridate::hours(timeZone),
                   activityDuration_seconds = as.numeric(metadata.json.endDate - metadata.json.startDate)/1000) %>%
     dplyr::filter(participant_day >= 1) %>%
-    dplyr::select(-c(14:33), -rawData,  -tapping_left.fileLocation.TappingSamples, 
-                  -tapping_right.fileLocation.TappingSamples, -metadata.json.endDate, -metadata.json.endDate.timezone)
+    dplyr::select(-c(10:41))
 }
 tapF <- getTappingF()
 
@@ -247,10 +259,10 @@ getWalkingF <- function(){
   df <- loadFile("syn10647801")
   timeStampCol = 'metadata.json.startDate'
   timeZoneCol = 'metadata.json.startDate.timezone'
+  df[[timeStampCol]]  = lubridate::as_datetime(df[[timeStampCol]] / 1000)
   df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
   df <- df %>%
     dplyr::mutate(activityDuration = as.numeric(metadata.json.endDate - metadata.json.startDate)/1000) %>%
-    dplyr::filter(healthCode %in% STUDY_HEALTHCODES) %>%
     select(-accelerometer_walking_outbound.json.items, -deviceMotion_walking_outbound.json.items,
            -pedometer_walking_outbound.json.items, -accelerometer_walking_rest.json.items,
            -deviceMotion_walking_rest.json.items, -metadata.json.endDate, -metadata.json.endDate.timezone,
@@ -258,7 +270,6 @@ getWalkingF <- function(){
            -userSharingScope, -validationErrors)
 }
 walkF <- getWalkingF()
-
 
 # getWalkingF_new <- function(){
 #   df <- loadFile("syn17093339")
@@ -280,6 +291,7 @@ getRestF <- function(){
   df <- loadFile("syn17783299")
   timeStampCol = 'metadata.json.startDate'
   timeZoneCol = 'metadata.json.startDate.timezone'
+  df[[timeStampCol]]  = lubridate::as_datetime(df[[timeStampCol]] / 1000)
   df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
   df <- df %>%
     dplyr::mutate(activityDuration = as.numeric(metadata.json.endDate - metadata.json.startDate)/1000) %>%
