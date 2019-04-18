@@ -16,6 +16,7 @@ demog <- demog$asDataFrame()
 demog$ROW_ID <- NULL
 demog$ROW_VERSION <-NULL
 demog$metadata.json.dataGroups <- NULL
+demog$substudyMemberships <- NULL
 colnames(demog) <- gsub('.json.answer', '',colnames(demog))
 colnames(demog)  <- gsub('metadata.json.', '',colnames(demog))
 demog <- demog %>%  filter(dataGroups %in% c('control', 'ms_patient')) %>%
@@ -27,17 +28,17 @@ demog <- demog %>%  filter(dataGroups %in% c('control', 'ms_patient')) %>%
 demog$rawData <- NULL
 
 
-colnames(demog)
 ### Fix Race
+raceCols <- colnames(demog)[grepl('race', colnames(demog))]
 race <- demog %>% 
-  tidyr::gather(race, value, 8:17) %>% 
+  tidyr::gather(race, value, raceCols) %>% 
   dplyr::filter(value == T) %>% 
   dplyr::mutate(race = gsub('race.','',race)) %>% 
   dplyr::select(healthCode, race) %>% 
   dplyr::group_by(healthCode) %>%
   dplyr::summarise(race = paste(unique(race),collapse=','))
 demog <- merge(demog, race) %>% 
-  dplyr::select(-c(8:17))
+  dplyr::select(-raceCols)
 demog <- demog %>% mutate(weight = weight/2.2) ##Pounds to Lb 
 
 
@@ -49,14 +50,14 @@ profiles <- profiles %>% dplyr::select(-ROW_ID, -ROW_VERSION, -recordId, -rawDat
   dplyr::mutate(race = stringfy(race),
                 date_of_entry = as.Date(lubridate::as_datetime(createdOn))) %>%
   dplyr::filter(date_of_entry >= START_DATE)
-
 demog_from_profiles <- profiles %>%
   select(healthCode, externalId, dataGroups, userSharingScope,
          gender, height, weight, zipcode, education, health_insurance, 
          employment, date_of_entry, race)
 
+
 #join demog from two sources
-demog = rbind(demog, demog_from_profiles) %>%
+demog = rbind(demog, demog_from_profiles %>% dplyr::select(colnames(demog))) %>%
   dplyr::mutate(height = round(height, digits=1),
                 weight = round(weight, digits=1)) %>%
   mutate_at(.funs = c(tolower),
@@ -67,8 +68,8 @@ demog = rbind(demog, demog_from_profiles) %>%
            gender, height, weight, zipcode, education,
            health_insurance, employment, race, .keep_all=T) 
 
-demog_long <- demog %>% gather(feature, value, c(2:11, 13))
 
+demog_long <- demog %>% gather(feature, value, c(2:11, 13))
 tmp_select_val <- function(date_of_entry, value){
     x <- data.frame(date_of_entry=date_of_entry, value=value) %>% 
       arrange(date_of_entry) %>%
@@ -86,7 +87,6 @@ demog_summary <- demog_long %>%
   dplyr::summarise(n_uniq_values = length(unique(na.omit(value))),
                    unique_values = paste(unique(na.omit(value)), collapse=","),
                    value = tmp_select_val(date_of_entry, value))
-
 
 #External ID's
 externalIds <- fread(synGet("syn17057743")$path) %>%
