@@ -35,10 +35,6 @@ healthCode_to_externalID <- healthCode_to_externalID[!duplicated(healthCode_to_e
 
 demog <- get_demographics()
 
-blockSummary <- synTableQuery("select * from syn11309239")
-blockSummary <- blockSummary@values 
-blockSummary <- merge(blockSummary, healthCode_to_externalID, all=T) %>% 
-  dplyr::mutate(logDurationSecs = log10(durationMS/1000))
 ```
 ```{r, eval=F}
 
@@ -98,7 +94,6 @@ vsstSummary_week_averaged <- merge(demog, vsstSummary_week_averaged, all=T)
 ---------
 
 #### Digital Symbol substituion test(DSST) features summary
-
 * numDigits  =  number of digits participants uttered 
 * numCorrect =  number of correctly called out digits 
 * percentCorrect = percent of digits correctly called

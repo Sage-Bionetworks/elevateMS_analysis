@@ -1,0 +1,182 @@
+---
+title: "elevateMS rest/balance features analysis"
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools')
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install("ComplexHeatmap", version = "3.8")
+install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+
+source("../loadData.R")
+source("common_analysis_functions.R")
+```
+
+
+
+#### What percentage of people report each trigger?
+
+```{r, fig.align='center', fig.width=5, fig.height=7, dpi=100}
+## n_distinct(symptoms$healthCode)
+#### What percentage of people report each symptom?
+symptom_summary <- symptoms %>% mutate(symptom = gsub('_', ' ' ,symptom)) %>%
+  group_by(symptom) %>% 
+  dplyr::summarise(people = n_distinct(healthCode), 
+                   percent = round( (people / n_distinct(symptoms$healthCode)) * 100, digits=2))
+
+p <- ggdotchart(symptom_summary, x = "symptom", y = "percent",
+           sorting = "descending",                       
+           rotate = TRUE,                                
+           dot.size = 2,                                 
+           y.text.col = TRUE,                           
+           ggtheme = theme_pubr() ) + theme_cleveland() 
+p
+ggsave(file = "FIGURES/symptoms.png",
+       plot=p,  height = 10, width = 6, dpi = 300)
+
+```
+
+#### What percentage of people report each symptom?
+
+
+```{r fig.align='center', fig.width=5, fig.height=7, dpi=100}
+#### What percentage of people report each symptom?
+trigger_summary <- triggers %>%
+  filter(! (trigger %in% unique(symptoms$symptom))) %>% ##### IMP - Possible bug -- removing the triggers that are reported as symptoms
+  mutate(trigger = gsub('_', ' ' , trigger)) %>%
+  group_by(trigger) %>% 
+  dplyr::summarise(people = n_distinct(healthCode), 
+                   percent = round( (people / n_distinct(triggers$healthCode)) * 100, digits=2))
+
+p <- ggdotchart(trigger_summary, x = "trigger", y = "percent",
+                sorting = "descending",                       
+                rotate = TRUE,                                
+                dot.size = 2,                                 
+                y.text.col = TRUE,                           
+                ggtheme = theme_pubr() ) + theme_cleveland() 
+p
+
+ggsave(file = "FIGURES/triggers.png",
+       plot=p,  height = 10, width = 6, dpi = 300)
+```
+
+
+#### Symptoms WordCloud
+
+```{r, fig.align='center', fig.width=4, fig.height=4, dpi=100}
+install_load("wordcloud")
+set.seed(1234)
+#png("FINAL_FIGS/symptomsWordCloud.png", height = 5, width = 5, res = 150, units="in" )
+wordcloud(words = symptom_summary$symptom, freq = round(symptom_summary$percent), min.freq = 2,
+          max.words=50, random.order=FALSE, rot.per=0.30,
+          #vfont=c("sans serif","plain"),
+          colors=brewer.pal(8, "Dark2"))
+#dev.off()
+
+```
+
+
+
+#### Triggers WordCloud
+
+
+```{r, fig.align='center', fig.width=4, fig.height=4, dpi=100}
+install_load("wordcloud")
+set.seed(1234)
+#png("~/FIGURES/triggersWordCloud.png", height = 4, width = 4, res = 150, units="in" )
+wordcloud(words = trigger_summary$trigger, freq = round(trigger_summary$percent), min.freq = 2,
+          max.words=50, random.order=FALSE, rot.per=0.30,
+          #vfont=c("sans serif","plain"),
+          colors=brewer.pal(8, "Dark2"))
+#dev.off()
+
+```
+
+
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+thisFilePrefix = "symptoms_N_triggers"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+thisFilePrefix = "symptoms_N_triggers"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt';
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
+###Store on Synapse
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+unlink(paste0(thisFilePrefix, '.html'))
+```
+
+
+
+```{r}
+
+
+#View(triggers %>% filter(healthCode == 'ae28cea8-9dfa-41aa-9692-d6a5e04893df' & trigger == 'headache'))
+
+
+# ### Symptoms
+# symptoms <- symptoms %>% filter(dataGroups == 'ms_patient' & participant_week <= 12 )
+# totalSymptoms <- symptoms %>% group_by(healthCode) %>%
+#   dplyr::summarise(uniqSymptomsReported = n_distinct(symptom),
+#                    TotalTimesSymptomsReported = n_distinct(activity_start_timestamp_GMT)) 
+# symptoms_summary <- symptoms %>% group_by(healthCode, symptom) %>%
+#   dplyr::summarise(timesReported = n()) %>%
+#   inner_join(totalSymptoms) %>%
+#   dplyr::mutate( percent = (timesReported / TotalTimesSymptomsReported)*100,
+#                  percent_unique = )
+#ggplot(data=symptoms_summary, aes(x=symptom, y=percent)) + geom_violin() + coord_flip()
+
+
+### Triggers
+# triggers <- triggers %>% filter(dataGroups == 'ms_patient' & participant_week <= 12 )
+# totalTriggers <- triggers %>% group_by(healthCode) %>%
+#   dplyr::summarise(uniqTriggersReported = n_distinct(trigger),
+#                    TotalTimesTriggersReported = n_distinct(activity_start_timestamp_GMT)) 
+# 
+# triggers_summary <- triggers %>% group_by(healthCode, trigger) %>%
+#   dplyr::summarise(timesReported = n()) %>%
+#   inner_join(totalTriggers) %>%
+#   dplyr::mutate( percent = (timesReported / TotalTimesTriggersReported)*100)
+
+
+####  How often are each trigger reported?  
+# tmp <- ddply(.data=triggers, 
+#              .variables = c('healthCode', 'dataGroups', 'participant_week', 'participant_day'), 
+#              .fun = function(df){ 
+#                data.frame(trigger = unlist(strsplit(df$triggers, ',')))
+#              })
+# 
+# top_triggers <- sort( round(prop.table(table(tmp$trigger))*100, digits=2), decreasing = T)[1:10]
+# top_triggers <- data.frame(symptom = names(top_triggers), percent=as.numeric(top_triggers))
+# knitr::kable(top_triggers)
+
+#### What percentage of people report each trigger?
+# tmp <- ddply(.data=triggers, .variables = c('healthCode', 'dataGroups', 'participant_week', 'participant_day'), 
+#              .fun = function(df){ 
+#                data.frame(trigger = unlist(strsplit(df$triggers, ',')))
+#              })
+# df <- tmp %>% group_by(trigger, dataGroups) %>% dplyr::summarise(people = n_distinct(healthCode)) %>% spread(dataGroups, people) %>% arrange(desc(ms_patient))
+# colnames(df) = c('trigger' , 'reported_by_how_many_people')
+# df <- df[1:10,]
+# knitr::kable(df)
+
+```
