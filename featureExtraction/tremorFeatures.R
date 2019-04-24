@@ -68,6 +68,43 @@ featuresFromColumn <- function(dat,column,processingFunction, parallel = F){
   ) 
 }
 
+changeMeasurementType <- function(x){
+  if(as.character(x[['sensor']]) == 'accelerometer'){
+    if(x[['measurementType']] == 'acceleration'){
+      return('ua')
+    }
+    if(x[['measurementType']] == 'jerk'){
+      return('uj')
+    }
+    if(x[['measurementType']] == 'velocity'){
+      return('uv')
+    }
+    if(x[['measurementType']] == 'displacement'){
+      return('ud')
+    }
+    if(x[['measurementType']] == 'acf'){
+      return('uaacf')
+    }
+  }
+  if(as.character(x[['sensor']]) == 'gyroscope'){
+    if(x[['measurementType']] == 'acceleration'){
+      return('uaa')
+    }
+    # if(x[['measurementType']] == 'jerk'){
+    #   return('uj')
+    # }
+    if(x[['measurementType']] == 'velocity'){
+      return('uav')
+    }
+    if(x[['measurementType']] == 'displacement'){
+      return('uad')
+    }
+    if(x[['measurementType']] == 'acf'){
+      return('uavacf')
+    }
+  }
+}
+
 extractTremorFeatures <- function(dat_, column_, runParallel_){
   tremor_features <- featuresFromColumn(
     dat = dat_,
@@ -82,42 +119,48 @@ extractTremorFeatures <- function(dat_, column_, runParallel_){
         window_length = 256,
         window_overlap = 0.5,
         detrend = T,
+        derived_kinematics = T,
         frequency_filter = c(1,25),
-        IMF = 2
+        IMF = 4
       )
-      # tremorFeatures <- mhealthtools::get_kinetic_tremor_features(
-      #   accelerometer_data = tremorData$accelerometer,
-      #   gyroscope_data = tremorData$gyroscope,
-      #   gravity_data = tremorData$gravity,
-      #   time_filter = c(1,9),
-      #   frequency_filter = c(1,25),
-      #   IMF = 2,
-      #   window_length = 256,
-      #   window_overlap = 0.5,
-      #   detrend = T,
-      #   derived_kinematics = F
-      # )
+      
       tremorFeatures <- tremorFeatures$extracted_features
-      tremorFeatures <- tremorFeatures %>% 
-        # dplyr::select(-window_start_time,-window_end_time, -window) %>% 
-        dplyr::select(-window) %>% 
-        unique() %>%
-        # tidyr::unite(sensor.measure, sensor, measurementType) %>% 
-        # dplyr::filter(sensor.measure == 'accelerometer_acceleration' | 
-                        # sensor.measure == 'gyroscope_velocity') %>% 
-        # tidyr::separate(sensor.measure, c('sensor','measurementType')) %>% 
-        tidyr::gather(Feature, Value,-sensor, -measurementType, -axis, -IMF) %>%
-        dplyr::group_by(Feature, sensor, measurementType, axis, IMF) %>% 
-        dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
-                         md = stats::median(Value, na.rm = T)) %>% 
-        tidyr::unite(feature, Feature, sensor, measurementType, axis, IMF)
-      a.iqr <- data.frame(tremorFeatures$iqr) %>% 
-        data.table::transpose() %>%
-        `colnames<-`(paste0(tremorFeatures$feature,'_iqr'))
-      a.md <- data.frame(tremorFeatures$md) %>% 
-        data.table::transpose() %>%
-        `colnames<-`(paste0(tremorFeatures$feature,'_md'))
-      tremorFeatures <- cbind(a.iqr, a.md)
+      
+      tremorFeatures <- plyr::ddply(
+        .data = tremorFeatures,
+        .variables = colnames(tremorFeatures),
+        .parallel = runParallel_,
+        .fun = function(row) {
+          return(changeMeasurementType(row[c('sensor','measurementType')]))
+        }
+      ) %>% 
+        dplyr::select(-measurementType) %>% 
+        dplyr::rename(measurementType = V1) %>% 
+        dplyr::filter(IMF %in% c(1,2))
+      
+      # tremorFeatures <- tremorFeatures %>%
+      #   # dplyr::select(-window_start_time,-window_end_time, -window) %>%
+      #   dplyr::select(-window,-axis) %>%
+      #   unique() %>%
+#      #   dplyr::filter(IMF %in% c(1,2)) %>% 
+      #   # tidyr::unite(sensor.measure, sensor, measurementType) %>%
+      #   # dplyr::filter(sensor.measure == 'accelerometer_acceleration' |
+      #                   # sensor.measure == 'gyroscope_velocity') %>%
+      #   # tidyr::separate(sensor.measure, c('sensor','measurementType')) %>%
+      #   tidyr::gather(Feature, Value, -measurementType,-sensor, -IMF) %>%
+      #   dplyr::group_by(Feature, measurementType, sensor, IMF) %>%
+      #   dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
+      #                    md = stats::median(Value, na.rm = T)) %>%
+      #   tidyr::unite(feature, Feature, measurementType, sensor, IMF)
+      # a.iqr <- data.frame(tremorFeatures$iqr) %>%
+      #   data.table::transpose() %>%
+      #   `colnames<-`(paste0(tremorFeatures$feature,'_iqr'))
+      # a.md <- data.frame(tremorFeatures$md) %>%
+      #   data.table::transpose() %>%
+      #   `colnames<-`(paste0(tremorFeatures$feature,'_md'))
+      # tremorFeatures <- cbind(a.iqr, a.md)
+      
+      
       return(tremorFeatures)  
     },
     parallel = runParallel_ 
@@ -189,7 +232,8 @@ if (detectCores() >= 2) {
 doMC::registerDoMC(detectCores() - 2)
 
 ## Left Hand Features
-tremor.tbl.meta.noNA.left <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_left.fileLocation.items),]
+tremor.tbl.meta.noNA.left <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_left.fileLocation.items),] %>% 
+  dplyr::select(recordId, ac4_motion_tremor_handToNose_left.fileLocation.items)
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1:500,]
 tremor_features_left_1 <- extractTremorFeatures(
@@ -238,7 +282,8 @@ tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
                               tremor_features_left_5, tremor_features_left_6)
 
 ## right Hand Features
-tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),]
+tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),] %>% 
+  dplyr::select(recordId, ac4_motion_tremor_handToNose_right.fileLocation.items)
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1:500,]
 tremor_features_right_1 <- extractTremorFeatures(
