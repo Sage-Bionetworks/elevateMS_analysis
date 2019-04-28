@@ -3,8 +3,8 @@
 # Purpose: Extract Tremor features
 # Author: Abhishek Pratap, Meghasyam Tummalacherla
 ############################################################################
-rm(list=ls())
-gc()
+# rm(list=ls())
+# gc()
 
 ##############
 # Required libraries
@@ -105,6 +105,44 @@ changeMeasurementType <- function(x){
   }
 }
 
+errorTremorFeatureDataFrame <- function(flag_){
+  if(flag_){
+    tremorFeatures <- mhealthtools::get_tremor_features(
+      accelerometer_data = mhealthtools::accelerometer_data,
+      gyroscope_data = mhealthtools::gyroscope_data,
+      gravity_data = mhealthtools::gravity_data,
+      window_length = 512,
+      window_overlap = 0.5,
+      detrend = T,
+      derived_kinematics = T,
+      frequency_filter = c(1,25),
+      IMF = 2
+    )
+    
+    tremorFeatures <- tremorFeatures$extracted_features
+    
+    tremorFeatures <- plyr::ddply(
+      .data = tremorFeatures,
+      .variables = colnames(tremorFeatures),
+      .parallel = runParallel,
+      .fun = function(row) {
+        return(changeMeasurementType(row[c('sensor','measurementType')]))
+      }
+    ) %>% 
+      dplyr::select(-measurementType) %>% 
+      dplyr::rename(measurementType = V1) %>% 
+      dplyr::filter(IMF %in% c(1,2))
+    
+    aa <- tremorFeatures[1,]
+    aa$skew.fr <- -88888
+    return(aa)
+  }else{
+    return(NA)
+  }
+  
+}
+
+
 extractTremorFeatures <- function(dat_, column_, runParallel_){
   tremor_features <- featuresFromColumn(
     dat = dat_,
@@ -126,17 +164,21 @@ extractTremorFeatures <- function(dat_, column_, runParallel_){
       
       tremorFeatures <- tremorFeatures$extracted_features
       
-      tremorFeatures <- plyr::ddply(
-        .data = tremorFeatures,
-        .variables = colnames(tremorFeatures),
-        .parallel = runParallel_,
-        .fun = function(row) {
-          return(changeMeasurementType(row[c('sensor','measurementType')]))
-        }
-      ) %>% 
-        dplyr::select(-measurementType) %>% 
-        dplyr::rename(measurementType = V1) %>% 
-        dplyr::filter(IMF %in% c(1,2))
+      if(is.null(tremorFeatures)){
+        tremorFeatures <- errorTremorFeatureDataFrame(TRUE)
+      }else{
+        tremorFeatures <- plyr::ddply(
+          .data = tremorFeatures,
+          .variables = colnames(tremorFeatures),
+          .parallel = runParallel_,
+          .fun = function(row) {
+            return(changeMeasurementType(row[c('sensor','measurementType')]))
+          }
+        ) %>% 
+          dplyr::select(-measurementType) %>% 
+          dplyr::rename(measurementType = V1) %>% 
+          dplyr::filter(IMF %in% c(1,2))
+      }
       
       # tremorFeatures <- tremorFeatures %>%
       #   # dplyr::select(-window_start_time,-window_end_time, -window) %>%
@@ -281,6 +323,11 @@ tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
                               tremor_features_left_3, tremor_features_left_4,
                               tremor_features_left_5, tremor_features_left_6)
 
+# Remove the error tremor data frames by filtering on skew.fr
+# (look at errorTremorFeatureDataFrame)
+tremor_features_left <- tremor_features_left %>% 
+  dplyr::filter(skew.fr != -88888)
+
 ## right Hand Features
 tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),] %>% 
   dplyr::select(recordId, ac4_motion_tremor_handToNose_right.fileLocation.items)
@@ -332,6 +379,12 @@ gc()
 tremor_features_right <- rbind(tremor_features_right_1, tremor_features_right_2,
                               tremor_features_right_3, tremor_features_right_4,
                               tremor_features_right_5, tremor_features_right_6)
+
+
+# Remove the error tremor data frames by filtering on skew.fr
+# (look at errorTremorFeatureDataFrame)
+tremor_features_right <- tremor_features_right %>% 
+  dplyr::filter(skew.fr != -88888)
 
 #############
 # Upload data to Synapse
