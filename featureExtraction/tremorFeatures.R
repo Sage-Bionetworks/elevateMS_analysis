@@ -3,8 +3,8 @@
 # Purpose: Extract Tremor features
 # Author: Abhishek Pratap, Meghasyam Tummalacherla
 ############################################################################
-# rm(list=ls())
-# gc()
+rm(list=ls())
+gc()
 
 ##############
 # Required libraries
@@ -277,51 +277,90 @@ doMC::registerDoMC(detectCores() - 2)
 tremor.tbl.meta.noNA.left <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_left.fileLocation.items),] %>% 
   dplyr::select(recordId, ac4_motion_tremor_handToNose_left.fileLocation.items)
 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1:500,]
-tremor_features_left_1 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[501:1000,]
-tremor_features_left_2 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
+chunk_size <- 30
+nrows_tremor_tbl <- nrow(tremor.tbl.meta.noNA.left)
+start_seq <- seq(1, nrows_tremor_tbl, chunk_size)
+tremor_features_left <- lapply(start_seq, function(ss_start){
+  gc()
+  tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[ss_start:min(ss_start + chunk_size, nrows_tremor_tbl),]
+  tremor_features_temp <- tryCatch({
+    extractTremorFeatures(
+      dat_ = tremor.tbl.meta.noNA,
+      column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+      runParallel_ = runParallel)
+  },
+  error = function(e){errorTremorFeatureDataFrame(TRUE)})
+  return(tremor_features_temp)
+})
 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1001:1500,]
-tremor_features_left_3 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
+## right Hand Features
+# tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),] %>% 
+#   dplyr::select(recordId, ac4_motion_tremor_handToNose_right.fileLocation.items)
 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1501:2000,]
-tremor_features_left_4 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
+# chunk_size <- 30
+# nrows_tremor_tbl <- nrow(tremor.tbl.meta.noNA.right)
+# start_seq <- seq(1, nrows_tremor_tbl, chunk_size)
+# tremor_features_right <- lapply(start_seq, function(ss_start){
+#   gc()
+#   tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[ss_start:min(ss_start + chunk_size, nrows_tremor_tbl),]
+#   tremor_features_temp <- tryCatch({
+#     extractTremorFeatures(
+#       dat_ = tremor.tbl.meta.noNA,
+#       column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+#       runParallel_ = runParallel)
+#   },
+#   error = function(e){errorTremorFeatureDataFrame(TRUE)})
+#   return(tremor_features_temp)
+# })
 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:2500,]
-tremor_features_left_5 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2501:nrow(tremor.tbl.meta.noNA.left),]
-tremor_features_left_6 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-
-tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
-                              tremor_features_left_3, tremor_features_left_4,
-                              tremor_features_left_5, tremor_features_left_6)
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1:500,]
+# tremor_features_left_1 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA,
+#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[501:1000,]
+# tremor_features_left_2 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA,
+#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1001:1500,]
+# tremor_features_left_3 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA,
+#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1501:2000,]
+# tremor_features_left_4 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA,
+#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:2500,]
+# tremor_features_left_5 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA,
+#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2501:nrow(tremor.tbl.meta.noNA.left),]
+# tremor_features_left_6 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA,
+#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
+#                               tremor_features_left_3, tremor_features_left_4,
+#                               tremor_features_left_5, tremor_features_left_6)
 
 # Remove the error tremor data frames by filtering on skew.fr
 # (look at errorTremorFeatureDataFrame)
@@ -329,62 +368,62 @@ tremor_features_left <- tremor_features_left %>%
   dplyr::filter(skew.fr != -88888)
 
 ## right Hand Features
-tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),] %>% 
-  dplyr::select(recordId, ac4_motion_tremor_handToNose_right.fileLocation.items)
-
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1:500,]
-tremor_features_right_1 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[501:1000,]
-tremor_features_right_2 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1001:1500,]
-tremor_features_right_3 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1501:2000,]
-tremor_features_right_4 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2001:2500,]
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA[-441,] # Since this record has just 5 samples
-# and is throwing an error with mhealthtools
-tremor_features_right_5 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2501:nrow(tremor.tbl.meta.noNA.right),]
-tremor_features_right_6 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA, 
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-
-tremor_features_right <- rbind(tremor_features_right_1, tremor_features_right_2,
-                              tremor_features_right_3, tremor_features_right_4,
-                              tremor_features_right_5, tremor_features_right_6)
-
-
-# Remove the error tremor data frames by filtering on skew.fr
-# (look at errorTremorFeatureDataFrame)
-tremor_features_right <- tremor_features_right %>% 
-  dplyr::filter(skew.fr != -88888)
+# tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),] %>% 
+#   dplyr::select(recordId, ac4_motion_tremor_handToNose_right.fileLocation.items)
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1:500,]
+# tremor_features_right_1 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA, 
+#   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[501:1000,]
+# tremor_features_right_2 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA, 
+#   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1001:1500,]
+# tremor_features_right_3 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA, 
+#   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1501:2000,]
+# tremor_features_right_4 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA, 
+#   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2001:2500,]
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA[-441,] # Since this record has just 5 samples
+# # and is throwing an error with mhealthtools
+# tremor_features_right_5 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA, 
+#   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2501:nrow(tremor.tbl.meta.noNA.right),]
+# tremor_features_right_6 <- extractTremorFeatures(
+#   dat_ = tremor.tbl.meta.noNA, 
+#   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+#   runParallel_ = runParallel)
+# gc()
+# 
+# tremor_features_right <- rbind(tremor_features_right_1, tremor_features_right_2,
+#                               tremor_features_right_3, tremor_features_right_4,
+#                               tremor_features_right_5, tremor_features_right_6)
+# 
+# 
+# # Remove the error tremor data frames by filtering on skew.fr
+# # (look at errorTremorFeatureDataFrame)
+# tremor_features_right <- tremor_features_right %>% 
+#   dplyr::filter(skew.fr != -88888)
 
 #############
 # Upload data to Synapse
@@ -418,13 +457,13 @@ synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
 unlink(OUTPUT_FILE)
 
-# upload to Synapse, right hand features
-synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "tremorFeatures_handToNoseRight.tsv" # name your file
-write.table(tremor_features_right, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
-synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
-         activityName = activityName,
-         activityDescription = activityDescription,
-         used = tremor.tbl.id,
-         executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
-unlink(OUTPUT_FILE)
+# # upload to Synapse, right hand features
+# synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
+# OUTPUT_FILE <- "tremorFeatures_handToNoseRight.tsv" # name your file
+# write.table(tremor_features_right, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
+# synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
+#          activityName = activityName,
+#          activityDescription = activityDescription,
+#          used = tremor.tbl.id,
+#          executed = list(thisFile, "https://github.com/Sage-Bionetworks/mhealthtools"))
+# unlink(OUTPUT_FILE)
