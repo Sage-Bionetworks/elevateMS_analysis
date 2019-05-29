@@ -228,7 +228,7 @@ tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id
 tremor.tbl <- tremor.tbl.syn$asDataFrame()
 
 ## Convert createdOn into an understandable datetime format
-tremor.tbl$createdOn <- lubridate::as_datetime(tremor.tbl$createdOn/1000)
+# tremor.tbl$createdOn <- lubridate::as_datetime(tremor.tbl$createdOn/1000)
 
 ## Account for timezone change, if column is in local time
 # tremor.tbl$createdOn <- tremor.tbl$createdOn - 60*60*as.numeric(tremor.tbl$createdOnTimeZone)/100
@@ -277,78 +277,60 @@ if (detectCores() >= 2) {
 }
 doMC::registerDoMC(detectCores() - 2)
 
-## Left Hand Features
-# tremor.tbl.meta.noNA.left <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_left.fileLocation.items),] %>% 
-#   dplyr::select(recordId, ac4_motion_tremor_handToNose_left.fileLocation.items)
-# 
-# 
-# chunk_size <- 30
-# nrows_tremor_tbl <- nrow(tremor.tbl.meta.noNA.left)
-# start_seq <- seq(1, nrows_tremor_tbl, chunk_size)
-# tremor_features_left <- lapply(start_seq, function(ss_start){
-#   gc()
-#   tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[ss_start:min(ss_start + chunk_size, nrows_tremor_tbl),]
-#   tremor_features_temp <- tryCatch({
-#     extractTremorFeatures(
-#       dat_ = tremor.tbl.meta.noNA,
-#       column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-#       runParallel_ = runParallel)
-#   },
-#   error = function(e){errorTremorFeatureDataFrame(TRUE)})
-#   return(tremor_features_temp)
-# })
+# Left Hand Features
+tremor.tbl.meta.noNA.left <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_left.fileLocation.items),] %>%
+  dplyr::select(recordId, ac4_motion_tremor_handToNose_left.fileLocation.items)
 
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1:500,]
+tremor_features_left_1 <- extractTremorFeatures(
+  dat_ = tremor.tbl.meta.noNA,
+  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  runParallel_ = runParallel)
+gc()
 # 
-# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1:500,]
-# tremor_features_left_1 <- extractTremorFeatures(
-#   dat_ = tremor.tbl.meta.noNA,
-#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-#   runParallel_ = runParallel)
-# gc()
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[501:1000,]
+tremor_features_left_2 <- extractTremorFeatures(
+  dat_ = tremor.tbl.meta.noNA,
+  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  runParallel_ = runParallel)
+gc()
 # 
-# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[501:1000,]
-# tremor_features_left_2 <- extractTremorFeatures(
-#   dat_ = tremor.tbl.meta.noNA,
-#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-#   runParallel_ = runParallel)
-# gc()
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1001:1500,]
+tremor_features_left_3 <- extractTremorFeatures(
+  dat_ = tremor.tbl.meta.noNA,
+  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  runParallel_ = runParallel)
+gc()
 # 
-# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1001:1500,]
-# tremor_features_left_3 <- extractTremorFeatures(
-#   dat_ = tremor.tbl.meta.noNA,
-#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-#   runParallel_ = runParallel)
-# gc()
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1501:2000,]
+tremor_features_left_4 <- extractTremorFeatures(
+  dat_ = tremor.tbl.meta.noNA,
+  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  runParallel_ = runParallel)
+gc()
 # 
-# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1501:2000,]
-# tremor_features_left_4 <- extractTremorFeatures(
-#   dat_ = tremor.tbl.meta.noNA,
-#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-#   runParallel_ = runParallel)
-# gc()
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:2500,]
+tremor_features_left_5 <- extractTremorFeatures(
+  dat_ = tremor.tbl.meta.noNA,
+  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  runParallel_ = runParallel)
+gc()
 # 
-# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:2500,]
-# tremor_features_left_5 <- extractTremorFeatures(
-#   dat_ = tremor.tbl.meta.noNA,
-#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-#   runParallel_ = runParallel)
-# gc()
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2501:nrow(tremor.tbl.meta.noNA.left),]
+tremor_features_left_6 <- extractTremorFeatures(
+  dat_ = tremor.tbl.meta.noNA,
+  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  runParallel_ = runParallel)
+gc()
 # 
-# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2501:nrow(tremor.tbl.meta.noNA.left),]
-# tremor_features_left_6 <- extractTremorFeatures(
-#   dat_ = tremor.tbl.meta.noNA,
-#   column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-#   runParallel_ = runParallel)
-# gc()
-# 
-# tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
-#                               tremor_features_left_3, tremor_features_left_4,
-#                               tremor_features_left_5, tremor_features_left_6)
+tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
+                              tremor_features_left_3, tremor_features_left_4,
+                              tremor_features_left_5, tremor_features_left_6)
 
 # Remove the error tremor data frames by filtering on skew.fr
 # (look at errorTremorFeatureDataFrame)
-# tremor_features_left <- tremor_features_left %>% 
-#   dplyr::filter(skew.fr != -88888)
+tremor_features_left <- tremor_features_left %>%
+  dplyr::filter(skew.fr != -88888)
 
 ## right Hand Features
 tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),] %>%
@@ -385,7 +367,7 @@ gc()
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2001:2500,]
 # tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA[-441,] # Since this record has just 5 samples
 # # and is throwing an error with mhealthtools
-tremor_features_right_5_1 <- extractTremorFeatures(
+tremor_features_right_5 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA,
   column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
