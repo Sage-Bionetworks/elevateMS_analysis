@@ -409,7 +409,7 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # name and describe this activity
 activityName = "Extract tremor features"
-activityDescription = "Extract tremor features from tremor activity-v2"
+activityDescription = "Extract tremor features from tremor activity-v5"
 
 # upload to Synapse, left hand features
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
