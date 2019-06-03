@@ -330,7 +330,8 @@ tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
 # Remove the error tremor data frames by filtering on skew.fr
 # (look at errorTremorFeatureDataFrame)
 tremor_features_left <- tremor_features_left %>%
-  dplyr::filter(skew.fr != -88888)
+  dplyr::filter(skew.fr != -88888) %>% 
+  dplyr::select(-ac4_motion_tremor_handToNose_left.fileLocation.items)
 
 ## right Hand Features
 tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),] %>%
@@ -388,7 +389,8 @@ tremor_features_right <- rbind(tremor_features_right_1, tremor_features_right_2,
 # Remove the error tremor data frames by filtering on skew.fr
 # (look at errorTremorFeatureDataFrame)
 tremor_features_right <- tremor_features_right %>%
-  dplyr::filter(skew.fr != -88888)
+  dplyr::filter(skew.fr != -88888) %>% 
+  dplyr::select(-ac4_motion_tremor_handToNose_right.fileLocation.items)
 
 #############
 # Upload data to Synapse
