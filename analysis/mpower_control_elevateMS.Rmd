@@ -13,7 +13,7 @@ library(knit2synapse)
 
 synapser::synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "./mpower_train_elevatems_test.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd",
                                  parentId = "syn11315047",
                                  folderName = "elevateMS action tremor test (mpower PD action tremor train)")
 ```
@@ -77,7 +77,7 @@ activityDescription = 'Classify case-control in kinetic state tremors using rand
 gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 
-thisFileName <- 'mpower_train_elevateMS.Rmd'
+thisFileName <- 'mpower_control_elevateMS.Rmd'
 
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch", refName='master')
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/',thisFileName))
