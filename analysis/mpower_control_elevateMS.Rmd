@@ -83,9 +83,10 @@ thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/',thisFileName))
 ```
 
+
+```{r filter.healthcodes.elevateMS, fig.height=5, fig.width=10}
 ## Get and format data for elevateMS
 ### Age match case and control healthCodes
-```{r filter.healthcodes.elevateMS, fig.height=5, fig.width=10}
 ###########################################################
 ## Download data
 ###########################################################
@@ -196,8 +197,9 @@ age.records.matched = plyr::ddply(dat, .(subclass), .fun = function(x){
 # p3 = ggplot(age.records.matched, aes(x = log10(n), color = factor(MS))) + geom_density() + xlab('log10(# Windows)')
 # ggpubr::ggarrange(p2,p1,p3, ncol = 3, nrow = 1)
 ```
-### Extract features elevateMS
+
 ```{r get.ftrs}
+### Extract features elevateMS
 ###########################################################
 ## Download and set up features for elevateMS
 ###########################################################
@@ -226,9 +228,8 @@ ftrs = purrr::map(ftrs.id, function(id){
 ftrs$energy.tm <- as.numeric(ftrs$energy.tm)
 ```
 
-
-## Function block
 ```{r fxn}
+## Function block
 ## Function to classify case-control differences in each assay (balanced data)
 rfModelCaseControl <- function(dat, responseNames, factorFeatures, contFeatures, alwaysSplitVariables){
   # Get data and format data
@@ -413,7 +414,7 @@ ftrs.names = c("mean.tm", "median.tm", "mode.tm", "mx.tm", "mn.tm", "sd.tm", "sk
                "EnergyInBand23_5", "EnergyInBand24", "EnergyInBand24_5")
 ```
 
-### Combine energy features in to bands of 1 Hz before feature selection for elevateMS
+#### Combine energy features in to bands of 1 Hz before feature selection for elevateMS
 ```{r all.energy}
 ###########################################################
 ## Combine energy features in to 1 Hz band
@@ -435,7 +436,7 @@ colnames(energy.ftr.cmbn) = paste0('EnergyInBand', seq(1,24,by=1))
 energy.ftr.cmbn = cbind(data.frame(rid = energy.ftr$rid), energy.ftr.cmbn)
 ```
 
-### Find median and iqr of each feature (per healthCode) for elevateMS
+#### Find median and iqr of each feature (per healthCode) for elevateMS
 ```{r ftr.summarize}
 ###########################################################
 ## Summarize features for elevateMS
@@ -494,9 +495,10 @@ kinetic.ftr.all = kinetic.ftr %>%
 # kinetic.ftr <- kinetic.ftr.all %>% dplyr::filter(healthCode %in% age.records.matched$healthCode)
 ```
 
-## Get and format data for mPower and ObjectivePD
-### Age match case and control healthCodes
+
 ```{r filter.healthcodes.mpower}
+## Get and format data for mPower
+### Age match case and control healthCodes
 ###########################################################
 ## Download and set up features for mPower
 ###########################################################
@@ -627,7 +629,6 @@ dat.test = cbind(data.frame(healthCode = kinetic.ftr.all %>% dplyr::select(healt
     mdl.performance = rbind(auroc, acc, aupr)
     
 writeLines(c('Number of Kinetic features chosen for analysis : ',as.character(length(kineticFeaturesToSelect))))
-
 writeLines('Prediction on elevateMS after training on age matched mPower + elevateMS data')
 kable(mdl.performance)
 ```

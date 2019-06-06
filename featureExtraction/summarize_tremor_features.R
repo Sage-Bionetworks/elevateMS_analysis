@@ -37,13 +37,20 @@ synapser::synLogin()
 # set system environment to UTC
 Sys.setenv(TZ='GMT')
 
-# Download the tremor table
+# Tremor activity tables from elevateMS project
 tremor.tbl.id = 'syn10278767' # Tremor Activity-v5
 tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id))
 tremor.tbl <- tremor.tbl.syn$asDataFrame()
-all.used.ids <- tremor.tbl.id
 
-# Download the profile table (for age)
+all.used.ids = tremor.tbl.id
+
+# Get demographics from synapse
+demo.tbl.id = 'syn10295288' # Demographics table-v2
+demo.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", demo.tbl.id))
+demo.tbl <- demo.tbl.syn$asDataFrame()
+all.used.ids <- c(all.used.ids, demo.tbl.id)
+
+# Get Profile data (age data)
 profile.tbl.id <- 'syn10235463'
 profile.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", profile.tbl.id))
 profile.tbl <- profile.tbl.syn$asDataFrame() 
@@ -59,65 +66,100 @@ profile.tbl.cleaned <- profile.tbl %>%
   unique() %>% 
   na.omit()
 
-# Download the demographics table
-demo.tbl.id = 'syn10295288' # Demographics table-v2
-demo.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", demo.tbl.id))
-demo.tbl <- demo.tbl.syn$asDataFrame()
-all.used.ids <- c(all.used.ids, demo.tbl.id)
+# Get tremor features from synapse and count number of windows available for each hc
+ftrs.id = c(handToNose_left = 'syn12104398', handToNose_right = 'syn12104396')
+all.used.ids = c(all.used.ids, as.character(ftrs.id))
 
-demo.tbl <- demo.tbl %>% 
-  dplyr::mutate(MS = purrr::map(dataGroups, function(x){
-    if(is.na(x)){
-      return('NA') # if diagnosis is NA, return 'NA'
-    }
-    
-    if(grepl('control', x)){ # for 'control', 'control,test_user'
-      return('control')
-    }else{
-      return('ms') # for 'ms_patient', 'ms_patient,test_user'
-    }
-  }) %>% unlist()) %>% 
-  dplyr::rename(gender = gender.json.answer) %>% 
-  dplyr::filter(!(MS == 'NA')) %>% # filter out NA diagnosis
-  dplyr::inner_join(profile.tbl.cleaned)
-
-# Download the kinetic tremor features (hand to nose)
-tremor_features_left <- synapser::synGet('syn12104398')$path %>% 
-  read.csv(sep='\t') %>% 
-  dplyr::select(-ac4_motion_tremor_handToNose_left.fileLocation.items)
-tremor_features_right <- synapser::synGet('syn12104396')$path %>%
-  read.csv(sep='\t') %>% 
-  dplyr::select(-ac4_motion_tremor_handToNose_right.fileLocation.items)
-all.used.ids <- c(all.used.ids, 'syn12104398', 'syn12104396')
-
-tremor_features <- rbind(tremor_features_left, tremor_features_right) %>% 
-  dplyr::mutate(IMF = paste0('IMF',IMF)) %>% 
+# Load features from synapse
+ftrs = purrr::map(ftrs.id, function(id){
+  fread(synapser::synGet(id)$path, fill = TRUE) %>%
+    dplyr::filter(IMF %in% c(1,2)) %>%
+    unique()
+}) %>%
+  data.table::rbindlist(idcol = 'Assay') %>%
   dplyr::inner_join(tremor.tbl %>%
                       dplyr::select(recordId, healthCode)) %>%
   dplyr::left_join(demo.tbl %>%
-                     dplyr::select(healthCode, age, gender, MS)) %>%
-  dplyr::filter(!is.na(MS), !is.na(gender), !is.na(age), 
-                MS %in% c('control', 'ms'),
-                gender %in% c('Female', 'Male')) %>%
+                     dplyr::select(healthCode, gender.json.answer, dataGroups) %>%
+                     unique()) %>%
+  dplyr::rename(MS = dataGroups, gender = gender.json.answer) %>% 
+  dplyr::mutate(IMF = paste0('IMF',IMF)) %>% 
+  dplyr::filter(MS %in% c('ms_patient','control'))
+
+ftrs$energy.tm <- as.numeric(ftrs$energy.tm)
+
+###########################################################
+## Combine energy features in to 1 Hz band
+###########################################################
+energy.ftr = ftrs %>%
+  tidyr::unite(rid, recordId, Assay, sensor, measurementType, IMF, axis, window, sep = '.') %>%
+  dplyr::select(rid, contains('EnergyInBand'))
+
+energy.ftr.cmbn = purrr::map2(seq(1,24,by=1),
+                              seq(1.5,24.5,by=1),
+                              function(x, y, innerFtr){
+                                ind = paste0('EnergyInBand',gsub('\\.','_', seq(x, y, by=0.5)))
+                                innerFtr = innerFtr %>%
+                                  dplyr::select(rid, one_of(ind))
+                                rowSums(innerFtr[,2:3], na.rm = T)
+                              }, energy.ftr) %>%
+  do.call(cbind,.)
+colnames(energy.ftr.cmbn) = paste0('EnergyInBand', seq(1,24,by=1))
+energy.ftr.cmbn = cbind(data.frame(rid = energy.ftr$rid), energy.ftr.cmbn)
+
+###########################################################
+## Summarize features for elevateMS
+###########################################################
+# Get kinetic tremor features
+kinetic.ftr = ftrs %>%
+  tidyr::unite(rid, recordId, Assay, sensor, measurementType, IMF, axis, window, sep = '.') %>%
   dplyr::select(-contains('EnergyInBand')) %>%
-  tidyr::gather(Feature, Value, -IMF, -recordId, -sensor, -measurementType, -axis, -window,
-                -healthCode, -age, -gender, -MS) %>%
-  dplyr::group_by(sensor, measurementType, healthCode, age, gender, MS, IMF, Feature)
+  dplyr::left_join(energy.ftr.cmbn) %>%
+  tidyr::separate(rid, c('recordId', 'Assay', 'sensor', 'measurementType', 'IMF', 'axis', 'window'), sep = '\\.') %>%
+  dplyr::select(-recordId, -Assay, -axis, -window) %>%
+  tidyr::gather(Feature, Value, -healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
+  dplyr::group_by(Feature, healthCode, gender, MS, sensor, measurementType, IMF) %>%
+  dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
+                   md = stats::median(Value, na.rm = T))
 
-tremor_features.md = tremor_features %>%
-  dplyr::summarise(Value = median(Value, na.rm = T)) %>%
+# Get kinetic data and covariates seperately
+kinetic.cov = kinetic.ftr %>%
+  dplyr::ungroup() %>%
+  dplyr::select(healthCode, gender, MS) %>%
+  unique() %>%
+  purrr::map_df(factor) %>%
+  as.data.frame()
+rownames(kinetic.cov) = kinetic.cov$healthCode
+
+# Get median of features
+kinetic.ftr.md = kinetic.ftr %>%
+  dplyr::ungroup() %>%
+  dplyr::select(healthCode, sensor, measurementType, Feature, IMF, md) %>%
   dplyr::mutate(type = 'md') %>%
-  tidyr::unite(Feature, Feature, IMF, type, sep = '.') %>%
-  tidyr::unite(Feature, Feature, measurementType, sensor, sep = '_')
+  tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
+  tidyr::spread(nFeature, md)
 
-tremor_features.iqr = tremor_features %>%
-  dplyr::summarise(Value = IQR(Value, na.rm = T)) %>%
+# Get iqr of features
+kinetic.ftr.iqr = kinetic.ftr %>%
+  dplyr::ungroup() %>%
+  dplyr::select(healthCode, sensor, measurementType, Feature, IMF, iqr) %>%
   dplyr::mutate(type = 'iqr') %>%
-  tidyr::unite(Feature, Feature, IMF, type, sep = '.') %>%
-  tidyr::unite(Feature, Feature, measurementType, sensor, sep = '_')
+  tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
+  tidyr::spread(nFeature, iqr)
 
-tremor_summary_features = rbindlist(list(tremor_features.md, tremor_features.iqr), use.names = T, fill = T) %>%
-  tidyr::spread(Feature, Value) 
+# Combine median and iqr features (all data)
+kinetic.ftr = dplyr::inner_join(kinetic.ftr.md, kinetic.ftr.iqr)
+
+# # Remove linearly associated features
+# tmp.mat = kinetic.ftr %>%
+#   dplyr::select(-healthCode, -sensor, -measurementType)
+# lm.combo = caret::findLinearCombos(tmp.mat)
+
+kinetic.ftr.all = kinetic.ftr %>%
+  # dplyr::select(-one_of(colnames(tmp.mat)[lm.combo$remove])) %>%
+  tidyr::gather(Feature, Value, -healthCode, -sensor, -measurementType) %>%
+  tidyr::unite(featureName, Feature, measurementType, sensor, sep = '_') %>%
+  tidyr::spread(featureName, Value)
 
 #############
 # Upload data to Synapse
@@ -143,7 +185,7 @@ activityDescription = "Summarize tremor features into IQR and median"
 # upload to Synapse, summary features
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
 OUTPUT_FILE <- "hcwiseSummaryFeatures.tsv" # name your file
-write.table(tremor_summary_features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
+write.table(kinetic.ftr.all, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
