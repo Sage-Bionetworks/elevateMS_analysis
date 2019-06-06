@@ -501,7 +501,7 @@ dat1 <- dat1 %>% dplyr::filter(healthCode %in% commonHealthCodes)
 dat1$healthCode <- droplevels(dat1$healthCode)
 
 load('AllRanking.RData') #syn12038526
-nFeatures = 50 # max number of features to choose per assay
+nFeatures = 100 # max number of features to choose per assay
 
 kineticFeaturesIMF1 <- ranka[,3] %>% na.omit() 
 kineticFeaturesIMF2 <- ranka[,4] %>% na.omit() 

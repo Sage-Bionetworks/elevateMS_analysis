@@ -496,7 +496,7 @@ kinetic.ftr.all = kinetic.ftr %>%
 
 ## Get and format data for mPower and ObjectivePD
 ### Age match case and control healthCodes
-```{r filter.healthcodes}
+```{r filter.healthcodes.mpower}
 ###########################################################
 ## Download and set up features for mPower
 ###########################################################
@@ -642,7 +642,7 @@ save(list = c('rf.mdl'),
      file = 'AllImportanceScore.RData')
 obj = File('AllImportanceScore.RData', 
            name = 'All importance scores with AUC', 
-           parentId = CODE@properties$id)
+           parentId = CODE$properties$id)
 obj = synStore(obj,activityName = activityName, 
                activityDescription = activityDescription, 
                used = all.used.ids, executed = thisFile)
