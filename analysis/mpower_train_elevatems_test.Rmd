@@ -69,7 +69,7 @@ activityName = 'elevateMS Kinetic tremor case-control classification';
 activityDescription = 'Classify case-control in kinetic state tremors using random forest models with median and iqr features, for Multiple Sclerosis. The training is done with mpower PD data for kinetic tremors, but the testing is done on elevateMS kinetic tremor data'
 
 # Github link
-gtToken = 'github_token.txt'
+gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 
 thisFileName <- 'mpower_train_elevatems_test.Rmd'
@@ -690,7 +690,7 @@ kable(mdl.performance)
 ### Store results in synapse
 ```{r syn.store, cache=FALSE, eval = TRUE}
 CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)', 
-              parentId = "syn11815873")
+              parentId = "syn11315047")
 CODE = synStore(CODE)
 
 # Save all coefficients and AUCs as RData
