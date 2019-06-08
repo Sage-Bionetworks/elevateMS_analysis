@@ -527,7 +527,7 @@ tremor.tbl.mpower <- tremor.tbl.mpower.syn$asDataFrame() %>%
   unique()
 
 load('AllRanking.RData') #syn12038526
-nFeatures = 30 # max number of features to choose per assay
+nFeatures = 100 # max number of features to choose per assay
 
 kineticFeaturesIMF1 <- ranka[,3] %>% na.omit() 
 kineticFeaturesIMF2 <- ranka[,4] %>% na.omit() 
@@ -723,7 +723,7 @@ kable(mdl.performance)
 ```
 
 #### Evaluate Kinetic Model on elevateMS by training on mPower+elevateMS age matched data (removing gender == NA data)
-```{r model.result}
+```{r model.result.gender}
 nperm = 100
 set.seed(123456789)
 exportPackages = c('dplyr','plyr','data.table','CovariateAnalysis', 'ranger', 'ROCR')
