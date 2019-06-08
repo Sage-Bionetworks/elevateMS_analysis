@@ -751,10 +751,14 @@ dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
 # colnames(dat.train) <- gsub('.kinetic','',colnames(dat.train))
 dat.test <- dfMainTrain %>%
   dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
+  dplyr::left_join(kinetic.cov %>% dplyr::select(healthCode, gender)) %>% 
+  na.omit() %>% 
     dplyr::select(one_of(kineticFeaturesToSelect)) %>%
       apply(2, scale)
 dat.test = cbind(data.frame(healthCode = dfMainTrain %>%
   dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
+      dplyr::left_join(kinetic.cov %>% dplyr::select(healthCode, gender)) %>% 
+    na.omit() %>% 
     dplyr::select(healthCode)), dat.test) %>%
    dplyr::left_join(kinetic.cov) %>%
   as.data.frame() %>% droplevels() %>%
