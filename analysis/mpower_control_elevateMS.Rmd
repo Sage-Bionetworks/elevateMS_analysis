@@ -721,6 +721,87 @@ writeLines(c('Number of healthCodes in testset : ',as.character(length(dat.test$
 writeLines('Prediction on elevateMS after training on age matched mPower + elevateMS data')
 kable(mdl.performance)
 ```
+
+#### Evaluate Kinetic Model on elevateMS by training on mPower+elevateMS age matched data (removing gender == NA data)
+```{r model.result}
+nperm = 100
+set.seed(123456789)
+exportPackages = c('dplyr','plyr','data.table','CovariateAnalysis', 'ranger', 'ROCR')
+
+# ftrsToSelect <- paste0(kineticFeaturesToSelect,'.kinetic')
+ftrsToSelect <- kineticFeaturesToSelect
+  
+# Get training data
+dat.train = dfMainTrain %>%
+  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
+  dplyr::select(one_of(ftrsToSelect)) %>%
+  apply(2, scale) 
+dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
+  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
+    dplyr::select(healthCode)), dat.train) %>%
+  dplyr::left_join(hc.hfreq.all %>% 
+                     dplyr::filter(healthCode %in% dfMainTrain$healthCode)) %>%
+  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
+  as.data.frame() %>% droplevels() %>% 
+  dplyr::mutate(MS = factor(MS, levels = c('control','ms_patient')),
+                MS = as.numeric(MS) - 1) %>% dplyr::select(-age, -n) %>% 
+  na.omit() %>%
+  unique()
+
+# colnames(dat.train) <- gsub('.kinetic','',colnames(dat.train))
+dat.test <- dfMainTrain %>%
+  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
+    dplyr::select(one_of(kineticFeaturesToSelect)) %>%
+      apply(2, scale)
+dat.test = cbind(data.frame(healthCode = dfMainTrain %>%
+  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
+    dplyr::select(healthCode)), dat.test) %>%
+   dplyr::left_join(kinetic.cov) %>%
+  as.data.frame() %>% droplevels() %>%
+  dplyr::mutate(MS = factor(MS, levels = c('control','ms_patient')),
+                MS = as.numeric(MS) - 1) %>% 
+  dplyr::filter(healthCode %in% tremor.tbl$healthCode) %>% 
+  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>%
+   na.omit()
+
+    rf.mdl = ranger(dependent.variable.name = 'MS', 
+                    data = dat.train, 
+                    num.trees = 1000,
+                    importance = 'permutation',
+                    seed = 123456,
+                    classification = TRUE,
+                    write.forest = TRUE)
+  
+    # Predict reponse of test data
+    rf.prediction = predict(rf.mdl, 
+                            data = dat.test,
+                            predict.all = T,
+                            type = 'response',
+                            seed = 123456)
+        pred.probabilities = rowSums(rf.prediction$predictions == 1, na.rm = T)/rf.prediction$num.trees
+  
+    mdl.prediction = pred.probabilities %>%
+      prediction(predictions = ., labels = dat.test[,'MS'], label.ordering = c(0,1))
+    
+    auroc = data.frame(metricName = 'auroc', 
+                       value = performance(mdl.prediction, 'auc')@y.values[[1]])
+    acc = data.frame(metricName = 'acc',
+                     value = max(performance(mdl.prediction, 'acc')@y.values[[1]]))
+    
+    rec = performance(mdl.prediction, 'rec')@y.values[[1]]
+    pre = performance(mdl.prediction, 'prec')@y.values[[1]]
+    
+    aupr = data.frame(metricName = 'aupr', 
+                      value = caTools::trapz(rec[!is.nan(rec) & !is.nan(pre)], 
+                                             pre[!is.nan(rec) & !is.nan(pre)]))
+    mdl.performance = rbind(auroc, acc, aupr)
+    
+writeLines(c('Number of Kinetic features chosen for analysis : ',as.character(length(kineticFeaturesToSelect))))
+writeLines(c('Number of healthCodes in testset : ',as.character(length(dat.test$healthCode))))
+writeLines('Prediction on elevateMS after training on age matched mPower + elevateMS data')
+kable(mdl.performance)
+```
+
 ### Store results in synapse
 ```{r syn.store, cache=FALSE, eval = TRUE}
 CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)', 
