@@ -15,7 +15,7 @@ synapser::synLogin()
 
 knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd",
                                  parentId = "syn11315047",
-                                 folderName = "elevateMS action tremor test (mpower PD action tremor train)")
+                                 folderName = "elevateMS action tremor test (mpower PD action tremor train)[no scaling]")
 ```
 
 ```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -578,8 +578,9 @@ ftrs.to.evaluate = kineticFeaturesToSelect %>% unique()
 # Get training data
 dat.train = dfMainTrain %>%
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
-  dplyr::select(one_of(ftrs.to.evaluate)) %>%
-  apply(2, scale) 
+  dplyr::select(one_of(ftrs.to.evaluate)) 
+# %>%
+  # apply(2, scale) 
 dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
     dplyr::select(healthCode)), dat.train) %>%
@@ -648,8 +649,9 @@ ftrsToSelect <- kineticFeaturesToSelect
 # Get training data
 dat.train = dfMainTrain %>%
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
-  dplyr::select(one_of(ftrsToSelect)) %>%
-  apply(2, scale) 
+  dplyr::select(one_of(ftrsToSelect)) 
+# %>%
+#   apply(2, scale) 
 dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
     dplyr::select(healthCode)), dat.train) %>%
@@ -665,8 +667,9 @@ dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
 # colnames(dat.train) <- gsub('.kinetic','',colnames(dat.train))
 dat.test <- dfMainTrain %>%
   dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
-    dplyr::select(one_of(kineticFeaturesToSelect)) %>%
-      apply(2, scale)
+    dplyr::select(one_of(kineticFeaturesToSelect))
+# %>%
+#       apply(2, scale)
 dat.test = cbind(data.frame(healthCode = dfMainTrain %>%
   dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
     dplyr::select(healthCode)), dat.test) %>%
@@ -734,8 +737,9 @@ ftrsToSelect <- kineticFeaturesToSelect
 # Get training data
 dat.train = dfMainTrain %>%
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
-  dplyr::select(one_of(ftrsToSelect)) %>%
-  apply(2, scale) 
+  dplyr::select(one_of(ftrsToSelect)) 
+# %>%
+#   apply(2, scale) 
 dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
     dplyr::select(healthCode)), dat.train) %>%
@@ -753,8 +757,9 @@ dat.test <- dfMainTrain %>%
   dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
   dplyr::left_join(kinetic.cov %>% dplyr::select(healthCode, gender)) %>% 
   na.omit() %>% 
-    dplyr::select(one_of(kineticFeaturesToSelect)) %>%
-      apply(2, scale)
+    dplyr::select(one_of(kineticFeaturesToSelect)) 
+# %>%
+#       apply(2, scale)
 dat.test = cbind(data.frame(healthCode = dfMainTrain %>%
   dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
       dplyr::left_join(kinetic.cov %>% dplyr::select(healthCode, gender)) %>% 
