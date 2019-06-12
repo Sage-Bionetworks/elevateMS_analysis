@@ -15,7 +15,7 @@ synapser::synLogin()
 
 knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd",
                                  parentId = "syn11315047",
-                                 folderName = "elevateMS action tremor test (mpower PD action tremor train)[no scaling]")
+                                 folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 3 records)")
 ```
 
 ```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -139,7 +139,9 @@ hc.nc <- hc.nc %>%
                       dplyr::select(recordId, healthCode))
 hc.nc <- hc.nc %>%
   dplyr::left_join(demo.tbl %>% dplyr::filter(healthCode %in% hc.nc$healthCode) %>%
-                     dplyr::select(healthCode, gender.json.answer, dataGroups))
+                     dplyr::select(healthCode, gender.json.answer, dataGroups)) %>% 
+  dplyr::select(-window, -axis) %>% 
+  unique()
 hc.nc <- hc.nc %>%
   dplyr::left_join(profile.tbl.cleaned %>% dplyr::filter(healthCode %in% hc.nc$healthCode)) %>%
   dplyr::rename(MS = dataGroups, gender=gender.json.answer) %>%
@@ -149,10 +151,10 @@ hc.nc <- hc.nc %>%
   dplyr::count(healthCode, gender, MS,age) %>%  # Not counting across Assay (left/right) as we will consider them as repeat measures
   unique()
 
-# High frequency filter (atleast 1 record with 3 windows in each axis, in total 12 windows in both hands)
+# High frequency filter (atleast 3 records)
 hc.hfreq = hc.nc %>% na.omit() %>% 
   dplyr::select(healthCode, age, gender, MS, n) %>% 
-  dplyr::filter(n > 0) %>% 
+  dplyr::filter(n > 3) %>% 
   unique()
 
 ###########################################################
@@ -195,8 +197,8 @@ age.records.matched = plyr::ddply(dat, .(subclass), .fun = function(x){
 })
 p1 = ggplot(age.records.matched, aes(x = factor(MS), y = age)) + geom_boxplot()
 p2 = ggplot(age.records.matched, aes(x = MS)) + geom_bar()
-p3 = ggplot(age.records.matched, aes(x = log10(n), color = factor(MS))) + geom_density() + xlab('log10(# Windows)')
-ggpubr::ggarrange(p2,p1,p3, ncol = 3, nrow = 1)
+# p3 = ggplot(age.records.matched, aes(x = log10(n), color = factor(MS))) + geom_density() + xlab('log10(# Windows)')
+ggpubr::ggarrange(p2,p1, ncol = 2, nrow = 1)
 ```
 
 ```{r get.ftrs}
