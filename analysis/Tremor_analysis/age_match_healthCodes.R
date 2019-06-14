@@ -134,7 +134,7 @@ activityDescription = "Age Match elevateMS data pooled with mpower controls"
 # upload to Synapse, left hand features
 synapse.folder.id <- "syn19120636" # synId of folder to upload your file to
 OUTPUT_FILE <- "age_match_healthCodes.tsv" # name your file
-write.table(tremor_features_left, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
+write.table(agage.records.matched, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
