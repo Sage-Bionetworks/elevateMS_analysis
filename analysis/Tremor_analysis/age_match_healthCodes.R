@@ -13,6 +13,7 @@ library(synapser)
 library(plyr)
 library(dplyr)
 library(MatchIt)
+library(githubr)
 synapser::synLogin()
 
 ###########################################################
@@ -119,8 +120,8 @@ age.records.matched = plyr::ddply(dat, .(subclass), .fun = function(x){
 ## Github link
 # Copy paste the github token string and store it as 'github_token.txt' file
 # A github token is required to access the elevateMS_analysis repository as it is private
-gtToken = 'github_token.txt'
-githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+gtToken = '~/github_token.txt'
+setGithubToken(as.character(read.table(gtToken)$V1))
 thisFileName <- "analysis/Tremor_analysis/age_match_healthCodes.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
@@ -128,13 +129,13 @@ thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis",
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # name and describe this activity
-activityName = "Age Mactch HealthCodes"
+activityName = "Age Match HealthCodes"
 activityDescription = "Age Match elevateMS data pooled with mpower controls"
 
 # upload to Synapse, left hand features
 synapse.folder.id <- "syn19120636" # synId of folder to upload your file to
 OUTPUT_FILE <- "age_match_healthCodes.tsv" # name your file
-write.table(agage.records.matched, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
+write.table(age.records.matched, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
