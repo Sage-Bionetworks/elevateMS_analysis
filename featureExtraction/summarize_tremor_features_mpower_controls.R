@@ -174,12 +174,12 @@ thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis",
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # name and describe this activity
-activityName = "Summarize tremor features"
-activityDescription = "Summarize tremor features into IQR and median"
+activityName = "Summarize tremor features for mpower controls"
+activityDescription = "Summarize tremor features for mpower controls into IQR and median"
 
 # upload to Synapse, summary features
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "hcwiseSummaryFeatures.tsv" # name your file
+OUTPUT_FILE <- "hcwiseSummaryFeatures_mpower_controls.tsv" # name your file
 write.table(kinetic.ftr.all, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
