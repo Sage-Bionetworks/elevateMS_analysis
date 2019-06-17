@@ -256,6 +256,7 @@ getTopNPercentOfFtrs <- function(mdl, n = 70){
 age.records.matched.id = 'syn19123754'
 age.records.matched.syn = synapser::synGet(age.records.matched.id)
 age.records.matched = read.csv(age.records.matched.syn$path, sep = '\t')
+all.used.ids = age.records.matched.id
 
 p1 = ggplot(age.records.matched, aes(x = factor(MS), y = age)) + geom_boxplot()
 p2 = ggplot(age.records.matched, aes(x = MS)) + geom_bar()
@@ -271,7 +272,7 @@ ggpubr::ggarrange(p2,p1, p3,ncol = 3, nrow = 1)
 summarized.ftrs.elevateMS.id = 'syn18879962'
 summarized.ftrs.elevateMS = read.csv(synapser::synGet(summarized.ftrs.elevateMS.id)$path,
                                      sep = '\t')
-
+all.used.ids = c(all.used.ids, summarized.ftrs.elevateMS.id)
 ###########################################################
 ## Download demohgraphics data for elevateMS
 ###########################################################
@@ -287,7 +288,7 @@ all.used.ids <- c(all.used.ids, demo.tbl.id.ms)
 summarized.ftrs.mpower.id = 'syn19165094'
 summarized.ftrs.mpower = read.csv(synapser::synGet(summarized.ftrs.mpower.id)$path,
                                      sep = '\t')
-
+all.used.ids < c(all.used.ids, summarized.ftrs.mpower.id)
 
 ```
 
@@ -317,6 +318,7 @@ ftrs.names = c("mean.tm", "median.tm", "mode.tm", "mx.tm", "mn.tm", "sd.tm", "sk
 
 ranking.syn.id = 'syn12038526' # AllRanking.Rdata (feature ranking  postural, kinetic and rest for mpower)
 load(synapser::synGet(ranking.syn.id)$path)
+all.used.ids <- c(all.used.ids, ranking.syn.id)
 nFeatures = 100 # max number of features to choose per assay
 
 kineticFeaturesIMF1 <- ranka[,3] %>% na.omit() 
