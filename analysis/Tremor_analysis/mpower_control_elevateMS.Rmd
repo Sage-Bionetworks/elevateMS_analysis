@@ -80,7 +80,7 @@ githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisFileName <- 'mpower_control_elevateMS.Rmd'
 
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/',thisFileName))
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Tremor_analysis/',thisFileName))
 ```
 
 ```{r fxn}
