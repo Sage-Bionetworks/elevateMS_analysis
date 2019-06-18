@@ -38,7 +38,7 @@ COL_MS_PATIENT_CLINICAL_REF = '#e66101'
 
 save.image("elevateMS_paper2_dataFreeze.Rda")
 synStore(File("elevateMS_paper2_dataFreeze.Rda",
-              parentId = "syn11649013"),
+              parentId = "syn19273715"),
          executed="https://github.com/Sage-Bionetworks/elevateMS_analysis/blob/master/analysis/Analytical_Paper_2/createDataFreeze_paper2.R")
 unlink("elevateMS_paper2_dataFreeze.Rda")
  
