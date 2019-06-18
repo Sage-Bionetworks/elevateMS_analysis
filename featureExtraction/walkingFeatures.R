@@ -31,7 +31,7 @@ library(githubr)
 ####### -- NOTE -- #######
 
 library(mpowertools) 
-# devtools::install_github("Sage-Bionetworks/mpowertools")
+# devtools::install_github("itismeghasyam/mpowertools")
 
 
 #############
@@ -63,12 +63,6 @@ walk.tbl.id = 'syn10278766' # Walking Activity-v2
 # walk.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", walk.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
 walk.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", walk.tbl.id))
 walk.tbl <- walk.tbl.syn$asDataFrame()
-
-## Convert createdOn into an understandable datetime format
-walk.tbl$createdOn <- lubridate::as_datetime(walk.tbl$createdOn/1000)
-
-## Account for timezone change, if column is in local time
-# walk.tbl$createdOn <- walk.tbl$createdOn - 60*60*as.numeric(walk.tbl$createdOnTimeZone)/100
 
 ## Download required columns i,e the JSON files
 columnsToDownload = c("deviceMotion_walking_outbound.json.items") 
@@ -170,7 +164,7 @@ walk_features <- walk_features %>%
 ## Github link
 # Copy paste the github token string and store it as 'github_token.txt' file
 # A github token is required to access the elevateMS_analysis repository as it is private
-gtToken = 'github_token.txt'
+gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisFileName <- "featureExtraction/walkingFeatures.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
