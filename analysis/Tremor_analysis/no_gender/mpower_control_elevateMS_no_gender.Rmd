@@ -492,7 +492,7 @@ kable(mdl.performance)
 ### Store results in synapse
 ```{r syn.store, cache=FALSE, eval = TRUE}
 CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)', 
-              parentId = "syn11315047")
+              parentId = "syn19120636")
 CODE = synStore(CODE)
 
 # Save all coefficients and AUCs as RData
