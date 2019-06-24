@@ -14,10 +14,11 @@ load(synGet("syn11657929")$path)
 
 
 userActivity <- userActivity %>% 
+  filter(dataGroups %in% c('control', 'ms_patient')) %>%
   filter(!originalTable %in% c('Passive Data-v3', 'Weather-v3')) 
 
 userRetention <- userActivity %>%
-    filter(participant_day <=  84) %>%
+    filter(participant_day <=  85) %>%
     dplyr::group_by(healthCode) %>%
     dplyr::summarise(totalDaysActive = n_distinct(lubridate::date(createdOn)),
                      duration_in_study = as.numeric(max(lubridate::date(createdOn)) - min(lubridate::date(createdOn)) + 1),
@@ -50,13 +51,15 @@ censor <- rep(1, nrow(userRetention))
 fit <- survfit(Surv(time=duration_in_study, event=censor) ~ group, 
                 data = userRetention )
 summary(fit)$table
+summary(fit)
 p1 <- ggsurvplot(fit, pval = TRUE, conf.int = TRUE, 
                  xlab = "days in study ", 
                  palette = c(COL_CONTROL, COL_MS_PATIENT, COL_MS_PATIENT_CLINICAL_REF),
                  risk.table.y.text.col = F, risk.table.y.text = F, legend = "none",
+                 xlim = c(1,81),
                  surv.median.line = "hv", ggtheme = theme_light(base_size = 15))
 
-p1
+p1 
 ggsave("analysis/engagement_Paper_1/FINAL_FIGS/survivalCurve_by_disease.png", plot=print(p1), height = 5, width = 6, units="in", dpi=100)
 ggsave("analysis/engagement_Paper_1/FINAL_FIGS/survivalCurve_by_disease.tiff", plot=print(p1), height = 5, width = 6, units="in", dpi=200)
 
