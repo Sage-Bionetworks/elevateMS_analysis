@@ -1,5 +1,5 @@
 ---
-title: "elevateMS rest/balance features analysis"
+title: "elevateMS Voice-based DSST feature analysis"
 author: "Abhi Pratap"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
@@ -12,13 +12,15 @@ knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
 Sys.setenv(TZ='GMT')
 library(install.load)
 install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
-install_load('ggthemes', 'devtools')
+install_load('ggthemes', 'devtools', 'gridExtra')
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #   install.packages("BiocManager")
 # BiocManager::install("ComplexHeatmap", version = "3.8")
 install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+synapser::synLogin()
 
-source("../loadData.R")
+###Load data freeze
+load(synGet("syn19273733")$path)
 source("common_analysis_functions.R")
 ```
 
@@ -28,14 +30,19 @@ source("common_analysis_functions.R")
 
 ```{r}
 dsstF <- dsst %>% inner_join(baselineChar %>% select(healthCode, dataGroups)) %>%
-  filter(dataGroups == 'ms_patient' & 
-         percentCorrect >= 80) %>%
-  gather(feature, value, c(3,5,6,7,8,9)) 
+  dplyr::filter(dataGroups == 'ms_patient' & 
+         percentCorrect >= 80)  %>%
+  tidyr::gather(feature, value, c("numDigits", "numCorrect",
+                                  "percentCorrect", "avgTime", "sdTime", "totalTime" )) %>%
+  dplyr::mutate(value = as.numeric(value))
 
-dsstF_week_averaged =  dsstF %>% select(healthCode, participant_week, feature, value) %>%
-  group_by(healthCode, participant_week, feature) %>% 
-  dplyr::summarise_all(.funs=c(mean), na.rm=T) 
-
+dsstF_week_averaged =  dsstF %>% 
+  dplyr::select(healthCode, participant_week, feature, value) %>%
+  dplyr::group_by(healthCode, participant_week, feature) %>% 
+  dplyr::summarise(mean_value = mean(value, na.rm = T),
+                   iqr_value = IQR(value, na.rm = T),
+                   median_value = median(value, na.rm = T)) %>%
+   dplyr::mutate(value = mean_value)
 ```
 
 
@@ -51,7 +58,7 @@ neurCog_firstCommonWeek_dsstF <- get_neuroQOL_cors(dsstF_week_averaged, use_firs
 <br>
 <br>
 
-##### Correlation Rest/Balance features (All Weeks) with Neuro-QoLs
+##### Correlation between DSST fearues(All Weeks) with Neuro-QoLs
 
 ```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
 p1 <- ggplot(neurCog_allWeeks_dsstF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
@@ -82,7 +89,7 @@ ggsave("FIGURES/dsstF_top_2_feature_scatterPlot_allWeek.png", p3, height=3, widt
 -----
 
 
-#####  Balance rest/balance features(first common week) with Neuro-QoLs
+#####  DSST features(first common week) with Neuro-QoLs
 
 
 ```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
@@ -94,7 +101,7 @@ ggsave("FIGURES/walkF_n_NeuroQOLs_corr_firstCommonWeeks_volcanoPlot.jpeg", plot=
 ```
 
 
-##### Association between rest/balance feature(turning time) across all weeks with baseline PDDS survey
+##### Association between DSST featureacross all weeks with baseline PDDS survey
 
 
 ```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}

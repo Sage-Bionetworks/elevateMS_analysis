@@ -1,5 +1,5 @@
 ---
-title: "elevateMS rest/balance features analysis"
+title: "ElevateMS - Top patient reported symptoms and triggers of MS"
 author: "Abhi Pratap"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
@@ -19,7 +19,8 @@ install_load('ggthemes', 'devtools')
 # BiocManager::install("ComplexHeatmap", version = "3.8")
 install_load("ComplexHeatmap", "circlize", "RColorBrewer")
 
-source("../loadData.R")
+###Load data freeze
+load(synGet("syn19273733")$path)
 source("common_analysis_functions.R")
 ```
 
@@ -43,7 +44,7 @@ p <- ggdotchart(symptom_summary, x = "symptom", y = "percent",
            ggtheme = theme_pubr() ) + theme_cleveland() 
 p
 ggsave(file = "FIGURES/symptoms.png",
-       plot=p,  height = 10, width = 6, dpi = 300)
+       plot=p,  height = 10, width = 6, dpi = 200)
 
 ```
 
@@ -104,6 +105,19 @@ wordcloud(words = trigger_summary$trigger, freq = round(trigger_summary$percent)
 ```
 
 
+#### Association between Weather and Symtpoms/Triggers
+
+```{r}
+
+View(triggers)
+
+
+
+```
+
+
+
+
 
 
 
@@ -115,7 +129,7 @@ html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
 
 thisFilePrefix = "symptoms_N_triggers"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
-gtToken = '~/.ssh/apratap_github_token_20190219.txt';
+gtToken = '~/.ssh/apratap_github_token_20190219.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
 thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
