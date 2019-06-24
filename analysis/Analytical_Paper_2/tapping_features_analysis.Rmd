@@ -20,31 +20,36 @@ output: html_document
 
 
 ```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-
-
 rm(list=ls())
 knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
 Sys.setenv(TZ='GMT')
 library(install.load)
 install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
-install_load('ggthemes', 'devtools')
+install_load('ggthemes', 'devtools', 'gridExtra')
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #   install.packages("BiocManager")
 # BiocManager::install("ComplexHeatmap", version = "3.8")
 install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+synapser::synLogin()
 
-source("../loadData.R")
+
+###Load data freeze
+load(synGet("syn19273733")$path)
 source("common_analysis_functions.R")
 ```
 
 -----
 
 ```{r}
-tmp_tapF <- tapF %>% filter(dataGroups == 'ms_patient') %>%
-  gather(feature, value, c(10:51,63)) %>%
-  select(-c(1:6)) 
+##TAP FEATURE COLS -
+#cat(colnames(tapF), sep="', '")
+TAP_FEATURES <- c('meanTapInter', 'medianTapInter', 'iqrTapInter', 'minTapInter', 'maxTapInter', 'skewTapInter', 'kurTapInter', 'sdTapInter', 'madTapInter', 'cvTapInter', 'rangeTapInter', 'tkeoTapInter', 'ar1TapInter', 'ar2TapInter', 'fatigue10TapInter', 'fatigue25TapInter', 'fatigue50TapInter', 'meanDriftLeft', 'medianDriftLeft', 'iqrDriftLeft', 'minDriftLeft', 'maxDriftLeft', 'skewDriftLeft', 'kurDriftLeft', 'sdDriftLeft', 'madDriftLeft', 'cvDriftLeft', 'rangeDriftLeft', 'meanDriftRight', 'medianDriftRight', 'iqrDriftRight', 'minDriftRight', 'maxDriftRight', 'skewDriftRight', 'kurDriftRight', 'sdDriftRight', 'madDriftRight', 'cvDriftRight', 'rangeDriftRight', 'numberTaps', 'buttonNoneFreq', 'corXY')
 
-tapF_week_averaged =  tmp_tapF %>% select(healthCode, participant_week, hand, feature, value) %>%
+tmp_tapF <- tapF %>% filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, c(TAP_FEATURES))
+
+tapF_week_averaged =  tmp_tapF %>% 
+  select(healthCode, participant_week, hand, feature, value) %>%
   group_by(healthCode, participant_week, hand, feature) %>% 
   dplyr::summarise_all(.funs=c(mean), na.rm=T) 
 ```
@@ -53,7 +58,7 @@ tapF_week_averaged =  tmp_tapF %>% select(healthCode, participant_week, hand, fe
 <br>
 
 #### Correlations of all tapping features with Neuro-QoLs
-```{r, neuroQoLCors, echo=T}
+```{r, neuroQoLCors}
 
 ## Correlations- All Weeks
 neurCog_allWeeks_tapF <- get_neuroQOL_cors(tapF_week_averaged, additional_group_by='hand', use_first_common_week=F)
@@ -92,9 +97,7 @@ p3 <- grid.arrange(p2,p1, nrow=1)
 
 -----
 
-
 #####  Tapping features(first common week) with Neuro-QoLs
-
 ```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
 
 p2 <- ggplot(neurCog_firstCommonWeek_tapF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
@@ -103,19 +106,6 @@ p2 <- p2 + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey3
 p2
 ggsave("FIGURES/tap_N_NeuroQOLs_Correlation_firstCommonWeek_volcanoPlot.jpeg", plot=p2, height=4, width=10, units="in", dpi=300)
 ```
-
-
-##### Scatter plot top 2 tapping features(first common week) 
-
-```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}
-p1 <- get_scatter_plot(tapF_week_averaged %>% filter(hand == 'left'), nQOL_uppExtremity_week_avg, 
-                       x='numberTaps', y='TScore', use_first_common_week = F)
-p2 <- get_scatter_plot(tapF_week_averaged %>% filter(hand == 'left'), nQOL_uppExtremity_week_avg, 
-                       x='meanTapInter', y='TScore', use_first_common_week = F)
-p3 <- grid.arrange(p2,p1, nrow=1)
-ggsave("FIGURES/tapping_n_NeuroQOLs_top_2_features_scatterPlot_allWeeks.png", p3, height=3, width=9, units="in", dpi=150)
-```
-
 
 
 
@@ -171,22 +161,20 @@ ggsave("FIGURES/numberTaps_ALLWeeks_with_physicalDisability_boxplot.png", p, hei
 
 ```{r, syn.store, eval=F}
 # Knit html document and push to synapse
-#knitr::knit()
+thisFilePrefix = "tapping_features_analysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+
 thisFilePrefix = "tapping_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 gtToken = '~/.ssh/apratap_github_token_20190219.txt';
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
 thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
-
-
-html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
 thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
-
-unlink(paste0(thisFilePrefix, '.html'))
-
 ###Store on Synapse
 synStore(thisFile_synapse, executed=thisFile_github_permaLink)
-
+unlink(paste0(thisFilePrefix, '.html'))
 ```
 
