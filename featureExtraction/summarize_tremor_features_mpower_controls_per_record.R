@@ -113,7 +113,7 @@ kinetic.ftr = ftrs %>%
   tidyr::separate(rid, c('recordId', 'Assay', 'sensor', 'measurementType', 'IMF', 'axis', 'window'), sep = '\\.') %>%
   dplyr::select(-Assay, -axis, -window) %>%
   tidyr::gather(Feature, Value, -recordId, -healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
-  dplyr::group_by(Feature, healthCode, gender, MS, sensor, measurementType, IMF) %>%
+  dplyr::group_by(Feature, recordId, healthCode, gender, MS, sensor, measurementType, IMF) %>%
   dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
                    md = stats::median(Value, na.rm = T))
 
@@ -179,7 +179,7 @@ activityDescription = "Summarize tremor features for mpower controls into IQR an
 
 # upload to Synapse, summary features
 synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
-OUTPUT_FILE <- "hcwiseSummaryFeatures_mpower_controls.tsv" # name your file
+OUTPUT_FILE <- "recordwiseSummaryFeatures_mpower_controls.tsv" # name your file
 write.table(kinetic.ftr.all, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
