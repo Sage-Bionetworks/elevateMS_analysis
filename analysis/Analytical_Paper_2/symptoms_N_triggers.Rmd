@@ -18,6 +18,7 @@ install_load('ggthemes', 'devtools')
 #   install.packages("BiocManager")
 # BiocManager::install("ComplexHeatmap", version = "3.8")
 install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+synapser::synLogin()
 
 ###Load data freeze
 load(synGet("syn19273733")$path)
@@ -26,7 +27,7 @@ source("common_analysis_functions.R")
 
 
 
-#### What percentage of people report each trigger?
+#### What percentage of people report each Symptom?
 
 ```{r, fig.align='center', fig.width=5, fig.height=7, dpi=100}
 ## n_distinct(symptoms$healthCode)
@@ -48,7 +49,7 @@ ggsave(file = "FIGURES/symptoms.png",
 
 ```
 
-#### What percentage of people report each symptom?
+#### What percentage of people report each Triggers?
 
 
 ```{r fig.align='center', fig.width=5, fig.height=7, dpi=100}
@@ -108,16 +109,98 @@ wordcloud(words = trigger_summary$trigger, freq = round(trigger_summary$percent)
 #### Association between Weather and Symtpoms/Triggers
 
 ```{r}
+triggers_flt <- triggers %>%
+  dplyr::filter(! (trigger %in% unique(symptoms$symptom))) %>%
+  dplyr::mutate(trigger_date = as.Date(activity_start_timestamp_local)) %>%
+  select(healthCode, trigger_date, trigger ) %>%
+  distinct()
 
-View(triggers)
+symptoms_flt <- symptoms %>%
+  dplyr::mutate(symptom_date = as.Date(activity_start_timestamp_local)) %>%
+  select(healthCode, symptom_date, severity, symptom ) %>%
+  distinct()
+
+weatherF_flt <- weatherF %>%
+  dplyr::mutate(weather_date = as.Date(timestamp)) %>%
+  dplyr::select(healthCode, weather_date, atmosphericPressure, cloudCoverage, currentTemperature, humidity, maximumTemperature, minimumTemperature)
 
 
+symptoms_N_weather <- merge(symptoms_flt, weatherF_flt, 
+                            by.x=c('healthCode', 'symptom_date'), 
+                            by.y=c('healthCode', 'weather_date')) %>%
+  dplyr::filter(!severity == 'none') %>%
+  dplyr::mutate(severity = factor(severity, levels=c('mild', 'moderate', 'severe')))
 
+triggers_N_weather <- merge(triggers_flt, weatherF_flt, 
+                            by.x=c('healthCode', 'trigger_date'), 
+                            by.y=c('healthCode', 'weather_date'))
+
+
+# sort(table(symptoms_N_weather$symptom))/nrow(triggers_N_weather) * 100
+# ggplot(data=symptoms_N_weather, aes(x=symptom, y=minimumTemperature)) + geom_boxplot() + coord_flip()
+
+
+# Top symptoms 
+top_N_symptoms <- symptom_summary %>% dplyr::top_n(n=10, wt = percent) %>%
+  dplyr::mutate(symptom = gsub(' ','_', symptom))
+
+#### Mixed effect modelling
+install_load("lme4", "lmerTest", "broom")
+res.1 <- lmer(atmosphericPressure ~ symptom  + severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.2 <- lmer(cloudCoverage ~ symptom  + severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.3 <- lmer(currentTemperature ~ symptom  + severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.4 <- lmer(humidity ~ symptom  + severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.5 <- lmer(maximumTemperature ~ symptom  + severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.6 <- lmer(minimumTemperature ~ symptom  + severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
+
+
+#### severity only 
+res.1 <- lmer(atmosphericPressure ~  severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.2 <- lmer(cloudCoverage ~ severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.3 <- lmer(currentTemperature ~ severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.4 <- lmer(humidity ~ severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.5 <- lmer(maximumTemperature ~ severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+res.6 <- lmer(minimumTemperature ~ severity + (1 | healthCode), 
+            data=symptoms_N_weather )
+
+# sjPlot::get_model_data(res)
+# sjPlot::tab_model(res)
+# sjPlot::plot_model(res, show.p = T)
+# p <- sjPlot::plot_model(res, type="slope") + theme_bw() + theme(axis.text.y=element_blank())
+# p <- p + xlab('study participants')
+```
+
+---
+
+### Visual difference in cloud coverage across different severity types
+
+```{r fig.align='center', fig.width=6, fig.height=4, dpi=100}
+### Plot top differentiator - cloudCoverage
+p <- ggplot(data=symptoms_N_weather, aes(x=severity, y=cloudCoverage)) + geom_boxplot(width=0.6)
+p <- p + theme_light(base_size = 12) + xlab('self reported symptom severity')
+p
 ```
 
 
 
 
+
+#### personalized association between weather N  
+```{r}
+
+```
 
 
 
@@ -142,8 +225,6 @@ unlink(paste0(thisFilePrefix, '.html'))
 
 
 ```{r}
-
-
 #View(triggers %>% filter(healthCode == 'ae28cea8-9dfa-41aa-9692-d6a5e04893df' & trigger == 'headache'))
 
 

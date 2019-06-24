@@ -428,8 +428,6 @@ nQOL_cognition_week_avg <- nQOL_cognition %>%  dplyr::group_by(healthCode, parti
 
 
 
-
-
 #   fixTimeZone <- function(x){
 #     x <- as.integer(x)
 #     mins <- x %% 100
