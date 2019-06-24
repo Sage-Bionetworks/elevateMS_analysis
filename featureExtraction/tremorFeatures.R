@@ -414,7 +414,7 @@ activityName = "Extract tremor features"
 activityDescription = "Extract tremor features from tremor activity-v5"
 
 # upload to Synapse, left hand features
-synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
+synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
 OUTPUT_FILE <- "tremorFeatures_handToNoseLeft.tsv" # name your file
 write.table(tremor_features_left, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
@@ -425,7 +425,7 @@ synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
 unlink(OUTPUT_FILE)
 
 # upload to Synapse, right hand features
-synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
+synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
 OUTPUT_FILE <- "tremorFeatures_handToNoseRight.tsv" # name your file
 write.table(tremor_features_right, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),

@@ -111,8 +111,8 @@ kinetic.ftr = ftrs %>%
   dplyr::select(-contains('EnergyInBand')) %>%
   dplyr::left_join(energy.ftr.cmbn) %>%
   tidyr::separate(rid, c('recordId', 'Assay', 'sensor', 'measurementType', 'IMF', 'axis', 'window'), sep = '\\.') %>%
-  dplyr::select(-recordId, -Assay, -axis, -window) %>%
-  tidyr::gather(Feature, Value, -healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
+  dplyr::select(-Assay, -axis, -window) %>%
+  tidyr::gather(Feature, Value, -recordId, -healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
   dplyr::group_by(Feature, healthCode, gender, MS, sensor, measurementType, IMF) %>%
   dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
                    md = stats::median(Value, na.rm = T))
@@ -129,7 +129,7 @@ rownames(kinetic.cov) = kinetic.cov$healthCode
 # Get median of features
 kinetic.ftr.md = kinetic.ftr %>%
   dplyr::ungroup() %>%
-  dplyr::select(healthCode, sensor, measurementType, Feature, IMF, md) %>%
+  dplyr::select(recordId, healthCode, sensor, measurementType, Feature, IMF, md) %>%
   dplyr::mutate(type = 'md') %>%
   tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
   tidyr::spread(nFeature, md)
@@ -137,7 +137,7 @@ kinetic.ftr.md = kinetic.ftr %>%
 # Get iqr of features
 kinetic.ftr.iqr = kinetic.ftr %>%
   dplyr::ungroup() %>%
-  dplyr::select(healthCode, sensor, measurementType, Feature, IMF, iqr) %>%
+  dplyr::select(recordId, healthCode, sensor, measurementType, Feature, IMF, iqr) %>%
   dplyr::mutate(type = 'iqr') %>%
   tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
   tidyr::spread(nFeature, iqr)
@@ -152,7 +152,7 @@ kinetic.ftr = dplyr::inner_join(kinetic.ftr.md, kinetic.ftr.iqr)
 
 kinetic.ftr.all = kinetic.ftr %>%
   # dplyr::select(-one_of(colnames(tmp.mat)[lm.combo$remove])) %>%
-  tidyr::gather(Feature, Value, -healthCode, -sensor, -measurementType) %>%
+  tidyr::gather(Feature, Value, -recordId, -healthCode, -sensor, -measurementType) %>%
   tidyr::unite(featureName, Feature, measurementType, sensor, sep = '_') %>%
   tidyr::spread(featureName, Value)
 
@@ -167,14 +167,14 @@ kinetic.ftr.all = kinetic.ftr %>%
 # A github token is required to access the elevateMS_analysis repository as it is private
 gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/summarize_tremor_features_mpower_controls.R" # location of file inside github repo
+thisFileName <- "featureExtraction/summarize_tremor_features_mpower_controls_per_record.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # name and describe this activity
-activityName = "Summarize tremor features for mpower controls"
+activityName = "Summarize tremor features for mpower controls per record"
 activityDescription = "Summarize tremor features for mpower controls into IQR and median"
 
 # upload to Synapse, summary features

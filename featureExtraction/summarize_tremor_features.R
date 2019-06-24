@@ -183,7 +183,7 @@ activityName = "Summarize tremor features"
 activityDescription = "Summarize tremor features into IQR and median"
 
 # upload to Synapse, summary features
-synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
+synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
 OUTPUT_FILE <- "hcwiseSummaryFeatures.tsv" # name your file
 write.table(kinetic.ftr.all, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
