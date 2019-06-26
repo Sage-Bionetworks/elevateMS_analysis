@@ -154,7 +154,7 @@ rfModelCaseControl <- function(dat, responseNames, factorFeatures, contFeatures,
       data.frame(metricName = 'nTrain', value = dim(dat.train)[1]),
       data.frame(metricName = 'nTest', value = dim(dat.test)[1]),
       data.frame(metricName = 'nTrainControl', value = sum(dat.train[,'MS'] == 0)),
-      data.frame(metricName = 'nTestControl', value = sum(dat.test[,'MS'] == 1))
+      data.frame(metricName = 'nTestControl', value = sum(dat.test[,'MS'] == 0))
     )
     
     all.results = list(param = mdl.param, performance = mdl.performance, coeff = mdl.coeff)
