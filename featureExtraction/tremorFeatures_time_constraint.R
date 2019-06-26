@@ -403,7 +403,7 @@ tremor_features_right <- tremor_features_right %>%
 ## Github link
 # Copy paste the github token string and store it as 'github_token.txt' file
 # A github token is required to access the elevateMS_analysis repository as it is private
-gtToken = 'github_token.txt'
+gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisFileName <- "featureExtraction/tremorFeatures_time_constraint.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
