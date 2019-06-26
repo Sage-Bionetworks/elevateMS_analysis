@@ -499,7 +499,7 @@ kable(mdl.performance)
 
 
 #### Evaluate Kinetic Model on elevateMS by training on mPower+elevateMS age matched data (records of the age matched (elevateMS only) healthCodes)
-```{r model.result}
+```{r model.result.1}
 nperm = 100
 set.seed(123456789)
 exportPackages = c('dplyr','plyr','data.table','CovariateAnalysis', 'ranger', 'ROCR')
@@ -575,7 +575,7 @@ kable(mdl.performance)
 
 
 #### Evaluate Kinetic Model on elevateMS by training on mPower+elevateMS age matched data ((records of the NON age matched (elevateMS only) healthCodes))
-```{r model.result}
+```{r model.result.2}
 nperm = 100
 set.seed(123456789)
 exportPackages = c('dplyr','plyr','data.table','CovariateAnalysis', 'ranger', 'ROCR')

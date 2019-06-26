@@ -1,5 +1,5 @@
 ---
-title: "Classify case-control in kinetic state tremors using random forest models with median and iqr features, for Multiple Sclerosis. The training is done using controls from mpower and elevateMS, and cases from elevateMS"
+title: "Classify case-control in kinetic state tremors using random forest models with median and iqr features, for Multiple Sclerosis. The training is done using controls from mpower and elevateMS, and cases from elevateMS. Gender removed as a factor variable in the Random forest model"
 author: "Meghasyam Tummalacherla"
 author options: "This would not have been possible without Thanneer Perumal's skeleton code"
 date: "`r base::date()`"
@@ -13,9 +13,9 @@ library(knit2synapse)
 
 synapser::synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS_no_gender.Rmd",
                                  parentId = "syn19120636",
-                                 folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(time constraint)")
+                                 folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(no gender)(time constraint)")
 ```
 
 ```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -77,18 +77,18 @@ activityDescription = 'Classify case-control in kinetic state tremors using rand
 gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 
-thisFileName <- 'mpower_control_elevateMS_time_constraint.Rmd'
+thisFileName <- 'mpower_control_elevateMS_no_gender_time_constraint.Rmd'
 
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Tremor_analysis/',thisFileName))
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Tremor_analysis/no_gender/',thisFileName))
 ```
 
 ```{r fxn}
 ## Function block
 ## Function to classify case-control differences in each assay (balanced data)
-rfModelCaseControl <- function(dat, responseNames, factorFeatures, contFeatures, alwaysSplitVariables){
+rfModelCaseControl <- function(dat, responseNames, contFeatures, alwaysSplitVariables){
   # Get data and format data
-  dat[,c(factorFeatures, responseNames)] = lapply(dat[,c(factorFeatures, responseNames), drop = F], factor)
+  dat[,c(responseNames)] = lapply(dat[,c(responseNames), drop = F], factor)
   dat[,contFeatures] = lapply(dat[,contFeatures, drop = F], as.numeric)
   
   # Split training and testing data (based on healthCodes)
@@ -99,14 +99,14 @@ rfModelCaseControl <- function(dat, responseNames, factorFeatures, contFeatures,
   # Get training data
   dat.train = dat %>%
     dplyr::filter(healthCode %in% hc.train) %>%
-    dplyr::select(one_of(factorFeatures), one_of(contFeatures), 'MS') %>%
+    dplyr::select(one_of(contFeatures), 'MS') %>%
     dplyr::mutate(MS = as.numeric(MS) - 1)
   dat.train[is.na(dat.train)] = 0
   
   # Get testing data
   dat.test = dat %>%
     dplyr::filter(healthCode %in% hc.test) %>%
-    dplyr::select(one_of(factorFeatures), one_of(contFeatures), 'MS') %>%
+    dplyr::select(one_of(contFeatures), 'MS') %>%
     dplyr::mutate(MS = as.numeric(MS) - 1)
   dat.test[is.na(dat.test)] = 0
 
@@ -387,7 +387,6 @@ rf.mdl.caret =  c('alternateModel','nullModel') %>%
       
       rfModelCaseControl(datTrain,  
                          responseNames = 'MS',
-                         factorFeatures = c('gender'),
                          contFeatures = ftrsNames)
     }, mdl.tag, datTrain, ftrsNames, rfModelCaseControl,
     .parallel = F, 
@@ -445,9 +444,9 @@ dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
   as.data.frame() %>% droplevels() %>%
   unique()
 
-dat.test <- dfMainTrain %>%
-  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>%
-    dplyr::select(healthCode,recordId,one_of(kineticFeaturesToSelect)) %>% 
+dat.test <- summarized.ftrs.elevateMS %>%
+  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
+    dplyr::select(healthCode,one_of(kineticFeaturesToSelect)) %>% 
   dplyr::left_join(demo.tbl.ms %>%
                      dplyr::select(healthCode, gender, age, MS = dataGroups)) %>%
   dplyr::filter(MS %in% c('ms_patient','control'),
@@ -464,8 +463,7 @@ dat.test <- dfMainTrain %>%
                     importance = 'permutation',
                     seed = 123456,
                     classification = TRUE,
-                    write.forest = TRUE,
-                    probability = F)
+                    write.forest = TRUE)
   
     # Predict reponse of test data
     rf.prediction = predict(rf.mdl, 
@@ -651,7 +649,7 @@ kable(mdl.performance)
 
 ### Store results in synapse
 ```{r syn.store, cache=FALSE, eval = TRUE}
-CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(time constraint)', 
+CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(no gender)(time constraint)', 
               parentId = "syn19120636")
 CODE = synStore(CODE)
 
