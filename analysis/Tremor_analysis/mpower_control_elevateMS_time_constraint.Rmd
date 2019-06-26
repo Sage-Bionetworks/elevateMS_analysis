@@ -350,7 +350,7 @@ for (ftr in colnames(summarized.ftrs.elevateMS)){
 # For training data add both the ftrs from elevateMS and the controls from 
 # mpower and filter to get the whole age matched data
 dfMainTrain <- dplyr::full_join(summarized.ftrs.elevateMS, summarized.ftrs.mpower) %>% 
-  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>%
+  # dplyr::filter(healthCode %in% age.records.matched$healthCode) %>%
   dplyr::select(c('healthCode',kineticFeaturesToSelect)) %>% 
   unique()
 
@@ -523,7 +523,7 @@ dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
 
 dat.test <- summarized.ftrs.elevateMS.record %>%
   dplyr::filter((healthCode %in% age.records.matched$healthCode)) %>%
-    dplyr::select(healthCode,recordId,one_of(kineticFeaturesToSelect)) %>% 
+    dplyr::select(healthCode, one_of(kineticFeaturesToSelect)) %>% 
   dplyr::left_join(demo.tbl.ms %>%
                      dplyr::select(healthCode, gender, age, MS = dataGroups)) %>%
   dplyr::filter(MS %in% c('ms_patient','control'),
