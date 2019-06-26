@@ -127,7 +127,7 @@ rfModelCaseControl <- function(dat, responseNames, contFeatures, alwaysSplitVari
                             type = 'response',
                             seed = 123456)
   
-    pred.probabilities = rowSums(rf.prediction$predictions == 1, na.rm = T)/rf.prediction$num.trees
+    pred.probabilities = rowSums(rf.prediction$predictions == dat.test$MS, na.rm = T)/rf.prediction$num.trees
   
     mdl.prediction = pred.probabilities %>%
       prediction(predictions = ., labels = dat.test[,'MS'], label.ordering = c(0,1))
@@ -465,7 +465,7 @@ dat.test <- summarized.ftrs.elevateMS %>%
                             predict.all = T,
                             type = 'response',
                             seed = 123456)
-        pred.probabilities = rowSums(rf.prediction$predictions == 1, na.rm = T)/rf.prediction$num.trees
+        pred.probabilities = rowSums(rf.prediction$predictions == dat.test$MS, na.rm = T)/rf.prediction$num.trees
   
     mdl.prediction = pred.probabilities %>%
       prediction(predictions = ., labels = dat.test[,'MS'], label.ordering = c(0,1))
