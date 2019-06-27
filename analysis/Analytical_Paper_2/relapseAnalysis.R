@@ -45,7 +45,8 @@ relapseSummary <- relapses.flt %>%
 relapseSummary <- relapseSummary %>% unnest() %>%
   mutate(originalTable = gsub('-v.*', '', originalTable, perl = T))
 p2 <- ggplot(data=relapseSummary, aes(x=status, y=log2(n)))  + geom_boxplot() + facet_wrap(. ~ originalTable)
-p2 <- p2 + theme_light(base_size = 15)
+p2 <- p2 + theme_minimal(base_size = 15)
+p2
 ggsave(file="analysis/Analytical_Paper_2/FIGURES/MS_healthCodes_relapses_activities_before_N_after.png", plot=p2, width = 10, height = 8)
 
 
