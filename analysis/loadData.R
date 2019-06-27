@@ -280,6 +280,7 @@ getTappingF <- function(){
 }
 tapF <- getTappingF()
 
+
 ##############
 #WalkingF
 ##############
@@ -292,8 +293,8 @@ getWalkingF <- function(){
     dplyr:: select(-dataGroups) %>%
     dplyr::inner_join( baselineChar %>% select(healthCode, dataGroups)) %>%
     dplyr::filter(dataGroups %in% c('control', 'ms_patient')) %>%
-    dplyr::mutate(metadata.json.startDate = lubridate::as_datetime(as.numeric(metadata.json.startDate)/1000),
-                  metadata.json.endDate = lubridate::as_datetime(as.numeric(metadata.json.endDate)/1000))
+    dplyr::mutate(metadata.json.startDate = lubridate::ymd_hms(metadata.json.startDate),
+                  metadata.json.endDate = lubridate::ymd_hms(metadata.json.endDate))
   timeStampCol = 'metadata.json.startDate'
   timeZoneCol = 'metadata.json.startDate.timezone'
   df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
@@ -336,6 +337,43 @@ getRestF <- function(){
                   -metadata.json.dataGroups, -metadata.json.taskIdentifier)
 }
 restF <- getRestF()
+
+
+
+##############
+#TremorF
+##############
+# getTremorF <- function(){
+#   df <- fread(synGet('syn20184333')$path, data.table = F)
+#   colnames(df)
+#   
+#   %>%
+#     dplyr::select(-accelerometer_walking_outbound.json.items, -deviceMotion_walking_outbound.json.items, 
+#                   -pedometer_walking_outbound.json.items, -accelerometer_walking_rest.json.items,   
+#                   -deviceMotion_walking_rest.json.items)
+#   df <- df %>% filter(healthCode %in% STUDY_HEALTHCODES) %>%
+#     dplyr:: select(-dataGroups) %>%
+#     dplyr::inner_join( baselineChar %>% select(healthCode, dataGroups)) %>%
+#     dplyr::filter(dataGroups %in% c('control', 'ms_patient')) %>%
+#     dplyr::mutate(metadata.json.startDate = lubridate::ymd_hms(metadata.json.startDate),
+#                   metadata.json.endDate = lubridate::ymd_hms(metadata.json.endDate))
+#   timeStampCol = 'metadata.json.startDate'
+#   timeZoneCol = 'metadata.json.startDate.timezone'
+#   df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
+#   df <- df %>%
+#     dplyr::mutate(activityDuration = as.numeric(metadata.json.endDate - metadata.json.startDate)) %>%
+#     dplyr::filter(participant_day >= 1) %>%
+#     dplyr::select(-uploadDate, -createdOn, -validationErrors,
+#                   -metadata.json.scheduledActivityGuid, -metadata.json.taskRunUUID,
+#                   -metadata.json.startDate, -metadata.json.startDate.timezone,
+#                   -metadata.json.endDate, -metadata.json.endDate.timezone,
+#                   -metadata.json.dataGroups, -metadata.json.taskIdentifier)
+# }
+# restF <- getRestF()
+
+
+
+
 
 ###############
 #Weather
