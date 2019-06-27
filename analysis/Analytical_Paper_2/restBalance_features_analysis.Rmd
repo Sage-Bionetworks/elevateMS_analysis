@@ -6,17 +6,6 @@ output: html_document
 ---
 
 
-<!-- ```{r knit2synapse1, eval=FALSE} -->
-<!-- library(install.load) -->
-<!-- devtools::install_github("Sage-Bionetworks/knit2synapse") -->
-<!-- install_load("synapser", "knit2synapse") -->
-<!-- synapser::synLogin() -->
-<!-- getwd() -->
-<!-- knit2synapse::knitToFolderEntity(file = "tapping_features_analysis.Rmd", -->
-<!--                                  parentId = "syn11678367", -->
-<!--                                  entityName = "Cluster energy features with postural tremor") -->
-<!-- ``` -->
-
 
 
 ```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -25,34 +14,37 @@ knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
 Sys.setenv(TZ='GMT')
 library(install.load)
 install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
-install_load('ggthemes', 'devtools')
+install_load('ggthemes', 'devtools', 'synapser')
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #   install.packages("BiocManager")
 # BiocManager::install("ComplexHeatmap", version = "3.8")
 install_load("ComplexHeatmap", "circlize", "RColorBrewer")
 
-source("../loadData.R")
+###Load data freeze
+load(synGet("syn19273733")$path)
 source("common_analysis_functions.R")
 ```
 
 -----
 
 ```{r}
-restF <- restF %>% filter(dataGroups == 'ms_patient') %>%
-  gather(feature, value, c(12:29,40)) 
+##REST FEATURE COLS -
+cat(colnames(restF), sep="', '")
+REST_FEATURES <- c('meanAA', 'sdAA', 'modeAA', 'skewAA', 'kurAA', 'q1AA', 'medianAA', 'q3AA', 'iqrAA', 'rangeAA', 'acfAA', 'zcrAA', 'dfaAA', 'turningTime', 'postpeak', 'postpower', 'alpha', 'dVol', 'ddVol')
 
-restF_week_averaged =  restF %>% select(healthCode, participant_week, feature, value) %>%
+restF <- restF %>% filter(dataGroups == 'ms_patient') %>%
+  gather(feature, value, REST_FEATURES) 
+
+restF_week_averaged =  restF %>% 
+  select(healthCode, participant_week, feature, value) %>%
   group_by(healthCode, participant_week, feature) %>% 
   dplyr::summarise_all(.funs=c(mean), na.rm=T) 
 
-restF_averaged =  restF %>% select(healthCode, feature, value) %>%
+restF_averaged =  restF %>% 
+  dplyr::select(healthCode, feature, value) %>%
   group_by(healthCode, feature) %>% dplyr::summarise_all(.funs=c(mean), na.rm=T) 
 ```
 
-<br>
-<br>
-
-#### Correlations of all Balance features with Neuro-QoLs
 ```{r, neuroQoLCors}
 
 ## Correlations- All Weeks
@@ -65,7 +57,7 @@ neurCog_firstCommonWeek_restF <- get_neuroQOL_cors(restF_week_averaged, use_firs
 <br>
 <br>
 
-##### Tapping Balance(All Weeks) with Neuro-QoLs
+##### Correlation Rest/Balance features (All Weeks) with Neuro-QoLs
 
 ```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
 install_load("grid")
@@ -75,7 +67,7 @@ p1
 ggsave("FIGURES/restF_n_NeuroQOLs_corr_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
 ```
 
-##### Scatter plot top 2 tapping features(All Weeks) 
+##### Scatter plot top 2 rest features(All Weeks) 
 
 ```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}
 p1 <- get_scatter_plot(restF_week_averaged, nQOL_uppExtremity_week_avg, x='postpeak', y='TScore')
@@ -91,7 +83,7 @@ ggsave("FIGURES/restF_top_2_feature_scatterPlot_allWeek.png", p3, height=3, widt
 -----
 
 
-#####  Balance features(first common week) with Neuro-QoLs
+#####  Balance rest/balance features(first common week) with Neuro-QoLs
 
 ```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
 p1 <- ggplot(neurCog_firstCommonWeek_restF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
@@ -102,7 +94,7 @@ ggsave("FIGURES/restF_n_NeuroQOLs_corr_firstCommonWeeks_volcanoPlot.jpeg", plot=
 
 
 
-##### Correlation between Number of Taps(across all weeks) and baseline PDDS survey
+##### Association between rest/balance feature(turning time) across all weeks with baseline PDDS survey
 
 ```{r}
 ##############
