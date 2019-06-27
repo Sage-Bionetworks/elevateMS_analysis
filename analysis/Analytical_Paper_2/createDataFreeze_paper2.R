@@ -24,10 +24,9 @@ walkF <- walkF  %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
 restF <- restF %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
 weatherF <- weatherF %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
 
+### Following data tables are not filtered as they have value over the study period
 #nQOL_uppExtremity_week_avg
-
 #nQOL_lowExtremity_week_avg
-
 #nQOL_cognition_week_avg
 
 needed <- c('triggers', 'dailyCheckins', 'relapses', 'weatherF',
