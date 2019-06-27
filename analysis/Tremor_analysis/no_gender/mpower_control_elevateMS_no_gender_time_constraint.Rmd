@@ -463,12 +463,13 @@ dat.test <- summarized.ftrs.elevateMS %>%
                     importance = 'permutation',
                     seed = 123456,
                     classification = TRUE,
-                    write.forest = TRUE)
+                    write.forest = TRUE,
+                    probability = F)
   
     # Predict reponse of test data
     rf.prediction = predict(rf.mdl, 
                             data = dat.test,
-                            predict.all = T,
+                            predict.all = F,
                             type = 'response',
                             seed = 123456)
         pred.probabilities = rowSums(rf.prediction$predictions == max(dat.test$MS), na.rm = T)/rf.prediction$num.trees
