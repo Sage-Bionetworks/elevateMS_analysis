@@ -54,6 +54,8 @@ all.used.ids = tremor.tbl.id
 demo.tbl.id = 'syn10371840' # Demographics table-v2
 demo.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", demo.tbl.id))
 demo.tbl <- demo.tbl.syn$asDataFrame()
+metadata.columns <- colnames(demo.tbl)
+metadata.columns <- metadata.columns[grepl('metadata', metadata.columns)]
 all.used.ids <- c(all.used.ids, demo.tbl.id)
 
 

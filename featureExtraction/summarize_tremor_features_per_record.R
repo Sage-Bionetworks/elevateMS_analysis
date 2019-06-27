@@ -48,6 +48,8 @@ all.used.ids = tremor.tbl.id
 demo.tbl.id = 'syn10295288' # Demographics table-v2
 demo.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", demo.tbl.id))
 demo.tbl <- demo.tbl.syn$asDataFrame()
+metadata.columns <- colnames(demo.tbl)
+metadata.columns <- metadata.columns[grepl('metadata', metadata.columns)]
 all.used.ids <- c(all.used.ids, demo.tbl.id)
 
 # Get Profile data (age data)
@@ -116,9 +118,9 @@ kinetic.ftr = ftrs %>%
   dplyr::select(-contains('EnergyInBand')) %>%
   dplyr::left_join(energy.ftr.cmbn) %>%
   tidyr::separate(rid, c('recordId', 'Assay', 'sensor', 'measurementType', 'IMF', 'axis', 'window'), sep = '\\.') %>%
-  dplyr::select(-Assay, -axis, -window) %>%
-  tidyr::gather(Feature, Value, -recordId,-healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
-  dplyr::group_by(Feature, recordId, healthCode, gender, MS, sensor, measurementType, IMF) %>%
+  dplyr::select(-axis, -window) %>%
+  tidyr::gather(Feature, Value, -Assay, -recordId,-healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
+  dplyr::group_by(Feature, Assay, recordId, healthCode, gender, MS, sensor, measurementType, IMF) %>%
   dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
                    md = stats::median(Value, na.rm = T))
 
@@ -134,7 +136,7 @@ rownames(kinetic.cov) = kinetic.cov$healthCode
 # Get median of features
 kinetic.ftr.md = kinetic.ftr %>%
   dplyr::ungroup() %>%
-  dplyr::select(recordId, healthCode, sensor, measurementType, Feature, IMF, md) %>%
+  dplyr::select(recordId, healthCode, Assay, sensor, measurementType, Feature, IMF, md) %>%
   dplyr::mutate(type = 'md') %>%
   tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
   tidyr::spread(nFeature, md)
@@ -142,7 +144,7 @@ kinetic.ftr.md = kinetic.ftr %>%
 # Get iqr of features
 kinetic.ftr.iqr = kinetic.ftr %>%
   dplyr::ungroup() %>%
-  dplyr::select(recordId, healthCode, sensor, measurementType, Feature, IMF, iqr) %>%
+  dplyr::select(recordId, healthCode, Assay, sensor, measurementType, Feature, IMF, iqr) %>%
   dplyr::mutate(type = 'iqr') %>%
   tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
   tidyr::spread(nFeature, iqr)
@@ -157,9 +159,11 @@ kinetic.ftr = dplyr::inner_join(kinetic.ftr.md, kinetic.ftr.iqr)
 
 kinetic.ftr.all = kinetic.ftr %>%
   # dplyr::select(-one_of(colnames(tmp.mat)[lm.combo$remove])) %>%
-  tidyr::gather(Feature, Value, -recordId, -healthCode, -sensor, -measurementType) %>%
+  tidyr::gather(Feature, Value, -Assay, -recordId, -healthCode, -sensor, -measurementType) %>%
   tidyr::unite(featureName, Feature, measurementType, sensor, sep = '_') %>%
-  tidyr::spread(featureName, Value)
+  tidyr::spread(featureName, Value) %>% 
+  dplyr::left_join(demo.tbl %>%
+                     dplyr::select(recordId, metadata.columns))
 
 #############
 # Upload data to Synapse

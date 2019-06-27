@@ -48,6 +48,8 @@ all.used.ids = tremor.tbl.id
 demo.tbl.id = 'syn10295288' # Demographics table-v2
 demo.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", demo.tbl.id))
 demo.tbl <- demo.tbl.syn$asDataFrame()
+metadata.columns <- colnames(demo.tbl)
+metadata.columns <- metadata.columns[grepl('metadata', metadata.columns)]
 all.used.ids <- c(all.used.ids, demo.tbl.id)
 
 # Get Profile data (age data)
@@ -159,8 +161,7 @@ kinetic.ftr.all = kinetic.ftr %>%
   # dplyr::select(-one_of(colnames(tmp.mat)[lm.combo$remove])) %>%
   tidyr::gather(Feature, Value, -healthCode, -sensor, -measurementType) %>%
   tidyr::unite(featureName, Feature, measurementType, sensor, sep = '_') %>%
-  tidyr::spread(featureName, Value)
-
+  tidyr::spread(featureName, Value) 
 #############
 # Upload data to Synapse
 #############
