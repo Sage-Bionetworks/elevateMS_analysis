@@ -1,8 +1,10 @@
 ---
-title: "elevateMS rest/balance features analysis"
+title: "elevateMS walk features analysis"
 author: "Abhi Pratap"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 
@@ -12,13 +14,15 @@ knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
 Sys.setenv(TZ='GMT')
 library(install.load)
 install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
-install_load('ggthemes', 'devtools')
+install_load('ggthemes', 'devtools', "synapser")
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #   install.packages("BiocManager")
 # BiocManager::install("ComplexHeatmap", version = "3.8")
 install_load("ComplexHeatmap", "circlize", "RColorBrewer")
 
-source("../loadData.R")
+synapser::synLogin()
+###Load data freeze
+load(synGet("syn19273733")$path)
 source("common_analysis_functions.R")
 ```
 
@@ -26,13 +30,18 @@ source("common_analysis_functions.R")
 -----
 
 ```{r}
+##WALK FEATURE COLS -
+#cat(colnames(walkF),sep="', '")
+WALK_FEATURES <- c('meanX', 'sdX', 'modeX', 'skewX', 'kurX', 'q1X', 'medianX', 'q3X', 'iqrX', 'rangeX', 'acfX', 'zcrX', 'dfaX', 'cvX', 'tkeoX', 'F0X', 'P0X', 'F0FX', 'P0FX', 'medianF0FX', 'sdF0FX', 'tlagX', 'meanY', 'sdY', 'modeY', 'skewY', 'kurY', 'q1Y', 'medianY', 'q3Y', 'iqrY', 'rangeY', 'acfY', 'zcrY', 'dfaY', 'cvY', 'tkeoY', 'F0Y', 'P0Y', 'F0FY', 'P0FY', 'medianF0FY', 'sdF0FY', 'tlagY', 'meanZ', 'sdZ', 'modeZ', 'skewZ', 'kurZ', 'q1Z', 'medianZ', 'q3Z', 'iqrZ', 'rangeZ', 'acfZ', 'zcrZ', 'dfaZ', 'cvZ', 'tkeoZ', 'F0Z', 'P0Z', 'F0FZ', 'P0FZ', 'medianF0FZ', 'sdF0FZ', 'tlagZ', 'meanAA', 'sdAA', 'modeAA', 'skewAA', 'kurAA', 'q1AA', 'medianAA', 'q3AA', 'iqrAA', 'rangeAA', 'acfAA', 'zcrAA', 'dfaAA', 'cvAA', 'tkeoAA', 'F0AA', 'P0AA', 'F0FAA', 'P0FAA', 'medianF0FAA', 'sdF0FAA', 'tlagAA', 'meanAJ', 'sdAJ', 'modeAJ', 'skewAJ', 'kurAJ', 'q1AJ', 'medianAJ', 'q3AJ', 'iqrAJ', 'rangeAJ', 'acfAJ', 'zcrAJ', 'dfaAJ', 'cvAJ', 'tkeoAJ', 'F0AJ', 'P0AJ', 'F0FAJ', 'P0FAJ', 'medianF0FAJ', 'sdF0FAJ', 'tlagAJ', 'corXY', 'corXZ', 'corYZ', 'activityDuration')
+
 walkF <- walkF %>% filter(dataGroups == 'ms_patient') %>%
-  gather(feature, value, c(13:125,136)) 
-walkF <- walkF %>% select(-c(9:13)) 
+  gather(feature, value, WALK_FEATURES) 
+walkF <- walkF %>% select(-c( "externalId", "createdOnTimeZone" , "userSharingScope",
+                              "substudyMemberships", "error")) 
 
 walkF_week_averaged =  walkF %>% 
-  select(healthCode, participant_week, feature, value) %>%
-  group_by(healthCode, participant_week, feature) %>% 
+  dplyr::select(healthCode, participant_week, feature, value) %>%
+  dplyr::group_by(healthCode, participant_week, feature) %>% 
   dplyr::summarise_all(.funs=c(mean), na.rm=T) 
 ```
 
