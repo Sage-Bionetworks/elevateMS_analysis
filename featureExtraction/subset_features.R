@@ -68,8 +68,11 @@ hc.summarized.features <- dplyr::full_join(summarized.ftrs.elevateMS, summarized
   dplyr::select(c('healthCode',kineticFeaturesToSelect)) %>% 
   unique()
 
+metadata.columns <- colnames(summarized.ftrs.elevateMS.record)
+metadata.columns <- metadata.columns[grepl('metadata',metadata.columns)]
+
 recordId.summarized.features <- dplyr::full_join(summarized.ftrs.elevateMS.record, summarized.ftrs.mpower.record) %>% 
-  dplyr::select(c('healthCode','recordId',kineticFeaturesToSelect)) %>% 
+  dplyr::select(c('healthCode','recordId','Assay',metadata.columns,kineticFeaturesToSelect)) %>% 
   unique()
 
 #############
