@@ -69,7 +69,7 @@ hc.summarized.features <- dplyr::full_join(summarized.ftrs.elevateMS, summarized
   unique()
 
 recordId.summarized.features <- dplyr::full_join(summarized.ftrs.elevateMS.record, summarized.ftrs.mpower.record) %>% 
-  dplyr::select(c('healthCode',kineticFeaturesToSelect)) %>% 
+  dplyr::select(c('healthCode','recordId',kineticFeaturesToSelect)) %>% 
   unique()
 
 #############
