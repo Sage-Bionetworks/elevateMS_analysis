@@ -71,6 +71,7 @@ sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 
 
 ### Visual difference between weather features and daily health
+
 ```{r fig.align='center', fig.width=12, fig.height=4, dpi=100}
 ### Plot top differentiator - cloudCoverage
 p <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=cloudCoverage)) + geom_boxplot(width=0.6)
@@ -90,6 +91,8 @@ gridExtra::grid.arrange(p1, p2, p3, nrow=1)
 
 
 
+-------
+
 
 ### Daily Mobility vs Weather
 
@@ -107,7 +110,7 @@ sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 
 
 
-### Visual difference between weather features and daily health
+### Visual difference between weather features and daily mobility
 ```{r fig.align='center', fig.width=12, fig.height=4, dpi=100}
 ### Plot top differentiator - cloudCoverage
 p <- ggplot(data=dailyCheckins_N_weather, aes(x=mobility, y=humidity)) + geom_boxplot(width=0.6)
@@ -157,8 +160,8 @@ thisFilePrefix = "dailyCheckins_vs_Weather"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
 
-# thisFilePrefix = "symptoms_N_triggers"
-# thisFileName = paste0(thisFilePrefix, '.Rmd')
+thisFilePrefix = "dailyCheckins_vs_Weather"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
 gtToken = '~/.ssh/apratap_github_token_20190219.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
