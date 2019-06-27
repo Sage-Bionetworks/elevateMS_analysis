@@ -60,7 +60,7 @@ all.used.ids <- c(all.used.ids, demo.tbl.id)
 
 
 # Get tremor features from synapse and count number of windows available for each hc
-ftrs.id = c(handToNose_left = 'syn19988311', handToNose_right = 'syn19988346')
+ftrs.id = c(handToNose_left = 'syn19164063', handToNose_right = 'syn19164114')
 all.used.ids = c(all.used.ids, as.character(ftrs.id))
 
 # Load features from synapse
@@ -183,7 +183,7 @@ activityDescription = "Summarize tremor features for mpower controls into IQR an
 
 # upload to Synapse, summary features
 synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
-OUTPUT_FILE <- "recordwiseSummaryFeatures_mpower_controls_time_constraint.tsv" # name your file
+OUTPUT_FILE <- "recordwiseSummaryFeatures_mpower_controls.tsv" # name your file
 write.table(kinetic.ftr.all, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
