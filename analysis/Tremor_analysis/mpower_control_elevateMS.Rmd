@@ -15,7 +15,7 @@ synapser::synLogin()
 
 knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd",
                                           parentId = "syn19120636",
-                                          folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(1)")
+                                          folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)")
 ```
 
 ```{r libs.and.functions, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -238,7 +238,7 @@ kable(mdl.performance)
 
 ### Store results in synapse
 ```{r syn.store, cache=FALSE, eval = TRUE}
-CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(1)', 
+CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)', 
               parentId = "syn19120636")
 CODE = synStore(CODE)
 
