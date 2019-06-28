@@ -13,7 +13,7 @@ library(knit2synapse)
 
 synapser::synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS_time_constraint.Rmd",
                                           parentId = "syn19120636",
                                           folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(time constraint)")
 ```
