@@ -51,13 +51,13 @@ knitr::opts_chunk$set(
 # Synapse parameters
 parentId = 'syn19120636';
 activityName = 'elevateMS Kinetic tremor case-control classification';
-activityDescription = 'Classify case-control in kinetic state tremors using random forest models with median and iqr features, for Multiple Sclerosis. The training is done using controls from mpower and elevateMS, and cases from elevateMS'
+activityDescription = 'Classify case-control in kinetic state tremors using random forest models with median and iqr features (time constraint), for Multiple Sclerosis. The training is done using controls from mpower and elevateMS, and cases from elevateMS'
 
 # Github link
 gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 
-thisFileName <- 'mpower_control_elevateMS.Rmd'
+thisFileName <- 'mpower_control_elevateMS_time_constraint.Rmd'
 
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch", refName='master')
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Tremor_analysis/',thisFileName))
