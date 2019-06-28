@@ -14,8 +14,8 @@ library(knit2synapse)
 synapser::synLogin()
 
 knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd",
-                                 parentId = "syn11315047",
-                                 folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 3 records)")
+                                 parentId = "syn19120636",
+                                 folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)")
 ```
 
 ```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -69,7 +69,7 @@ knitr::opts_chunk$set(
 ## Github Parameters and links
 ###########################################################
 # Synapse parameters
-parentId = 'syn11315047';
+parentId = 'syn19120636';
 activityName = 'elevateMS Kinetic tremor case-control classification';
 activityDescription = 'Classify case-control in kinetic state tremors using random forest models with median and iqr features, for Multiple Sclerosis. The training is done using controls from mpower and elevateMS, and cases from elevateMS'
 
@@ -80,155 +80,7 @@ githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisFileName <- 'mpower_control_elevateMS.Rmd'
 
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/',thisFileName))
-```
-
-#### Age match elevateMS (control + cases) + mpower (cases) pool
-
-```{r filter.healthcodes.elevateMS, fig.height=5, fig.width=10}
-## Get and format data for elevateMS
-### Age match case and control healthCodes
-###########################################################
-## Download data
-###########################################################
-# Tremor activity tables from elevateMS project
-tremor.tbl.id = 'syn10278767' # Tremor Activity-v5
-tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id))
-tremor.tbl <- tremor.tbl.syn$asDataFrame()
-
-all.used.ids = tremor.tbl.id
-
-# Get demographics from synapse
-demo.tbl.id = 'syn10295288' # Demographics table-v2
-demo.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", demo.tbl.id))
-demo.tbl <- demo.tbl.syn$asDataFrame()
-all.used.ids <- c(all.used.ids, demo.tbl.id)
-
-# Get Profile data (age data)
-profile.tbl.id <- 'syn10235463'
-profile.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", profile.tbl.id))
-profile.tbl <- profile.tbl.syn$asDataFrame() 
-all.used.ids <- c(all.used.ids, profile.tbl.id)
-
-# Certain healthCodes have multiple ages 
-# (62, 63 etc., so we just consider the minimum of those two)
-profile.tbl.cleaned <- profile.tbl %>% 
-  dplyr::select(healthCode, age = demographics.age) %>% 
-  dplyr::group_by(healthCode) %>% 
-  dplyr::summarise(age = min(age)) %>% 
-  dplyr::ungroup() %>% 
-  unique() %>% 
-  na.omit()
-
-###########################################################
-## Set up data for age matching
-###########################################################
-
-# Get tremor features from synapse and count number of windows available for each hc
-ftrs.id = c(handToNose_left = 'syn12104398', handToNose_right = 'syn12104396')
-all.used.ids = c(all.used.ids, as.character(ftrs.id))
-
-hc.nc = purrr::map(ftrs.id, function(id){
-  fread(synapser::synGet(id)$path, fill = T, select = c('recordId', 'window', 'axis')) %>%
-    unique()
-}) %>%
-  data.table::rbindlist(idcol = 'Assay')
-
-hc.nc <- hc.nc %>%
-  dplyr::inner_join(tremor.tbl %>% dplyr::filter(recordId %in% hc.nc$recordId) %>%
-                      dplyr::select(recordId, healthCode))
-hc.nc <- hc.nc %>%
-  dplyr::left_join(demo.tbl %>% dplyr::filter(healthCode %in% hc.nc$healthCode) %>%
-                     dplyr::select(healthCode, gender.json.answer, dataGroups)) %>% 
-  dplyr::select(-window, -axis) %>% 
-  unique()
-hc.nc <- hc.nc %>%
-  dplyr::left_join(profile.tbl.cleaned %>% dplyr::filter(healthCode %in% hc.nc$healthCode)) %>%
-  dplyr::rename(MS = dataGroups, gender=gender.json.answer) %>%
-  dplyr::filter(!is.na(MS), !is.na(gender),
-                MS %in% c('control', 'ms_patient'),
-                gender %in% c('Female', 'Male')) %>%
-  dplyr::count(healthCode, gender, MS,age) %>%  # Not counting across Assay (left/right) as we will consider them as repeat measures
-  unique()
-
-# High frequency filter (atleast 3 records)
-hc.hfreq = hc.nc %>% na.omit() %>% 
-  dplyr::select(healthCode, age, gender, MS, n) %>% 
-  dplyr::filter(n > 3) %>% 
-  unique()
-
-###########################################################
-## Age based matching (exact)
-###########################################################
-# dfOrig <- downloadFile('syn12118582')
-dfOrig.kinetic <- read.table('hcwiseSummaryFeaturesAllAssays.tsv', sep='\t', header=TRUE) %>% 
-  dplyr::filter(assay == 'kinetic') %>% 
-  unique()
-
-hc.nc.mpower <- dfOrig.kinetic %>%
-  dplyr::filter(PD %in% c('control')) %>% 
-  dplyr::select(healthCode, age, MS = PD, gender) %>% 
-  na.omit() %>% 
-  unique() %>% 
-  droplevels() %>% 
-  dplyr::mutate(n = 3) # I just made all the healthCodes in mpower have 3 as the number of records, infact this is higher
-
-# Add mpower controls to elevateMS dataset before going through
-# age matching
-
-hc.hfreq.all <- rbind(hc.hfreq, hc.nc.mpower) %>% unique()
-
-set.seed(123456789)
-dat = hc.hfreq.all %>%
-  dplyr::mutate(MS = factor(MS, levels = c('control','ms_patient')),
-                MS = as.numeric(MS) - 1) %>%
-  unique()
-age.matched = matchit(MS ~ age, data = data.frame(dat), method = "exact")
-dat = match.data(age.matched)
-
-# Break ties using number of records
-set.seed(123456789)
-age.records.matched = plyr::ddply(dat, .(subclass), .fun = function(x){
-  dat1 = x %>%
-    dplyr::select(healthCode, MS, n, age, gender) %>%
-    unique() 
-  records.matched = matchit(MS ~ n, data = dat1)
-  dat1 = match.data(records.matched)
-})
-p1 = ggplot(age.records.matched, aes(x = factor(MS), y = age)) + geom_boxplot()
-p2 = ggplot(age.records.matched, aes(x = MS)) + geom_bar()
-# p3 = ggplot(age.records.matched, aes(x = log10(n), color = factor(MS))) + geom_density() + xlab('log10(# Windows)')
-ggpubr::ggarrange(p2,p1, ncol = 2, nrow = 1)
-```
-
-```{r get.ftrs}
-### Extract features elevateMS
-###########################################################
-## Download and set up features for elevateMS
-###########################################################
-# Get retained recordID
-# Select retained recordIds in elevateMS
-rid.retained = tremor.tbl %>%
-  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>%
-  dplyr::select(recordId, healthCode)
-
-# Load features from synapse
-ftrs = purrr::map(ftrs.id, function(id){
-  fread(synapser::synGet(id)$path, fill = TRUE) %>%
-    dplyr::filter(IMF %in% c(1,2)) %>%
-    unique()
-  }) %>%
-  data.table::rbindlist(idcol = 'Assay') %>%
-  dplyr::inner_join(tremor.tbl %>%
-                      dplyr::select(recordId, healthCode, dataGroups)) %>%
-  dplyr::left_join(demo.tbl %>%
-                     dplyr::select(healthCode, gender.json.answer) %>%
-                     unique()) %>%
-  dplyr::rename(MS = dataGroups, gender = gender.json.answer) %>% 
-  dplyr::mutate(IMF = paste0('IMF',IMF)) %>% 
-  dplyr::filter(MS %in% c('ms_patient','control'))
-
-ftrs$energy.tm <- as.numeric(ftrs$energy.tm)
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Tremor_analysis/',thisFileName))
 ```
 
 ```{r fxn}
@@ -275,7 +127,7 @@ rfModelCaseControl <- function(dat, responseNames, factorFeatures, contFeatures,
                             type = 'response',
                             seed = 123456)
   
-    pred.probabilities = rowSums(rf.prediction$predictions == 1, na.rm = T)/rf.prediction$num.trees
+    pred.probabilities = rowSums(rf.prediction$predictions == max(dat.test$MS), na.rm = T)/rf.prediction$num.trees
   
     mdl.prediction = pred.probabilities %>%
       prediction(predictions = ., labels = dat.test[,'MS'], label.ordering = c(0,1))
@@ -302,7 +154,7 @@ rfModelCaseControl <- function(dat, responseNames, factorFeatures, contFeatures,
       data.frame(metricName = 'nTrain', value = dim(dat.train)[1]),
       data.frame(metricName = 'nTest', value = dim(dat.test)[1]),
       data.frame(metricName = 'nTrainControl', value = sum(dat.train[,'MS'] == 0)),
-      data.frame(metricName = 'nTestControl', value = sum(dat.test[,'MS'] == 1))
+      data.frame(metricName = 'nTestControl', value = sum(dat.test[,'MS'] == 0))
     )
     
     all.results = list(param = mdl.param, performance = mdl.performance, coeff = mdl.coeff)
@@ -396,6 +248,56 @@ getTopNPercentOfFtrs <- function(mdl, n = 70){
 }
 ```
 
+#### Download age matched elevateMS (control + cases) + mpower (cases) pool
+```{r age.matched.healthcodes, fig.height=5, fig.width=10}
+###########################################################
+## Download data
+###########################################################
+age.records.matched.id = 'syn19123754'
+age.records.matched.syn = synapser::synGet(age.records.matched.id)
+age.records.matched = read.csv(age.records.matched.syn$path, sep = '\t')
+all.used.ids = age.records.matched.id
+
+p1 = ggplot(age.records.matched, aes(x = factor(MS), y = age)) + geom_boxplot()
+p2 = ggplot(age.records.matched, aes(x = MS)) + geom_bar()
+p3 = ggplot(age.records.matched, aes(x = log10(n), color = factor(MS))) + geom_density() + xlab('log10(# Windows)')
+ggpubr::ggarrange(p2,p1, p3,ncol = 3, nrow = 1)
+```
+
+```{r get.summarized.ftrs}
+
+###########################################################
+## Download and set up features for elevateMS
+###########################################################
+summarized.ftrs.elevateMS.id = 'syn18879962'
+summarized.ftrs.elevateMS = read.csv(synapser::synGet(summarized.ftrs.elevateMS.id)$path,
+                                     sep = '\t')
+summarized.ftrs.elevateMS.id.record = 'syn19964391'
+summarized.ftrs.elevateMS.record = read.csv(synapser::synGet(summarized.ftrs.elevateMS.id.record)$path,
+                                     sep = '\t')
+all.used.ids = c(all.used.ids, summarized.ftrs.elevateMS.id, summarized.ftrs.elevateMS.id.record)
+###########################################################
+## Download demohgraphics data for elevateMS
+###########################################################
+# Get demographics from synapse
+demo.tbl.id.ms = 'syn17115631' # elevateMS_baselineCharacteristics
+demo.tbl.syn.ms <- synapser::synGet(demo.tbl.id.ms)
+demo.tbl.ms <- demo.tbl.syn.ms$path %>% read.csv(sep = '\t')
+all.used.ids <- c(all.used.ids, demo.tbl.id.ms)
+
+###########################################################
+## Download and set up features for age matched mpower controls
+###########################################################
+summarized.ftrs.mpower.id = 'syn19165094'
+summarized.ftrs.mpower = read.csv(synapser::synGet(summarized.ftrs.mpower.id)$path,
+                                     sep = '\t')
+summarized.ftrs.mpower.id.record = 'syn19964696'
+summarized.ftrs.mpower.record = read.csv(synapser::synGet(summarized.ftrs.mpower.id.record)$path,
+                                     sep = '\t')
+
+all.used.ids <- c(all.used.ids, summarized.ftrs.mpower.id, summarized.ftrs.mpower.id.record)
+```
+
 ### Features considered for this analysis
 ```{r ftr.def, echo = TRUE}
 # Split features based componenet
@@ -417,118 +319,12 @@ ftrs.names = c("mean.tm", "median.tm", "mode.tm", "mx.tm", "mn.tm", "sd.tm", "sk
                "EnergyInBand23_5", "EnergyInBand24", "EnergyInBand24_5")
 ```
 
-#### Combine energy features in to bands of 1 Hz before feature selection for elevateMS
-```{r all.energy}
-###########################################################
-## Combine energy features in to 1 Hz band
-###########################################################
-energy.ftr = ftrs %>%
-  tidyr::unite(rid, recordId, Assay, sensor, measurementType, IMF, axis, window, sep = '.') %>%
-  dplyr::select(rid, contains('EnergyInBand'))
 
-energy.ftr.cmbn = purrr::map2(seq(1,24,by=1),
-                              seq(1.5,24.5,by=1),
-                              function(x, y, innerFtr){
-                                ind = paste0('EnergyInBand',gsub('\\.','_', seq(x, y, by=0.5)))
-                                innerFtr = innerFtr %>%
-                                  dplyr::select(rid, one_of(ind))
-                                rowSums(innerFtr[,2:3], na.rm = T)
-                              }, energy.ftr) %>%
-  do.call(cbind,.)
-colnames(energy.ftr.cmbn) = paste0('EnergyInBand', seq(1,24,by=1))
-energy.ftr.cmbn = cbind(data.frame(rid = energy.ftr$rid), energy.ftr.cmbn)
-```
+```{r filter.important.features}
 
-#### Find median and iqr of each feature (per healthCode) for elevateMS
-```{r ftr.summarize}
-###########################################################
-## Summarize features for elevateMS
-###########################################################
-# Get kinetic tremor features
-kinetic.ftr = ftrs %>%
-  tidyr::unite(rid, recordId, Assay, sensor, measurementType, IMF, axis, window, sep = '.') %>%
-  dplyr::select(-contains('EnergyInBand')) %>%
-  dplyr::left_join(energy.ftr.cmbn) %>%
-  tidyr::separate(rid, c('recordId', 'Assay', 'sensor', 'measurementType', 'IMF', 'axis', 'window'), sep = '\\.') %>%
-  dplyr::select(-recordId, -Assay, -axis, -window) %>%
-  tidyr::gather(Feature, Value, -healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
-  dplyr::group_by(Feature, healthCode, gender, MS, sensor, measurementType, IMF) %>%
-  dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
-                   md = stats::median(Value, na.rm = T))
-
-# Get kinetic data and covariates seperately
-kinetic.cov = kinetic.ftr %>%
-  dplyr::ungroup() %>%
-  dplyr::select(healthCode, gender, MS) %>%
-  unique() %>%
-  purrr::map_df(factor) %>%
-  as.data.frame()
-rownames(kinetic.cov) = kinetic.cov$healthCode
-
-# Get median of features
-kinetic.ftr.md = kinetic.ftr %>%
-  dplyr::ungroup() %>%
-  dplyr::select(healthCode, sensor, measurementType, Feature, IMF, md) %>%
-  dplyr::mutate(type = 'md') %>%
-  tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
-  tidyr::spread(nFeature, md)
-
-# Get iqr of features
-kinetic.ftr.iqr = kinetic.ftr %>%
-  dplyr::ungroup() %>%
-  dplyr::select(healthCode, sensor, measurementType, Feature, IMF, iqr) %>%
-  dplyr::mutate(type = 'iqr') %>%
-  tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
-  tidyr::spread(nFeature, iqr)
-
-# Combine median and iqr features (all data)
-kinetic.ftr = dplyr::inner_join(kinetic.ftr.md, kinetic.ftr.iqr)
-
-# Remove linearly associated features
-tmp.mat = kinetic.ftr %>%
-  dplyr::select(-healthCode, -sensor, -measurementType)
-lm.combo = caret::findLinearCombos(tmp.mat)
-
-kinetic.ftr.all = kinetic.ftr %>%
-  dplyr::select(-one_of(colnames(tmp.mat)[lm.combo$remove])) %>%
-  tidyr::gather(Feature, Value, -healthCode, -sensor, -measurementType) %>%
-  tidyr::unite(featureName, Feature, measurementType, sensor, sep = '_') %>%
-  tidyr::spread(featureName, Value)
- 
-# kinetic.ftr <- kinetic.ftr.all %>% dplyr::filter(healthCode %in% age.records.matched$healthCode)
-```
-
-
-```{r filter.healthcodes.mpower}
-## Get and format data for mPower
-### Age match case and control healthCodes
-###########################################################
-## Download and set up features for mPower
-###########################################################
-
-############### Reshape Data
-# dfOrig <- downloadFile('syn12118582')
-dfOrig <- read.table('hcwiseSummaryFeaturesAllAssays.tsv', sep='\t', header=TRUE)
-
-colsToNotSelect <- c('assay','PD','age','gender')
-dfCommonCols <- dfOrig %>% dplyr::select(c('healthCode',colsToNotSelect))
-
-df <- dfOrig %>% 
-  dplyr::select(setdiff(colnames(dfOrig), colsToNotSelect)) %>% 
-  dplyr::filter(medTimepoint == 'preMed')
-dfKinetic <- dfOrig %>% 
-  dplyr::filter(assay == 'kinetic', 
-                medTimepoint == 'preMed') %>%
-  dplyr::select(c('healthCode',colnames(df)[grep('IMF',colnames(df))]))
-
-tremor.tbl.mpower.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", 'syn10676309'))
-tremor.tbl.mpower <- tremor.tbl.mpower.syn$asDataFrame() %>%
-  dplyr::select(recordId, healthCode, momentInDayFormat.json.choiceAnswers) %>%
-  dplyr::rename(medTimepoint = momentInDayFormat.json.choiceAnswers) %>%
-  dplyr::filter(medTimepoint != "Just after taking Parkinson medication (at your best)") %>%
-  unique()
-
-load('AllRanking.RData') #syn12038526
+ranking.syn.id = 'syn12038526' # AllRanking.Rdata (feature ranking  postural, kinetic and rest for mpower)
+load(synapser::synGet(ranking.syn.id)$path)
+all.used.ids <- c(all.used.ids, ranking.syn.id)
 nFeatures = 100 # max number of features to choose per assay
 
 kineticFeaturesIMF1 <- ranka[,3] %>% na.omit() 
@@ -538,7 +334,7 @@ kineticFeaturesIMF1 <- kineticFeaturesIMF1[kineticFeaturesIMF1 > (maxRank-nFeatu
 kineticFeaturesIMF2 <- kineticFeaturesIMF2[kineticFeaturesIMF2 > (maxRank-nFeatures)] %>% names()
 
 kineticFeaturesToSelect <- c()
-for (ftr in colnames(dfKinetic)){
+for (ftr in colnames(summarized.ftrs.elevateMS)){
   ftr1 <- gsub('IMF1.','',ftr)
   # print(ftr1)
   if(ftr1 %in% kineticFeaturesIMF1){
@@ -551,20 +347,10 @@ for (ftr in colnames(dfKinetic)){
   }
 }
 
-dfKinetic <- dfKinetic %>% dplyr::select(c('healthCode',kineticFeaturesToSelect))
-dfKinetic$healthCode <- droplevels(dfKinetic$healthCode)
-dfKinetic.orig <- dfKinetic
-
-colnames(dfKinetic) <- paste0(colnames(dfKinetic),'.kinetic')
-colnames(dfKinetic)[1] <- 'healthCode'
-
-retained.hcs <- c(age.records.matched$healthCode, tremor.tbl$healthCode) %>% 
-  unique()
-
 # For training data add both the ftrs from elevateMS and the controls from 
 # mpower and filter to get the whole age matched data
-dfMainTrain <- dplyr::full_join(kinetic.ftr.all, dfKinetic.orig) %>% 
-  dplyr::filter(healthCode %in% retained.hcs) %>%
+dfMainTrain <- dplyr::full_join(summarized.ftrs.elevateMS, summarized.ftrs.mpower) %>% 
+  # dplyr::filter(healthCode %in% age.records.matched$healthCode) %>%
   dplyr::select(c('healthCode',kineticFeaturesToSelect)) %>% 
   unique()
 
@@ -586,13 +372,9 @@ dat.train = dfMainTrain %>%
 dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
     dplyr::select(healthCode)), dat.train) %>%
-  dplyr::left_join(hc.hfreq.all %>% 
-                     dplyr::filter(healthCode %in% dfMainTrain$healthCode)) %>%
-  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
-  as.data.frame() %>% droplevels() %>% 
-  dplyr::mutate(MS = factor(MS, levels = c('control','ms_patient')),
-                MS = as.numeric(MS) - 1) %>% dplyr::select(-age, -n) %>% 
-  na.omit() %>%
+  dplyr::left_join(age.records.matched %>%
+                     dplyr::select(healthCode,MS,age,gender)) %>% 
+  as.data.frame() %>% droplevels() %>%
   unique()
 
 # Run random forest model
@@ -639,7 +421,8 @@ printTopFeatures(rf.mdl.caret$alternateModel) %>%
   data.frame(Important_Features = .) %>%
   kable()
 ```
-#### Evaluate Kinetic Model on elevateMS by training on mPower+elevateMS age matched data
+
+#### Evaluate Kinetic Model on elevateMS by training on mPower+elevateMS age matched data (remaining healthCodes)
 ```{r model.result}
 nperm = 100
 set.seed(123456789)
@@ -657,37 +440,23 @@ dat.train = dfMainTrain %>%
 dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
     dplyr::select(healthCode)), dat.train) %>%
-  dplyr::left_join(hc.hfreq.all %>% 
-                     dplyr::filter(healthCode %in% dfMainTrain$healthCode)) %>%
-  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
-  as.data.frame() %>% droplevels() %>% 
-  dplyr::mutate(MS = factor(MS, levels = c('control','ms_patient')),
-                MS = as.numeric(MS) - 1) %>% dplyr::select(-age, -n) %>% 
-  na.omit() %>%
+  dplyr::left_join(age.records.matched %>%
+                     dplyr::select(healthCode,MS,age,gender)) %>% 
+  as.data.frame() %>% droplevels() %>%
   unique()
 
-# colnames(dat.train) <- gsub('.kinetic','',colnames(dat.train))
 dat.test <- dfMainTrain %>%
-  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
-    dplyr::select(one_of(kineticFeaturesToSelect))
-# %>%
-#       apply(2, scale)
-dat.test = cbind(data.frame(healthCode = dfMainTrain %>%
-  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
-    dplyr::select(healthCode)), dat.test) %>%
-   dplyr::left_join(kinetic.cov) %>%
-  as.data.frame() %>% droplevels() %>%
+  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>%
+    dplyr::select(healthCode,one_of(kineticFeaturesToSelect)) %>% 
+  dplyr::left_join(demo.tbl.ms %>%
+                     dplyr::select(healthCode, gender, age, MS = dataGroups)) %>%
+  dplyr::filter(MS %in% c('ms_patient','control'),
+                gender %in% c('male','female'),
+                !is.na(age), !is.na(MS), !is.na(gender)) %>% #remove NAs
   dplyr::mutate(MS = factor(MS, levels = c('control','ms_patient')),
                 MS = as.numeric(MS) - 1) %>% 
-  dplyr::filter(healthCode %in% tremor.tbl$healthCode) %>% 
-  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) 
-# %>%
-#    na.omit()
-
-dat.test$gender[is.na(dat.test$gender)] <- 'Male'
-# We have a lot of missing gender data, I'm just defaulting it to Male
-# It does not have any effect on the prediction if I choose all to be
-# Male or Female, I have tried both
+  unique() %>% 
+  droplevels()
 
     rf.mdl = ranger(dependent.variable.name = 'MS', 
                     data = dat.train, 
@@ -695,7 +464,8 @@ dat.test$gender[is.na(dat.test$gender)] <- 'Male'
                     importance = 'permutation',
                     seed = 123456,
                     classification = TRUE,
-                    write.forest = TRUE)
+                    write.forest = TRUE,
+                    probability = F)
   
     # Predict reponse of test data
     rf.prediction = predict(rf.mdl, 
@@ -703,7 +473,7 @@ dat.test$gender[is.na(dat.test$gender)] <- 'Male'
                             predict.all = T,
                             type = 'response',
                             seed = 123456)
-        pred.probabilities = rowSums(rf.prediction$predictions == 1, na.rm = T)/rf.prediction$num.trees
+        pred.probabilities = rowSums(rf.prediction$predictions == max(dat.test$MS), na.rm = T)/rf.prediction$num.trees
   
     mdl.prediction = pred.probabilities %>%
       prediction(predictions = ., labels = dat.test[,'MS'], label.ordering = c(0,1))
@@ -727,8 +497,9 @@ writeLines('Prediction on elevateMS after training on age matched mPower + eleva
 kable(mdl.performance)
 ```
 
-#### Evaluate Kinetic Model on elevateMS by training on mPower+elevateMS age matched data (removing gender == NA data)
-```{r model.result.gender}
+
+#### Evaluate Kinetic Model on elevateMS by training on mPower+elevateMS age matched data (records of the age matched (elevateMS only) healthCodes)
+```{r model.result.1}
 nperm = 100
 set.seed(123456789)
 exportPackages = c('dplyr','plyr','data.table','CovariateAnalysis', 'ranger', 'ROCR')
@@ -745,35 +516,23 @@ dat.train = dfMainTrain %>%
 dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
     dplyr::select(healthCode)), dat.train) %>%
-  dplyr::left_join(hc.hfreq.all %>% 
-                     dplyr::filter(healthCode %in% dfMainTrain$healthCode)) %>%
-  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
-  as.data.frame() %>% droplevels() %>% 
-  dplyr::mutate(MS = factor(MS, levels = c('control','ms_patient')),
-                MS = as.numeric(MS) - 1) %>% dplyr::select(-age, -n) %>% 
-  na.omit() %>%
+  dplyr::left_join(age.records.matched %>%
+                     dplyr::select(healthCode,MS,age,gender)) %>% 
+  as.data.frame() %>% droplevels() %>%
   unique()
 
-# colnames(dat.train) <- gsub('.kinetic','',colnames(dat.train))
-dat.test <- dfMainTrain %>%
-  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
-  dplyr::left_join(kinetic.cov %>% dplyr::select(healthCode, gender)) %>% 
-  na.omit() %>% 
-    dplyr::select(one_of(kineticFeaturesToSelect)) 
-# %>%
-#       apply(2, scale)
-dat.test = cbind(data.frame(healthCode = dfMainTrain %>%
-  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>% 
-      dplyr::left_join(kinetic.cov %>% dplyr::select(healthCode, gender)) %>% 
-    na.omit() %>% 
-    dplyr::select(healthCode)), dat.test) %>%
-   dplyr::left_join(kinetic.cov) %>%
-  as.data.frame() %>% droplevels() %>%
+dat.test <- summarized.ftrs.elevateMS.record %>%
+  dplyr::filter((healthCode %in% age.records.matched$healthCode)) %>%
+    dplyr::select(healthCode,recordId,one_of(kineticFeaturesToSelect)) %>% 
+  dplyr::left_join(demo.tbl.ms %>%
+                     dplyr::select(healthCode, gender, age, MS = dataGroups)) %>%
+  dplyr::filter(MS %in% c('ms_patient','control'),
+                gender %in% c('male','female'),
+                !is.na(age), !is.na(MS), !is.na(gender)) %>% #remove NAs
   dplyr::mutate(MS = factor(MS, levels = c('control','ms_patient')),
                 MS = as.numeric(MS) - 1) %>% 
-  dplyr::filter(healthCode %in% tremor.tbl$healthCode) %>% 
-  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>%
-   na.omit()
+  unique() %>% 
+  droplevels()
 
     rf.mdl = ranger(dependent.variable.name = 'MS', 
                     data = dat.train, 
@@ -781,7 +540,8 @@ dat.test = cbind(data.frame(healthCode = dfMainTrain %>%
                     importance = 'permutation',
                     seed = 123456,
                     classification = TRUE,
-                    write.forest = TRUE)
+                    write.forest = TRUE,
+                    probability = F)
   
     # Predict reponse of test data
     rf.prediction = predict(rf.mdl, 
@@ -789,7 +549,83 @@ dat.test = cbind(data.frame(healthCode = dfMainTrain %>%
                             predict.all = T,
                             type = 'response',
                             seed = 123456)
-        pred.probabilities = rowSums(rf.prediction$predictions == 1, na.rm = T)/rf.prediction$num.trees
+        pred.probabilities = rowSums(rf.prediction$predictions == max(dat.test$MS), na.rm = T)/rf.prediction$num.trees
+  
+    mdl.prediction = pred.probabilities %>%
+      prediction(predictions = ., labels = dat.test[,'MS'], label.ordering = c(0,1))
+    
+    auroc = data.frame(metricName = 'auroc', 
+                       value = performance(mdl.prediction, 'auc')@y.values[[1]])
+    acc = data.frame(metricName = 'acc',
+                     value = max(performance(mdl.prediction, 'acc')@y.values[[1]]))
+    
+    rec = performance(mdl.prediction, 'rec')@y.values[[1]]
+    pre = performance(mdl.prediction, 'prec')@y.values[[1]]
+    
+    aupr = data.frame(metricName = 'aupr', 
+                      value = caTools::trapz(rec[!is.nan(rec) & !is.nan(pre)], 
+                                             pre[!is.nan(rec) & !is.nan(pre)]))
+    mdl.performance = rbind(auroc, acc, aupr)
+    
+writeLines(c('Number of Kinetic features chosen for analysis : ',as.character(length(kineticFeaturesToSelect))))
+writeLines(c('Number of healthCodes in testset : ',as.character(length(dat.test$healthCode))))
+writeLines('Prediction on elevateMS after training on age matched mPower + elevateMS data')
+kable(mdl.performance)
+```
+
+
+#### Evaluate Kinetic Model on elevateMS by training on mPower+elevateMS age matched data ((records of the NON age matched (elevateMS only) healthCodes))
+```{r model.result.2}
+nperm = 100
+set.seed(123456789)
+exportPackages = c('dplyr','plyr','data.table','CovariateAnalysis', 'ranger', 'ROCR')
+
+# ftrsToSelect <- paste0(kineticFeaturesToSelect,'.kinetic')
+ftrsToSelect <- kineticFeaturesToSelect
+  
+# Get training data
+dat.train = dfMainTrain %>%
+  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
+  dplyr::select(one_of(ftrsToSelect)) 
+# %>%
+#   apply(2, scale) 
+dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
+  dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
+    dplyr::select(healthCode)), dat.train) %>%
+  dplyr::left_join(age.records.matched %>%
+                     dplyr::select(healthCode,MS,age,gender)) %>% 
+  as.data.frame() %>% droplevels() %>%
+  unique()
+
+dat.test <- summarized.ftrs.elevateMS.record %>%
+  dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>%
+    dplyr::select(healthCode,recordId,one_of(kineticFeaturesToSelect)) %>% 
+  dplyr::left_join(demo.tbl.ms %>%
+                     dplyr::select(healthCode, gender, age, MS = dataGroups)) %>%
+  dplyr::filter(MS %in% c('ms_patient','control'),
+                gender %in% c('male','female'),
+                !is.na(age), !is.na(MS), !is.na(gender)) %>% #remove NAs
+  dplyr::mutate(MS = factor(MS, levels = c('control','ms_patient')),
+                MS = as.numeric(MS) - 1) %>% 
+  unique() %>% 
+  droplevels()
+
+    rf.mdl = ranger(dependent.variable.name = 'MS', 
+                    data = dat.train, 
+                    num.trees = 1000,
+                    importance = 'permutation',
+                    seed = 123456,
+                    classification = TRUE,
+                    write.forest = TRUE,
+                    probability = F)
+  
+    # Predict reponse of test data
+    rf.prediction = predict(rf.mdl, 
+                            data = dat.test,
+                            predict.all = T,
+                            type = 'response',
+                            seed = 123456)
+        pred.probabilities = rowSums(rf.prediction$predictions == max(dat.test$MS), na.rm = T)/rf.prediction$num.trees
   
     mdl.prediction = pred.probabilities %>%
       prediction(predictions = ., labels = dat.test[,'MS'], label.ordering = c(0,1))
@@ -815,8 +651,8 @@ kable(mdl.performance)
 
 ### Store results in synapse
 ```{r syn.store, cache=FALSE, eval = TRUE}
-CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)', 
-              parentId = "syn11315047")
+CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)', 
+              parentId = "syn19120636")
 CODE = synStore(CODE)
 
 # Save all coefficients and AUCs as RData

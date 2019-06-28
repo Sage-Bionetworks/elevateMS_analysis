@@ -13,7 +13,7 @@ library(knit2synapse)
 
 synapser::synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS_time_constraint.Rmd",
                                  parentId = "syn19120636",
                                  folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(time constraint)")
 ```
@@ -447,7 +447,7 @@ dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
 
 dat.test <- dfMainTrain %>%
   dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>%
-    dplyr::select(healthCode,recordId,one_of(kineticFeaturesToSelect)) %>% 
+    dplyr::select(healthCode,one_of(kineticFeaturesToSelect)) %>% 
   dplyr::left_join(demo.tbl.ms %>%
                      dplyr::select(healthCode, gender, age, MS = dataGroups)) %>%
   dplyr::filter(MS %in% c('ms_patient','control'),
@@ -523,7 +523,7 @@ dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
 
 dat.test <- summarized.ftrs.elevateMS.record %>%
   dplyr::filter((healthCode %in% age.records.matched$healthCode)) %>%
-    dplyr::select(healthCode, one_of(kineticFeaturesToSelect)) %>% 
+    dplyr::select(healthCode, recordId, Assay, one_of(kineticFeaturesToSelect)) %>% 
   dplyr::left_join(demo.tbl.ms %>%
                      dplyr::select(healthCode, gender, age, MS = dataGroups)) %>%
   dplyr::filter(MS %in% c('ms_patient','control'),
@@ -599,7 +599,7 @@ dat.train = cbind(data.frame(healthCode = dfMainTrain %>%
 
 dat.test <- summarized.ftrs.elevateMS.record %>%
   dplyr::filter(!(healthCode %in% age.records.matched$healthCode)) %>%
-    dplyr::select(healthCode,recordId,one_of(kineticFeaturesToSelect)) %>% 
+    dplyr::select(healthCode,recordId,Assay,one_of(kineticFeaturesToSelect)) %>% 
   dplyr::left_join(demo.tbl.ms %>%
                      dplyr::select(healthCode, gender, age, MS = dataGroups)) %>%
   dplyr::filter(MS %in% c('ms_patient','control'),
