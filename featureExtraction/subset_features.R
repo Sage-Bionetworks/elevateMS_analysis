@@ -21,7 +21,21 @@ summarized.ftrs.elevateMS = read.csv(synapser::synGet(summarized.ftrs.elevateMS.
 summarized.ftrs.elevateMS.id.record = 'syn20059971'
 summarized.ftrs.elevateMS.record = read.csv(synapser::synGet(summarized.ftrs.elevateMS.id.record)$path,
                                             sep = '\t')
-all.used.ids = c(summarized.ftrs.elevateMS.id, summarized.ftrs.elevateMS.id.record)
+
+tremor.tbl.id.MS = 'syn10278767' # Tremor Activity-v5
+tremor.tbl.syn.MS <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id.MS))
+tremor.tbl.MS <- tremor.tbl.syn.MS$asDataFrame()
+
+metadata.columns <- colnames(tremor.tbl.MS)
+metadata.columns <- metadata.columns[grepl('metadata',metadata.columns)]
+
+metadata.MS <- tremor.tbl.MS %>% 
+  dplyr::select('healthCode','recordId','createdOn','createdOnTimeZone',
+                'dataGroups',metadata.columns) %>% 
+  unique()
+
+all.used.ids = c(summarized.ftrs.elevateMS.id, summarized.ftrs.elevateMS.id.record,
+                 tremor.tbl.id.MS)
 
 ###########################################################
 ## Download and set up features for age matched mpower controls
@@ -32,7 +46,20 @@ summarized.ftrs.mpower = read.csv(synapser::synGet(summarized.ftrs.mpower.id)$pa
 summarized.ftrs.mpower.id.record = 'syn20061055'
 summarized.ftrs.mpower.record = read.csv(synapser::synGet(summarized.ftrs.mpower.id.record)$path,
                                          sep = '\t')
-all.used.ids <- c(all.used.ids, summarized.ftrs.mpower.id, summarized.ftrs.mpower.id.record)
+tremor.tbl.id.mpower = 'syn10676309' # Tremor Activity-v5
+tremor.tbl.syn.mpower <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id.mpower))
+tremor.tbl.mpower <- tremor.tbl.syn.mpower$asDataFrame()
+
+metadata.columns <- colnames(tremor.tbl.mpower)
+metadata.columns <- metadata.columns[grepl('metadata',metadata.columns)]
+
+metadata.mpower <- tremor.tbl.mpower %>% 
+  dplyr::select('healthCode','recordId','createdOn','createdOnTimeZone',
+                'dataGroups',metadata.columns) %>% 
+  unique()
+
+all.used.ids <- c(all.used.ids, summarized.ftrs.mpower.id, summarized.ftrs.mpower.id.record,
+                  tremor.tbl.id.mpower)
 
 ##########################################################
 ## Download feature ranking and subset features
@@ -63,16 +90,21 @@ for (ftr in colnames(summarized.ftrs.elevateMS)){
   }
 }
 
+# metadata
+metadata <- dplyr::full_join(metadata.mpower, metadata.MS) %>% 
+  unique()
+
 # Subset features
 hc.summarized.features <- dplyr::full_join(summarized.ftrs.elevateMS, summarized.ftrs.mpower) %>% 
   dplyr::select(c('healthCode',kineticFeaturesToSelect)) %>% 
-  unique()
-
-metadata.columns <- colnames(summarized.ftrs.elevateMS.record)
-metadata.columns <- metadata.columns[grepl('metadata',metadata.columns)]
+  dplyr::left_join(metadata %>% dplyr::select(healthCode, dataGroups)) %>%
+  unique() %>% 
+  na.omit()
 
 recordId.summarized.features <- dplyr::full_join(summarized.ftrs.elevateMS.record, summarized.ftrs.mpower.record) %>% 
-  dplyr::select(c('healthCode','recordId','Assay',metadata.columns,kineticFeaturesToSelect)) %>% 
+  dplyr::select(c('healthCode','recordId','Assay',kineticFeaturesToSelect)) %>% 
+  unique() %>% 
+  dplyr::left_join(metadata) %>% 
   unique()
 
 #############
@@ -108,7 +140,7 @@ synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
 unlink(OUTPUT_FILE)
 
 # upload to Synapse, recordwise summarized features
-synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
+synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
 OUTPUT_FILE <- "final_subset_features_recordId_time_constraint.tsv" # name your file
 write.table(recordId.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
