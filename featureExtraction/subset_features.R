@@ -110,19 +110,19 @@ recordId.summarized.features <- dplyr::full_join(summarized.ftrs.elevateMS.recor
 #############
 # Upload data to Synapse
 #############
-# upload file to Synapse with provenance
-# to learn more about provenance in Synapse, go to http://docs.synapse.org/articles/provenance.html
-
-## Github link
-# Copy paste the github token string and store it as 'github_token.txt' file
-# A github token is required to access the elevateMS_analysis repository as it is private
-gtToken = '~/github_token.txt'
-setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/subset_features.R" # location of file inside github repo
-thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
-                    ref="branch", 
-                    refName="master")
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
+# # upload file to Synapse with provenance
+# # to learn more about provenance in Synapse, go to http://docs.synapse.org/articles/provenance.html
+# 
+# ## Github link
+# # Copy paste the github token string and store it as 'github_token.txt' file
+# # A github token is required to access the elevateMS_analysis repository as it is private
+# gtToken = '~/github_token.txt'
+# setGithubToken(as.character(read.table(gtToken)$V1))
+# thisFileName <- "featureExtraction/subset_features.R" # location of file inside github repo
+# thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
+#                     ref="branch", 
+#                     refName="master")
+# thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # name and describe this activity
 activityName = "Subset to important features"
@@ -135,7 +135,7 @@ write.table(hc.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, quote=F,
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
-         used = all.used.ids,
+         used = "https://github.com/itismeghasyam/elevateMS_analysis/blob/master/featureExtraction/subset_features.R",
          executed = thisFile)
 unlink(OUTPUT_FILE)
 
@@ -146,7 +146,7 @@ write.table(recordId.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, qu
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
-         used = all.used.ids,
+         used = "https://github.com/itismeghasyam/elevateMS_analysis/blob/master/featureExtraction/subset_features.R",
          executed = thisFile)
 unlink(OUTPUT_FILE)
 
