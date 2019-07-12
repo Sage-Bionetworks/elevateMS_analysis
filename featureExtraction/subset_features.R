@@ -135,8 +135,8 @@ write.table(hc.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, quote=F,
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
-         used = "https://github.com/itismeghasyam/elevateMS_analysis/blob/master/featureExtraction/subset_features.R",
-         executed = thisFile)
+         used = all.used.ids,
+         executed = "https://github.com/itismeghasyam/elevateMS_analysis/blob/master/featureExtraction/subset_features.R")
 unlink(OUTPUT_FILE)
 
 # upload to Synapse, recordwise summarized features
@@ -146,7 +146,7 @@ write.table(recordId.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, qu
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
          activityDescription = activityDescription,
-         used = "https://github.com/itismeghasyam/elevateMS_analysis/blob/master/featureExtraction/subset_features.R",
-         executed = thisFile)
+         used = all.used.ids,
+         executed = "https://github.com/itismeghasyam/elevateMS_analysis/blob/master/featureExtraction/subset_features.R")
 unlink(OUTPUT_FILE)
 
