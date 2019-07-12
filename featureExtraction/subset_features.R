@@ -129,7 +129,7 @@ activityName = "Subset to important features"
 activityDescription = "Subset the whole feature file into a smaller subset using feature ranking from mPower"
 
 # upload to Synapse, healthCode wise summarized features
-synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
+synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
 OUTPUT_FILE <- "final_subset_features_healthCode_time_constraint.tsv" # name your file
 write.table(hc.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
