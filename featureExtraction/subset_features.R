@@ -15,10 +15,10 @@ synapser::synLogin()
 ###########################################################
 ## Download and set up features for elevateMS
 ###########################################################
-summarized.ftrs.elevateMS.id = 'syn20061467'
+summarized.ftrs.elevateMS.id = 'syn18879962'
 summarized.ftrs.elevateMS = read.csv(synapser::synGet(summarized.ftrs.elevateMS.id)$path,
                                      sep = '\t')
-summarized.ftrs.elevateMS.id.record = 'syn20059971'
+summarized.ftrs.elevateMS.id.record = 'syn19964391'
 summarized.ftrs.elevateMS.record = read.csv(synapser::synGet(summarized.ftrs.elevateMS.id.record)$path,
                                             sep = '\t')
 
@@ -40,10 +40,10 @@ all.used.ids = c(summarized.ftrs.elevateMS.id, summarized.ftrs.elevateMS.id.reco
 ###########################################################
 ## Download and set up features for age matched mpower controls
 ###########################################################
-summarized.ftrs.mpower.id = 'syn20061177'
+summarized.ftrs.mpower.id = 'syn19165094'
 summarized.ftrs.mpower = read.csv(synapser::synGet(summarized.ftrs.mpower.id)$path,
                                   sep = '\t')
-summarized.ftrs.mpower.id.record = 'syn20061055'
+summarized.ftrs.mpower.id.record = 'syn19964696'
 summarized.ftrs.mpower.record = read.csv(synapser::synGet(summarized.ftrs.mpower.id.record)$path,
                                          sep = '\t')
 tremor.tbl.id.mpower = 'syn10676309' # Tremor Activity-v5
@@ -130,7 +130,7 @@ activityDescription = "Subset the whole feature file into a smaller subset using
 
 # upload to Synapse, healthCode wise summarized features
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "final_subset_features_healthCode_time_constraint.tsv" # name your file
+OUTPUT_FILE <- "final_subset_features_healthCode.tsv" # name your file
 write.table(hc.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
@@ -141,7 +141,7 @@ unlink(OUTPUT_FILE)
 
 # upload to Synapse, recordwise summarized features
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "final_subset_features_recordId_time_constraint.tsv" # name your file
+OUTPUT_FILE <- "final_subset_features_recordId.tsv" # name your file
 write.table(recordId.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
