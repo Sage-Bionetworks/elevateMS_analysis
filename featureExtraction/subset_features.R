@@ -130,7 +130,7 @@ activityDescription = "Subset the whole feature file into a smaller subset using
 
 # upload to Synapse, healthCode wise summarized features
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "final_subset_features_healthCode.tsv" # name your file
+OUTPUT_FILE <- "TremorFeatures_healthCode.tsv" # name your file
 write.table(hc.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
@@ -141,7 +141,7 @@ unlink(OUTPUT_FILE)
 
 # upload to Synapse, recordwise summarized features
 synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "final_subset_features_recordId.tsv" # name your file
+OUTPUT_FILE <- "TremorFeatures_recordId.tsv" # name your file
 write.table(recordId.summarized.features, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
