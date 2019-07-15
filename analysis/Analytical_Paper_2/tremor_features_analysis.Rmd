@@ -1,0 +1,221 @@
+---
+title: "elevateMS Tremor features analysis"
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools', 'gridExtra')
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install("ComplexHeatmap", version = "3.8")
+install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+synapser::synLogin()
+
+
+###Load data freeze
+load(synGet("syn19273733")$path)
+source("common_analysis_functions.R")
+```
+
+
+
+```{r}
+##TREMOR FEATURE COLS -
+#cat(colnames(tremorF), sep="', '")
+TREMOR_FEATURES <- c('cent.fr.IMF1.iqr_ud_accelerometer', 'cent.fr.IMF2.iqr_uad_gyroscope', 'cent.fr.IMF2.iqr_ud_accelerometer', 'cent.fr.IMF2.md_uad_gyroscope', 'dfa.tm.IMF1.iqr_uaacf_accelerometer', 'dfa.tm.IMF1.iqr_uavacf_gyroscope', 'dfa.tm.IMF1.md_uaacf_accelerometer', 'dfa.tm.IMF1.md_ud_accelerometer', 'dfa.tm.IMF2.iqr_uaacf_accelerometer', 'dfa.tm.IMF2.iqr_uad_gyroscope', 'dfa.tm.IMF2.iqr_uv_accelerometer', 'dfa.tm.IMF2.md_uad_gyroscope', 'energy.tm.IMF1.iqr_uaa_gyroscope', 'energy.tm.IMF1.iqr_uaacf_accelerometer', 'energy.tm.IMF1.iqr_uavacf_gyroscope', 'energy.tm.IMF1.iqr_uj_accelerometer', 'energy.tm.IMF1.md_uj_accelerometer', 'energy.tm.IMF2.iqr_ua_accelerometer', 'energy.tm.IMF2.iqr_uavacf_gyroscope', 'energy.tm.IMF2.iqr_uj_accelerometer', 'energy.tm.IMF2.md_ua_accelerometer', 'energy.tm.IMF2.md_ud_accelerometer', 'ewt.permEnt.fr.IMF1.iqr_ua_accelerometer', 'ewt.permEnt.fr.IMF1.iqr_uaa_gyroscope', 'ewt.permEnt.fr.IMF1.iqr_uavacf_gyroscope', 'ewt.permEnt.fr.IMF1.md_uaa_gyroscope', 'ewt.permEnt.fr.IMF1.md_uaacf_accelerometer', 'ewt.permEnt.fr.IMF1.md_uad_gyroscope', 'ewt.permEnt.fr.IMF1.md_uav_gyroscope', 'ewt.permEnt.fr.IMF2.iqr_ua_accelerometer', 'ewt.permEnt.fr.IMF2.iqr_uaacf_accelerometer', 'ewt.permEnt.fr.IMF2.iqr_uav_gyroscope', 'ewt.permEnt.fr.IMF2.iqr_uavacf_gyroscope', 'ewt.permEnt.fr.IMF2.iqr_uv_accelerometer', 'ewt.permEnt.fr.IMF2.md_uad_gyroscope', 'ewt.permEnt.fr.IMF2.md_ud_accelerometer', 'ewt.tsallisEnt.fr.IMF1.iqr_ua_accelerometer', 'ewt.tsallisEnt.fr.IMF1.iqr_uaa_gyroscope', 'ewt.tsallisEnt.fr.IMF1.md_uaacf_accelerometer', 'ewt.tsallisEnt.fr.IMF2.iqr_ua_accelerometer', 'ewt.tsallisEnt.fr.IMF2.iqr_uav_gyroscope', 'IQR.fr.IMF1.iqr_uavacf_gyroscope', 'IQR.fr.IMF2.iqr_uad_gyroscope', 'IQR.fr.IMF2.md_ud_accelerometer', 'IQR.tm.IMF2.iqr_uaa_gyroscope', 'kurt.fr.IMF1.iqr_uaa_gyroscope', 'kurt.fr.IMF1.md_uj_accelerometer', 'kurt.fr.IMF2.iqr_uad_gyroscope', 'kurt.fr.IMF2.iqr_uavacf_gyroscope', 'kurt.fr.IMF2.iqr_uv_accelerometer', 'kurt.fr.IMF2.md_uad_gyroscope', 'kurtosis.tm.IMF1.iqr_uaa_gyroscope', 'kurtosis.tm.IMF1.iqr_ud_accelerometer', 'kurtosis.tm.IMF2.md_uav_gyroscope', 'md.fr.IMF2.md_ud_accelerometer', 'mean.tm.IMF1.iqr_uavacf_gyroscope', 'mean.tm.IMF2.iqr_uaa_gyroscope', 'mean.tm.IMF2.md_uavacf_gyroscope', 'median.tm.IMF2.iqr_uj_accelerometer', 'median.tm.IMF2.md_ud_accelerometer', 'mn.tm.IMF2.md_uavacf_gyroscope', 'mn.tm.IMF2.md_ud_accelerometer', 'mtkeo.tm.IMF1.iqr_uavacf_gyroscope', 'mtkeo.tm.IMF2.iqr_uaacf_accelerometer', 'mx.fr.IMF1.md_uaa_gyroscope', 'mx.tm.IMF1.iqr_uj_accelerometer', 'Q25.fr.IMF1.iqr_uavacf_gyroscope', 'Q25.fr.IMF2.iqr_uad_gyroscope', 'Q25.fr.IMF2.iqr_uv_accelerometer', 'Q25.tm.IMF1.md_uad_gyroscope', 'Q25.tm.IMF2.md_uad_gyroscope', 'Q75.fr.IMF2.iqr_ud_accelerometer', 'Q75.tm.IMF1.md_uad_gyroscope', 'Q75.tm.IMF2.iqr_uavacf_gyroscope', 'Q75.tm.IMF2.md_uad_gyroscope', 'rough.tm.IMF2.md_ua_accelerometer', 'sd.fr.IMF1.iqr_uaacf_accelerometer', 'sd.fr.IMF1.md_uaa_gyroscope', 'sd.fr.IMF2.iqr_uaacf_accelerometer', 'sd.fr.IMF2.iqr_uad_gyroscope', 'sd.fr.IMF2.iqr_uavacf_gyroscope', 'sd.fr.IMF2.md_uaacf_accelerometer', 'sfm.fr.IMF1.iqr_uad_gyroscope', 'sfm.fr.IMF1.iqr_uav_gyroscope', 'sfm.fr.IMF1.iqr_uv_accelerometer', 'skewness.tm.IMF1.iqr_uaa_gyroscope', 'skewness.tm.IMF1.iqr_ud_accelerometer', 'skewness.tm.IMF1.iqr_uv_accelerometer', 'skewness.tm.IMF1.md_ua_accelerometer', 'skewness.tm.IMF1.md_uav_gyroscope', 'skewness.tm.IMF1.md_uv_accelerometer', 'skewness.tm.IMF2.iqr_ua_accelerometer', 'skewness.tm.IMF2.iqr_uad_gyroscope', 'skewness.tm.IMF2.iqr_uav_gyroscope', 'skewness.tm.IMF2.iqr_ud_accelerometer', 'skewness.tm.IMF2.iqr_uj_accelerometer', 'skewness.tm.IMF2.iqr_uv_accelerometer', 'skewness.tm.IMF2.md_ua_accelerometer', 'skewness.tm.IMF2.md_uad_gyroscope', 'skewness.tm.IMF2.md_uavacf_gyroscope')
+
+tmp_tremorF <- tremorF %>% filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, c(TREMOR_FEATURES))
+
+tremorF_week_averaged =  tmp_tremorF %>% 
+  select(healthCode, participant_week, hand, feature, value) %>%
+  group_by(healthCode, participant_week, hand, feature) %>% 
+  dplyr::summarise_all(.funs=c(mean), na.rm=T) 
+```
+
+
+<br>
+<br>
+
+```{r, neuroQoLCors}
+#### Correlations of all Tremor features(averaged per individual) with Neuro-QoLs
+
+## Correlations- All Weeks
+neurCog_allWeeks_tremorF <- get_neuroQOL_cors(tremorF_week_averaged, additional_group_by='hand', use_first_common_week=F)
+
+## Correlations- First common week
+neurCog_firstCommonWeek_tremorF <- get_neuroQOL_cors(tremorF_week_averaged, additional_group_by='hand', use_first_common_week=T)
+
+```
+
+
+##### Correlation of Tremor features with Neuro-QoLs(All Weeks)
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
+install_load("grid")
+p1 <- ggplot(neurCog_allWeeks_tremorF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
+p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p1
+ggsave("FIGURES/tremorCorrelation_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
+```
+
+
+##### Scatter plot top 2 Tremor features(All Weeks) 
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}
+p1 <- get_scatter_plot(tremorF_week_averaged %>% filter(hand == 'right'), nQOL_uppExtremity_week_avg, 
+                       x='sd.fr.IMF2.md_uaacf_accelerometer', y='TScore', use_first_common_week = F)
+p2 <- get_scatter_plot(tremorF_week_averaged %>% filter(hand == 'right'), nQOL_uppExtremity_week_avg, 
+                       x='skewness.tm.IMF2.md_uavacf_gyroscope', y='TScore', use_first_common_week = F)
+p3 <- grid.arrange(p2,p1, nrow=1)
+ggsave("FIGURES/tremor_n_NeuroQOLs_top_2_features_scatterPlot_allWeeks.png", p3, height=3, width=9, units="in", dpi=150)
+```
+
+
+
+<br>
+-----
+
+#####  Tremor features(first common week) with Neuro-QoLs
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
+p2 <- ggplot(neurCog_firstCommonWeek_tremorF, 
+             aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() 
+p2 <- p2 + geom_point(size=.7)  + facet_grid( . ~ survey )
+p2 <- p2 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) 
+p2 <- p2 + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p2
+ggsave("FIGURES/tremor_N_NeuroQOLs_Correlation_firstCommonWeek_volcanoPlot.jpeg", plot=p2, height=4, width=10, units="in", dpi=300)
+```
+
+
+
+
+##### Association Tremor features and baseline PDDS survey
+
+```{r}
+##############
+##### 
+##############
+tmp_baselineChar <- baselineChar %>% 
+  filter(!is.na(overallPhysicalAbility)) %>%
+  filter(dataGroups == 'ms_patient') %>%
+  select(healthCode, overallPhysicalAbility) %>%
+  mutate(overallPhysicalAbility = factor(overallPhysicalAbility, levels=c('normal', 'milddisability', 'moderatedisability', 'gaitdisability')))
+
+tremorF_averaged <- tremorF_week_averaged %>% group_by(healthCode, hand, feature) %>% 
+  dplyr::summarise(value = mean(value, na.rm = T)) %>%
+  inner_join(tmp_baselineChar) %>%
+  mutate(overallPhysicalAbility = factor(overallPhysicalAbility, levels=c('normal', 'milddisability', 'moderatedisability', 'gaitdisability')))
+
+tmp_df <- tremorF_averaged  %>%
+  group_by(feature, hand) %>%
+  nest() %>%
+  mutate(res = purrr::map(data, function(x){
+    anova(lm(value ~ overallPhysicalAbility, data=x))
+  })) %>%
+  mutate(glance = res %>% map(broom::tidy))
+
+tmp_get_anova_pval <- function(x){
+  x %>% filter(term == 'overallPhysicalAbility') %>% .$p.value
+}
+
+tmp_df<- tmp_df %>% 
+  mutate(p.val = unlist(glance  %>% map( tmp_get_anova_pval ))) %>%
+  select(-glance, -data, -res) %>%
+  mutate(p.val.adj = p.adjust(p.val, method='fdr'))
+
+knitr::kable(tmp_df %>% arrange(p.val.adj) %>% top_n(-5))
+```
+
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=100}
+p <- ggboxplot(tremorF_averaged %>% filter(feature == 'dfa.tm.IMF1.md_uaacf_accelerometer'), 
+               x = "overallPhysicalAbility", y = "value", 
+               font.label = list(size=6, face="plain"),
+               legend.title="hand", ylab='Tremor feature(dfa.tm.IMF1.md_uaacf_accelerometer)', width=.5, size=.3,
+               color = "hand", palette = c('#247BA0', '#F25F5C'))
+my_comparisons <- list( c("normal", "milddisability"), c("normal", "moderatedisability"))
+p <- p + stat_compare_means(comparisons = my_comparisons) + # Add pairwise comparisons p-value
+  stat_compare_means(label.y = 0, label.x = 1.2, label.size = 0.25) 
+p <- p + theme_few()
+p
+```
+
+
+
+
+### Impact of Weather on Tremor test performance (early analysis)
+ 
+```{r, }
+weatherF_flt <- weatherF %>%
+  dplyr::mutate(weather_date = as.Date(timestamp)) %>%
+  dplyr::select(healthCode, weather_date, atmosphericPressure, cloudCoverage, 
+                currentTemperature, humidity, maximumTemperature, minimumTemperature) %>%
+  dplyr::group_by(healthCode, weather_date) %>%
+  dplyr::summarise_all(.funs = function(x) mean(x, na.rm = T))
+
+tremorF_flt <- tremorF %>%
+  dplyr::mutate(tremorTest_date = as.Date(activity_start_timestamp_local)) 
+
+tremor_N_weather <- merge(tremorF_flt, weatherF_flt, 
+                       by.x=c('healthCode', 'tremorTest_date'), 
+                       by.y=c('healthCode', 'weather_date')) %>%
+  distinct() 
+
+tremor_N_weather_long <- tremor_N_weather %>%
+  tidyr::gather(tremorF, tremorF_val, c(TREMOR_FEATURES)) %>%
+  tidyr::gather(weatherF, weatherF_val, 
+                c("atmosphericPressure", "cloudCoverage", "currentTemperature", "humidity", 
+                  "maximumTemperature", "minimumTemperature"))
+
+tmp_cor <- function(x,y){
+  cor.test(x, y, use="complete.obs", method="spearman")
+}
+
+#select healthCodes with 10 tap activities where weather data is available
+selectHealthCodes <- tap_N_weather %>% count(healthCode, hand) %>% filter(n >= 10) %>% .$healthCode %>% unique()
+
+
+tap_N_weather_cor <- tap_N_weather_long %>% 
+  filter(tapF %in% c('medianTapInter', 'numberTaps')) %>%
+  filter(healthCode %in% selectHealthCodes) %>%
+  dplyr::group_by(healthCode, hand,  tapF, weatherF) %>%
+  do(corTest = tmp_cor(.$weatherF_val, .$tapF_val))
+  
+View(tap_N_weather_cor %>% broom::tidy(corTest) )
+     
+
+```
+
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+thisFilePrefix = "tapping_features_analysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+
+thisFilePrefix = "tapping_features_analysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt';
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
+###Store on Synapse
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+unlink(paste0(thisFilePrefix, '.html'))
+```
+
+
+
