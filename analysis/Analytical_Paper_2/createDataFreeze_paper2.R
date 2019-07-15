@@ -22,20 +22,22 @@ nQOL_lowExtremity  <- nQOL_lowExtremity %>% filter(activity_start_timestamp_loca
 nQOL_cognition  <- nQOL_cognition %>% filter(activity_start_timestamp_local <= FREEZE_DATE )
 walkF <- walkF  %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
 restF <- restF %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
-weatherF <- weatherF %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
+tremorF <- tremorF %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
+
 
 ### Following data tables are not filtered as they have value over the study period
 #nQOL_uppExtremity_week_avg
 #nQOL_lowExtremity_week_avg
 #nQOL_cognition_week_avg
+#weatherF <- weatherF - not filtered due to passive nature
 
 needed <- c('triggers', 'dailyCheckins', 'relapses', 'weatherF',
             'nQOL_uppExtremity_week_avg', 'nQOL_lowExtremity_week_avg',
             'nQOL_cognition_week_avg',
             'symptoms', 'nQOL_uppExtremity', 
             'nQOL_lowExtremity', 'dsst','nQOL_cognition',
-            'tapF', 'walkF', 'restF', 'userActivity', 
-            'baselineChar', 'FREEZE_DATE', 
+            'tapF', 'walkF', 'restF', 'tremorF',
+            'userActivity', 'baselineChar', 'FREEZE_DATE', 
             'DAYS_SINCE_LAUNCH', 'WEEKS_SINCE_LAUNCH')
 
 rm(list=ls()[!ls() %in% needed])
