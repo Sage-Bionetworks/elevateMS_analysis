@@ -74,7 +74,7 @@ ggsave("FIGURES/walkF_n_NeuroQOLs_corr_allWeeks_volcanoPlot.jpeg", plot=p1, heig
 #View(neurCog_allWeeks_walkF %>% arrange(desc(abs(cor))))
 p1 <- get_scatter_plot(walkF_week_averaged, nQOL_lowExtremity, x='P0FY', y='TScore')
 p2 <- get_scatter_plot(walkF_week_averaged, nQOL_lowExtremity, x='q1Z', y='TScore')
-p3 <- grid.arrange(p1,p2, nrow=1)
+p3 <- gridExtra::grid.arrange(p1,p2, nrow=1)
 p3
 ggsave("FIGURES/walkF_top_2_feature_scatterPlot_allWeek.png", p3, height=3, width=9, units="in", dpi=150)
 ```
@@ -152,6 +152,8 @@ ggsave("FIGURES/Walk_feature_P0FY_physicalDisability_boxplot.png", p, height=4, 
 
 ```{r, syn.store, eval=F}
 # Knit html document and push to synapse
+thisFileDir = '/Users/apratap/Dropbox/dev/elevateMS_analysis/'
+setwd(thisFileDir)
 thisFilePrefix = "walk_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
