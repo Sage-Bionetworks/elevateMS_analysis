@@ -151,61 +151,15 @@ p
 
 
 
-
-### Impact of Weather on Tremor test performance (early analysis)
- 
-```{r, }
-weatherF_flt <- weatherF %>%
-  dplyr::mutate(weather_date = as.Date(timestamp)) %>%
-  dplyr::select(healthCode, weather_date, atmosphericPressure, cloudCoverage, 
-                currentTemperature, humidity, maximumTemperature, minimumTemperature) %>%
-  dplyr::group_by(healthCode, weather_date) %>%
-  dplyr::summarise_all(.funs = function(x) mean(x, na.rm = T))
-
-tremorF_flt <- tremorF %>%
-  dplyr::mutate(tremorTest_date = as.Date(activity_start_timestamp_local)) 
-
-tremor_N_weather <- merge(tremorF_flt, weatherF_flt, 
-                       by.x=c('healthCode', 'tremorTest_date'), 
-                       by.y=c('healthCode', 'weather_date')) %>%
-  distinct() 
-
-tremor_N_weather_long <- tremor_N_weather %>%
-  tidyr::gather(tremorF, tremorF_val, c(TREMOR_FEATURES)) %>%
-  tidyr::gather(weatherF, weatherF_val, 
-                c("atmosphericPressure", "cloudCoverage", "currentTemperature", "humidity", 
-                  "maximumTemperature", "minimumTemperature"))
-
-tmp_cor <- function(x,y){
-  cor.test(x, y, use="complete.obs", method="spearman")
-}
-
-#select healthCodes with 10 tap activities where weather data is available
-selectHealthCodes <- tap_N_weather %>% count(healthCode, hand) %>% filter(n >= 10) %>% .$healthCode %>% unique()
-
-
-tap_N_weather_cor <- tap_N_weather_long %>% 
-  filter(tapF %in% c('medianTapInter', 'numberTaps')) %>%
-  filter(healthCode %in% selectHealthCodes) %>%
-  dplyr::group_by(healthCode, hand,  tapF, weatherF) %>%
-  do(corTest = tmp_cor(.$weatherF_val, .$tapF_val))
-  
-View(tap_N_weather_cor %>% broom::tidy(corTest) )
-     
-
-```
-
-
-
-
 ```{r, syn.store, eval=F}
 # Knit html document and push to synapse
-thisFilePrefix = "tapping_features_analysis"
+thisFileDir = '/Users/apratap/Dropbox/dev/elevateMS_analysis/analysis/Analytical_Paper_2/'
+setwd(thisFileDir)
+thisFilePrefix = "tremor_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
 
-
-thisFilePrefix = "tapping_features_analysis"
+thisFilePrefix = "tremor_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 gtToken = '~/.ssh/apratap_github_token_20190219.txt';
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
