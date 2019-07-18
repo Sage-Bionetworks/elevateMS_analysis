@@ -103,7 +103,7 @@ activityDescription = 'Classify case-control in kinetic state tremors using rand
 gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 
-thisFileName <- 'generate_classification_probabilities.Rmd'
+thisFileName <- 'generate_classification_probabilities.R'
 
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch", refName='master')
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Tremor_analysis/no_gender/',thisFileName))
