@@ -3,14 +3,16 @@
 ## Get a rf model on preset parameters
 getRfModel <- function(dat.train, 
                        responseNames,
-                       num_trees = 1000){
+                       num_trees = 1000,
+                       prob = FALSE){
   rf.mdl = ranger(dependent.variable.name = responseNames, 
                   data = dat.train, 
                   num.trees = num_trees,
                   importance = 'permutation',
                   seed = 123456,
                   classification = TRUE,
-                  write.forest = TRUE)
+                  write.forest = TRUE,
+                  probability = prob)
   return(rf.mdl)
 }
 
