@@ -30,8 +30,8 @@ source("common_analysis_functions.R")
 
 ### Baseline Summary
 * Total enrolled: `r n_distinct(baselineChar$healthCode)`
-* Group's proportion: `r prop.table(table(baselineChar$dataGroups)) * 100`
-* Numbers in three groups: `r table(baselineChar$group)`
+* Participants Dropped: `r sum(baselineChar$dataGroups == 'Ignore')`
+* Numbers in three groups: `r paste0(names(table(baselineChar$group)), '-', table(baselineChar$group))`
 
 
 
@@ -130,7 +130,7 @@ thisFileName = paste0(thisFilePrefix, '.Rmd')
 gtToken = '~/.ssh/apratap_github_token_20190219.txt';
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
-thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
 ###Store on Synapse
 synStore(thisFile_synapse, executed=thisFile_github_permaLink)
