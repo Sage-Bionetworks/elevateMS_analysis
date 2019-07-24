@@ -1,6 +1,27 @@
+# ("devtools")
+# devtools::install_github("hadley/multidplyr")
 
 
-tmp_calc_cor <- function(features, survey, use_first_common_week=F, additional_group_by=F){
+permuteCorrelations <- function(data, nPermute){
+  res <- data %>% 
+    modelr::permute(n=nPermute,  c('TScore'), .id = 'permute') %>%
+    dplyr::mutate(cors = map(perm, ~ with(as.data.frame(.), cor(value, TScore, method="spearman", use="complete.obs"))))
+  unlist(res$cors)
+}
+
+
+
+tmp_calc_cor <- function(features, survey, use_first_common_week=F, additional_group_by=F, nPermute=10000){
+  
+  # survey = nQOL_cognition_week_avg
+  # features = tapF_week_averaged
+  # use_first_common_week=F
+  # additional_group_by ='hand'
+  # nPermute = 10
+  # library(multidplyr)
+  # library(dplyr, warn.conflicts = FALSE)
+  # cluster <- new_cluster(3)
+  
   tmp_df <- merge(survey, features)
   if(use_first_common_week == T){
     ## Select the first common week where the participant completes the survey and sensor activity
@@ -13,23 +34,23 @@ tmp_calc_cor <- function(features, survey, use_first_common_week=F, additional_g
   if(additional_group_by != F){
     group_by_cols  = c(group_by_cols, additional_group_by)
   }
-  tmp_df <- tmp_df %>% 
-    dplyr::group_by_at(vars(group_by_cols)) %>% 
-    dplyr::summarise(n= length(value),
-                     totalIndividuals = n_distinct(healthCode),
-                     cor = cor(value, TScore, use="complete.obs", method="spearman"),
-                     p.val = cor.test(value, TScore, use="complete.obs", method="spearman")[['p.value']]) %>%
-    as.data.frame()
   
+  res <- tmp_df %>%
+   dplyr::group_by_at(vars(group_by_cols)) %>%
+   tidyr::nest() %>%
+   dplyr::mutate(cor = map(data, ~ cor.test(.x$value, .x$TScore, use="complete.obs", method="spearman"))) %>%
+   dplyr::mutate(corPermuted  = map(data, permuteCorrelations, nPermute=nPermute))  %>% ###permuted correlations
+   dplyr::mutate(corRes = map(cor, broom::tidy )) %>%
+   dplyr::select(-data, -cor) %>%
+   tidyr::unnest(corRes)
+   
   if(additional_group_by != F){
-    tmp_df <- tmp_df %>% 
+    res <- res %>% 
       dplyr::group_by_at(vars(additional_group_by)) %>%
-      dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'))
+      dplyr::mutate(p.val.adj = p.adjust(p.value, method='fdr'))
+  } else {
+    res <- res %>% dplyr::mutate(p.val.adj = p.adjust(p.value, method='fdr'))
   }
-  else {
-    tmp_df <- tmp_df %>% dplyr::mutate(p.val.adj = p.adjust(p.val, method='fdr'))
-  }
-  
 }
 
 
