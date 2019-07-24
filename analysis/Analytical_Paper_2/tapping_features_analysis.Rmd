@@ -72,7 +72,7 @@ neurCog_allWeeks_tapF <- get_neuroQOL_cors(tapF_week_averaged,
                                            nPermute = 1000)
 ##Cacl permutation based p-val
 tmp_get_perm_pval <- function(permuteCors, estimate){
- 2 * ( sum(permuteCors > abs(estimate)) / length(permuteCors))
+ 2 * ( sum(permuteCors >= abs(estimate)) / length(permuteCors))
 }
 neurCog_allWeeks_tapF <- neurCog_allWeeks_tapF %>% dplyr::mutate(permute.p.val = map2(corPermuted, estimate, tmp_get_perm_pval))
 
@@ -94,7 +94,7 @@ tmp_plot_permute_results <- function(permuteResuls, select_neruoQoL_survey){
     dplyr::select(feature, corPermuted) %>% unnest()
   p <- ggplot(data=tmp, aes(x=corPermuted)) + geom_density() + 
     geom_vline(data=intercepts, aes(xintercept=estimate,color="red")) +  facet_wrap(feature ~ .) 
-  p <- p + theme_bw() + xlab('distribution of 10,00 random permutations') + ggtitle(select_neruoQoL_survey)
+  p <- p + theme_bw() + xlab('distribution of 1000 random permutations') + ggtitle(select_neruoQoL_survey)
   p + theme(legend.position = "none")
 }
 ```
@@ -124,6 +124,49 @@ tmp_plot_permute_results(neurCog_allWeeks_tapF, 'neuroQOL Lower Extremity')
 
 ```{r, fig.align="center", fig.width=18, fig.height=13}
 tmp_plot_permute_results(neurCog_allWeeks_tapF, 'neuroQOL Upper Extremity')
+```
+
+-------
+
+#### Data Summary (round to 4 decimal points)
+
+```{r}
+data_to_show <- neurCog_allWeeks_tapF %>% select(-corPermuted, -statistic, -p.value, -method, -alternative) %>%
+  unnest() %>% 
+  dplyr::mutate(adj.permute.p.val = p.adjust(permute.p.val, method="fdr")) %>% 
+  dplyr::rename(corr.adj.p.val = p.val.adj,
+                spearman.cor = estimate ) %>%
+  dplyr::mutate(corr.adj.p.val.log10 = -log10(corr.adj.p.val),
+                adj.permute.p.val.log10 = -log10(adj.permute.p.val)) %>%
+  dplyr::mutate(spearman.cor = round(spearman.cor, digits=4),
+                corr.adj.p.val = round(corr.adj.p.val, digits=4),
+                adj.permute.p.val = round(adj.permute.p.val, digits=4)) %>%
+  select(-permute.p.val) 
+  
+  
+
+install_load("DT")
+DT::datatable(data_to_show %>% select(-corr.adj.p.val.log10, -adj.permute.p.val.log10), rownames=F)
+```
+
+
+
+-------
+
+#### Scatter plot - comparing the p-values from standard spearman correlations to permutation test derived p-values
+
+```{r, fig.align="center", fig.width=5, fig.height=5}
+p <- ggscatter(data_to_show, x="corr.adj.p.val.log10" , y="adj.permute.p.val.log10",
+                 size = 1,
+                 add = "reg.line",  # Add regressin line
+                 add.params = list(color = "grey10", fill = "lightgray"),
+                 conf.int = TRUE, 
+                 cor.coef = TRUE,
+                 cor.method = "spearman",
+                 cor.coef.size = 4,
+                 xlab = "-log10 Spearman corr p-vals(fdr adjusted) ",
+                 ylab = "-log10 Permutation based p-vals(fdr adjusted)")
+p + theme_few() + theme(text = element_text(size=12)) 
 ```
 
 
