@@ -3,6 +3,8 @@ title: "elevateMS tapping features analysis"
 author: "Abhi Pratap"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 
@@ -23,7 +25,9 @@ synapser::synLogin()
 
 ###Load data freeze
 load(synGet("syn19273733")$path)
+#source("analysis/Analytical_Paper_2/common_analysis_functions.R")
 source("common_analysis_functions.R")
+
 ```
 
 -----
@@ -46,29 +50,8 @@ tapF_week_averaged =  tmp_tapF %>%
 <br>
 
 #### Correlations of all tapping features with Neuro-QoLs
-```{r, neuroQoLCors}
 
-## Correlations- All Weeks
-neurCog_allWeeks_tapF <- get_neuroQOL_cors(tapF_week_averaged, additional_group_by='hand', use_first_common_week=F)
-
-## Correlations- First common week
-neurCog_firstCommonWeek_tapF <- get_neuroQOL_cors(tapF_week_averaged, additional_group_by='hand', use_first_common_week=T)
-```
-
-<br>
-<br>
-
-##### Tapping features(All Weeks) with Neuro-QoLs
-
-```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
-install_load("grid")
-p1 <- ggplot(neurCog_allWeeks_tapF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
-p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
-p1
-ggsave("FIGURES/tapCorrelation_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
-```
-
-##### Scatter plot top 2 tapping features(All Weeks) 
+_Given the scatterplot of 2 tapping features shows impact of outliers and even a spearman rank-based correlation wont fix the problem due to ties - we tried a permutation based approach _
 
 ```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}
 p1 <- get_scatter_plot(tapF_week_averaged %>% filter(hand == 'left'), nQOL_uppExtremity_week_avg, 
@@ -81,12 +64,86 @@ p3 <- grid.arrange(p2,p1, nrow=1)
 
 
 
+```{r, neuroQoLCors}
+## Correlations- All Weeks
+neurCog_allWeeks_tapF <- get_neuroQOL_cors(tapF_week_averaged, 
+                                           additional_group_by='hand', 
+                                           use_first_common_week=F, 
+                                           nPermute = 1000)
+##Cacl permutation based p-val
+tmp_get_perm_pval <- function(permuteCors, estimate){
+ 2 * ( sum(permuteCors > abs(estimate)) / length(permuteCors))
+}
+neurCog_allWeeks_tapF <- neurCog_allWeeks_tapF %>% dplyr::mutate(permute.p.val = map2(corPermuted, estimate, tmp_get_perm_pval))
+
+## Correlations- First common week
+#neurCog_firstCommonWeek_tapF <- get_neuroQOL_cors(tapF_week_averaged,                                                   additional_group_by='hand',  use_first_common_week=T)
+```
+
+<br>
+<br>
+
+
+```{r}
+tmp_plot_permute_results <- function(permuteResuls, select_neruoQoL_survey){
+  intercepts <- permuteResuls %>% 
+    dplyr::filter(hand == 'right' & survey == select_neruoQoL_survey) %>% 
+    dplyr::select(feature, estimate, survey)
+  tmp <-  permuteResuls %>% 
+    dplyr::filter(hand == 'right' & survey == select_neruoQoL_survey) %>% 
+    dplyr::select(feature, corPermuted) %>% unnest()
+  p <- ggplot(data=tmp, aes(x=corPermuted)) + geom_density() + 
+    geom_vline(data=intercepts, aes(xintercept=estimate,color="red")) +  facet_wrap(feature ~ .) 
+  p <- p + theme_bw() + xlab('distribution of 10,00 random permutations') + ggtitle(select_neruoQoL_survey)
+  p + theme(legend.position = "none")
+}
+```
+
+
+-----
+
+#### Permutation Results - neuroQOL Cognition
+
+```{r, fig.align="center", fig.width=18, fig.height=13}
+tmp_plot_permute_results(neurCog_allWeeks_tapF, 'neuroQOL Cognition')
+```
+
+
+-----
+
+#### Permutation Results - neuroQOL Lower Extremity
+
+```{r, fig.align="center", fig.width=18, fig.height=13}
+tmp_plot_permute_results(neurCog_allWeeks_tapF, 'neuroQOL Lower Extremity')
+```
+
+
+-----
+
+#### Permutation Results - neuroQOL Upper Extremity
+
+```{r, fig.align="center", fig.width=18, fig.height=13}
+tmp_plot_permute_results(neurCog_allWeeks_tapF, 'neuroQOL Upper Extremity')
+```
+
+
+
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200, eval=F}
+##### Tapping features(All Weeks) with Neuro-QoLs
+install_load("grid")
+p1 <- ggplot(neurCog_allWeeks_tapF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
+p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p1
+ggsave("FIGURES/tapCorrelation_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
+```
+
+
 <br>
 
 -----
 
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200, eval=F}
 #####  Tapping features(first common week) with Neuro-QoLs
-```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
 
 p2 <- ggplot(neurCog_firstCommonWeek_tapF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
 p2 <- p2 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) 
@@ -97,8 +154,7 @@ ggsave("FIGURES/tap_N_NeuroQOLs_Correlation_firstCommonWeek_volcanoPlot.jpeg", p
 
 
 
-##### Correlation between Number of Taps(averaged across all weeks) and baseline PDDS survey
-
+##### Association between Number of Taps(averaged across all weeks) and baseline PDDS survey
 ```{r}
 ##############
 ##### 
@@ -148,18 +204,62 @@ ggsave("FIGURES/numberTaps_ALLWeeks_with_physicalDisability_boxplot.png", p, hei
 
 
 
+
+
+
+```{r, eval=F}
+### Tap N Weather - TBD
+
+weatherF_flt <- weatherF %>%
+  dplyr::mutate(weather_date = as.Date(timestamp)) %>%
+  dplyr::select(healthCode, weather_date, atmosphericPressure, cloudCoverage, 
+                currentTemperature, humidity, maximumTemperature, minimumTemperature) %>%
+  dplyr::group_by(healthCode, weather_date) %>%
+  dplyr::summarise_all(.funs = function(x) mean(x, na.rm = T))
+
+tapF_flt <- tapF %>%
+  dplyr::mutate(tap_date = as.Date(activity_start_timestamp_local)) 
+
+tap_N_weather <- merge(tapF_flt, weatherF_flt, 
+                       by.x=c('healthCode', 'tap_date'), 
+                       by.y=c('healthCode', 'weather_date')) %>%
+  distinct() 
+
+tap_N_weather_long <- tap_N_weather %>%
+  tidyr::gather(tapF, tapF_val, c(TAP_FEATURES, activityDuration_seconds)) %>%
+  tidyr::gather(weatherF, weatherF_val, 
+                c("atmosphericPressure", "cloudCoverage", "currentTemperature", "humidity", 
+                  "maximumTemperature", "minimumTemperature"))
+
+tmp_cor <- function(x,y){
+  cor.test(x, y, use="complete.obs", method="spearman")
+}
+
+#select healthCodes with 10 tap activities where weather data is available
+selectHealthCodes <- tap_N_weather %>% count(healthCode, hand) %>% filter(n >= 10) %>% .$healthCode %>% unique()
+
+tap_N_weather_cor <- tap_N_weather_long %>% 
+  filter(tapF %in% c('medianTapInter', 'numberTaps')) %>%
+  filter(healthCode %in% selectHealthCodes) %>%
+  dplyr::group_by(healthCode, hand,  tapF, weatherF) %>%
+  do(corTest = tmp_cor(.$weatherF_val, .$tapF_val))
+  
+```
+
+
+
 ```{r, syn.store, eval=F}
 # Knit html document and push to synapse
-thisFilePrefix = "tapping_features_analysis"
+thisFilePrefix = "analysis/Analytical_Paper_2/tapping_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
 
-thisFilePrefix = "tapping_features_analysis"
+thisFilePrefix = "analysis/Analytical_Paper_2/tapping_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 gtToken = '~/.ssh/apratap_github_token_20190219.txt';
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
-thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
 ###Store on Synapse
 synStore(thisFile_synapse, executed=thisFile_github_permaLink)
