@@ -23,6 +23,7 @@ install_load("ComplexHeatmap", "circlize", "RColorBrewer")
 synapser::synLogin()
 ###Load data freeze
 load(synGet("syn19273733")$path)
+#source("analysis/Analytical_Paper_2/common_analysis_functions.R")
 source("common_analysis_functions.R")
 ```
 
@@ -50,57 +51,130 @@ walkF_week_averaged =  walkF %>%
 
 ```{r, neuroQoLCors}
 ## Correlations- All Weeks
-neurCog_allWeeks_walkF <- get_neuroQOL_cors(walkF_week_averaged)
+neurCog_allWeeks_walkF <- get_neuroQOL_cors(walkF_week_averaged,
+                                            use_first_common_week=F, 
+                                            nPermute = 1000)
+##Cacl permutation based p-val
+tmp_get_perm_pval <- function(permuteCors, estimate){
+ 2 * ( sum(permuteCors >= abs(estimate)) / length(permuteCors))
+}
+neurCog_allWeeks_walkF <- neurCog_allWeeks_walkF %>% dplyr::mutate(permute.p.val = map2(corPermuted, estimate, tmp_get_perm_pval))
 
 ## Correlations- First common week
-neurCog_firstCommonWeek_walkF <- get_neuroQOL_cors(walkF_week_averaged,
-                                                   use_first_common_week=T)
-```
-
-
-##### Correlation Walk features(All Weeks) with Neuro-QoLs
-
-```{r,  fig.align='center', fig.width=14, fig.height=8, dpi=200}
-p1 <- ggplot(neurCog_allWeeks_walkF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
-p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
-p1
-ggsave("FIGURES/walkF_n_NeuroQOLs_corr_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
+#neurCog_firstCommonWeek_walkF <- get_neuroQOL_cors(walkF_week_averaged,                                                  use_first_common_week=T)
 
 ```
 
+<br>
+<br>
 
-##### Scatter plot top 2 walking features(All Weeks) 
-```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}
-#View(neurCog_allWeeks_walkF %>% arrange(desc(abs(cor))))
-p1 <- get_scatter_plot(walkF_week_averaged, nQOL_lowExtremity, x='P0FY', y='TScore')
-p2 <- get_scatter_plot(walkF_week_averaged, nQOL_lowExtremity, x='q1Z', y='TScore')
-p3 <- gridExtra::grid.arrange(p1,p2, nrow=1)
-p3
-ggsave("FIGURES/walkF_top_2_feature_scatterPlot_allWeek.png", p3, height=3, width=9, units="in", dpi=150)
+
+```{r}
+tmp_plot_permute_results <- function(permuteResuls, select_neruoQoL_survey){
+  intercepts <- permuteResuls %>% 
+    dplyr::filter(survey == select_neruoQoL_survey) %>% dplyr::select(feature, estimate, survey)
+  tmp <-  permuteResuls %>%  dplyr::filter(survey == select_neruoQoL_survey) %>% 
+    dplyr::select(feature, corPermuted) %>% unnest()
+  p <- ggplot(data=tmp, aes(x=corPermuted)) + geom_density() + 
+    geom_vline(data=intercepts, aes(xintercept=estimate,color="red")) +  facet_wrap(feature ~ .) 
+  p <- p + theme_bw() + xlab('distribution of 1000 random permutations') + ggtitle(select_neruoQoL_survey)
+  p + theme(legend.position = "none")
+}
 ```
 
 
 -----
 
-#####  Correlations Walk features(first common week) with Neuro-QoLs
+#### Permutation Results - neuroQOL Cognition
 
-```{r  fig.align='center', fig.width=14, fig.height=8, dpi=200}
-p1 <- ggplot(neurCog_firstCommonWeek_walkF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
-p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
-p1
-ggsave("FIGURES/walkF_n_NeuroQOLs_corr_firstCommonWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
+```{r, fig.align="center", fig.width=20, fig.height=15}
+tmp_plot_permute_results(neurCog_allWeeks_walkF, 'neuroQOL Cognition')
+```
+
+
+-----
+
+#### Permutation Results - neuroQOL Lower Extremity
+
+```{r, fig.align="center", fig.width=20, fig.height=15}
+tmp_plot_permute_results(neurCog_allWeeks_walkF, 'neuroQOL Lower Extremity')
+```
+
+
+-----
+
+#### Permutation Results - neuroQOL Upper Extremity
+
+```{r, fig.align="center", fig.width=20, fig.height=15}
+tmp_plot_permute_results(neurCog_allWeeks_walkF, 'neuroQOL Upper Extremity')
+```
+
+-------
+
+
+#### Data Summary (round to 4 decimal points)
+
+```{r}
+data_to_show <- neurCog_allWeeks_walkF %>% select(-corPermuted, -statistic, -p.value, -method, -alternative) %>%
+  unnest() %>% 
+  dplyr::mutate(adj.permute.p.val = p.adjust(permute.p.val, method="fdr")) %>% 
+  dplyr::rename(corr.adj.p.val = p.val.adj,
+                spearman.cor = estimate ) %>%
+  dplyr::mutate(corr.adj.p.val.log10 = -log10(corr.adj.p.val),
+                adj.permute.p.val.log10 = -log10(adj.permute.p.val)) %>%
+  dplyr::mutate(spearman.cor = round(spearman.cor, digits=4),
+                corr.adj.p.val = round(corr.adj.p.val, digits=4),
+                adj.permute.p.val = round(adj.permute.p.val, digits=4)) %>%
+  select(-permute.p.val) 
+  
+install_load("DT")
+DT::datatable(data_to_show %>% select(-corr.adj.p.val.log10, -adj.permute.p.val.log10), rownames=F)
+```
+
+
+-------
+
+#### Scatter plot - comparing the p-values from standard spearman correlations to permutation test derived p-values
+
+```{r, fig.align="center", fig.width=5, fig.height=5}
+p <- ggscatter(data_to_show, x="corr.adj.p.val.log10" , y="adj.permute.p.val.log10",
+                 size = 1,
+                 add = "reg.line",  # Add regressin line
+                 add.params = list(color = "grey10", fill = "lightgray"),
+                 conf.int = TRUE, 
+                 cor.coef = TRUE,
+                 cor.method = "spearman",
+                 cor.coef.size = 4,
+                 xlab = "-log10 Spearman corr p-vals(fdr adjusted) ",
+                 ylab = "-log10 Permutation based p-vals(fdr adjusted)")
+p + theme_few() + theme(text = element_text(size=12)) 
 ```
 
 
 
-```{r, eval=F}
-### Select top features
-# View(neurCog_firstCommonWeek_walkF %>% arrange(desc(abs(cor))))
-# p1 <- get_scatter_plot(walkF_week_averaged, nQOL_lowExtremity, x='F0AA', y='TScore', use_first_common_week = T)
-# p2 <- get_scatter_plot(walkF_week_averaged, nQOL_lowExtremity, x='tlagAA', y='TScore', use_first_common_week = T)
-# p3 <- grid.arrange(p1,p2, nrow=1)
-# ggsave("analysis/Analytical_Paper_2/FIGURES/walkF_top_2_feature_scatterPlot_firstCommonWeek.png", p3, height=3, width=9, units="in", dpi=150)
+
+
+
+
+```{r,  fig.align='center', fig.width=14, fig.height=8, dpi=200, eval=F}
+# ##### Correlation Walk features(All Weeks) with Neuro-QoLs
+# p1 <- ggplot(neurCog_allWeeks_walkF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
+# p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+# p1
+# ggsave("FIGURES/walkF_n_NeuroQOLs_corr_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
+
 ```
+
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200, eval=F}
+##### Scatter plot top 2 walking features(All Weeks) 
+#View(neurCog_allWeeks_walkF %>% arrange(desc(abs(cor))))
+p1 <- get_scatter_plot(walkF_week_averaged, nQOL_lowExtremity, x='P0FY', y='TScore')
+p2 <- get_scatter_plot(walkF_week_averaged, nQOL_lowExtremity, x='q1Z', y='TScore')
+p3 <- gridExtra::grid.arrange(p1,p2, nrow=1)
+ggsave("FIGURES/walkF_top_2_feature_scatterPlot_allWeek.png", p3, height=3, width=9, units="in", dpi=150)
+```
+
 
 
 ----------
@@ -152,12 +226,11 @@ ggsave("FIGURES/Walk_feature_P0FY_physicalDisability_boxplot.png", p, height=4, 
 
 ```{r, syn.store, eval=F}
 # Knit html document and push to synapse
-thisFileDir = '/Users/apratap/Dropbox/dev/elevateMS_analysis/'
+thisFileDir = '/Users/apratap/Dropbox/dev/elevateMS_analysis/analysis/Analytical_Paper_2/'
 setwd(thisFileDir)
 thisFilePrefix = "walk_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
-
 
 thisFilePrefix = "walk_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
