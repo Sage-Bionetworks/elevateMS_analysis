@@ -11,7 +11,7 @@ permuteCorrelations <- function(data, nPermute){
 
 
 
-tmp_calc_cor <- function(features, survey, use_first_common_week=F, additional_group_by=F, nPermute=10000){
+tmp_calc_cor <- function(features, survey, use_first_common_week=F, additional_group_by=F, nPermute=1000){
   
   # survey = nQOL_cognition_week_avg
   # features = tapF_week_averaged
