@@ -7,30 +7,30 @@ output: html_document
 
 
 
-
 ```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 rm(list=ls())
 knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
 Sys.setenv(TZ='GMT')
 library(install.load)
 install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
-install_load('ggthemes', 'devtools', 'synapser')
-# if (!requireNamespace("BiocManager", quietly = TRUE))
-#   install.packages("BiocManager")
-# BiocManager::install("ComplexHeatmap", version = "3.8")
+install_load('ggthemes', 'devtools', 'gridExtra')
 install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+synapser::synLogin()
 
 ###Load data freeze
 load(synGet("syn19273733")$path)
 source("common_analysis_functions.R")
+#source("analysis/Analytical_Paper_2/common_analysis_functions.R")
 ```
 
 -----
 
 ```{r}
 ##REST FEATURE COLS -
-cat(colnames(restF), sep="', '")
-REST_FEATURES <- c('meanAA', 'sdAA', 'modeAA', 'skewAA', 'kurAA', 'q1AA', 'medianAA', 'q3AA', 'iqrAA', 'rangeAA', 'acfAA', 'zcrAA', 'dfaAA', 'turningTime', 'postpeak', 'postpower', 'alpha', 'dVol', 'ddVol')
+#cat(colnames(restF), sep="', '")
+REST_FEATURES <- c('meanAA', 'sdAA', 'modeAA', 'skewAA', 'kurAA', 'q1AA', 
+                   'medianAA', 'q3AA', 'iqrAA', 'rangeAA', 'acfAA', 'zcrAA', 'dfaAA',
+                   'turningTime', 'postpeak', 'postpower', 'alpha', 'dVol', 'ddVol')
 
 restF <- restF %>% filter(dataGroups == 'ms_patient') %>%
   gather(feature, value, REST_FEATURES) 
@@ -45,52 +45,91 @@ restF_averaged =  restF %>%
   group_by(healthCode, feature) %>% dplyr::summarise_all(.funs=c(mean), na.rm=T) 
 ```
 
+
 ```{r, neuroQoLCors}
-
+#####TEMP
+options(warn = -1)
 ## Correlations- All Weeks
-neurCog_allWeeks_restF <- get_neuroQOL_cors(restF_week_averaged)
+neurCog_allWeeks_restF <- get_neuroQOL_cors(restF_week_averaged, 
+                                              use_first_common_week=F,
+                                              nPermute = 1000)
 
-## Correlations- First common week
-neurCog_firstCommonWeek_restF <- get_neuroQOL_cors(restF_week_averaged, use_first_common_week=T)
+##Cacl permutation based p-val
+tmp_get_perm_pval <- function(permuteCors, estimate){
+ 2 * ( sum(permuteCors >= abs(estimate)) / length(permuteCors))
+}
+neurCog_allWeeks_restF <- neurCog_allWeeks_restF %>% 
+  dplyr::mutate(permute.p.val = map2(corPermuted, estimate, tmp_get_perm_pval))
 ```
 
 <br>
 <br>
 
-##### Correlation Rest/Balance features (All Weeks) with Neuro-QoLs
-
-```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
-install_load("grid")
-p1 <- ggplot(neurCog_allWeeks_restF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
-p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
-p1
-ggsave("FIGURES/restF_n_NeuroQOLs_corr_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
-```
-
-##### Scatter plot top 2 rest features(All Weeks) 
-
-```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}
-p1 <- get_scatter_plot(restF_week_averaged, nQOL_uppExtremity_week_avg, x='postpeak', y='TScore')
-p2 <- get_scatter_plot(restF_week_averaged, nQOL_uppExtremity_week_avg, x='q3AA', y='TScore')
-p3 <- grid.arrange(p1,p2, nrow=1)
-ggsave("FIGURES/restF_top_2_feature_scatterPlot_allWeek.png", p3, height=3, width=9, units="in", dpi=150)
-```
-
-
-
 <br>
+-----
+
+```{r}
+tmp_plot_permute_results <- function(permuteResuls, select_neruoQoL_survey){
+  intercepts <- permuteResuls %>% 
+    dplyr::filter(survey == select_neruoQoL_survey) %>% dplyr::select(feature, estimate, survey)
+  tmp <-  permuteResuls %>%  dplyr::filter(survey == select_neruoQoL_survey) %>% 
+    dplyr::select(feature, corPermuted) %>% unnest()
+  p <- ggplot(data=tmp, aes(x=corPermuted)) + geom_density() + 
+    geom_vline(data=intercepts, aes(xintercept=estimate,color="red")) +  facet_wrap(feature ~ .) 
+  p <- p + theme_bw(base_size=12) + xlab('distribution of 1000 random permutations') + ggtitle(select_neruoQoL_survey)
+  p + theme(legend.position = "none")
+}
+```
+
 
 -----
 
+#### Permutation Results - neuroQOL Cognition
 
-#####  Balance rest/balance features(first common week) with Neuro-QoLs
-
-```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200}
-p1 <- ggplot(neurCog_firstCommonWeek_restF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
-p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
-p1
-ggsave("FIGURES/restF_n_NeuroQOLs_corr_firstCommonWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
+```{r, fig.align="center", fig.width=18, fig.height=13}
+tmp_plot_permute_results(neurCog_allWeeks_restF, 'neuroQOL Cognition')
 ```
+
+
+-----
+
+#### Permutation Results - neuroQOL Lower Extremity
+
+```{r, fig.align="center", fig.width=20, fig.height=15}
+tmp_plot_permute_results(neurCog_allWeeks_restF, 'neuroQOL Lower Extremity')
+```
+
+
+-----
+
+#### Permutation Results - neuroQOL Upper Extremity
+
+```{r, fig.align="center", fig.width=20, fig.height=15}
+tmp_plot_permute_results(neurCog_allWeeks_restF, 'neuroQOL Upper Extremity')
+```
+
+
+
+#### Data Summary (round to 4 decimal points)
+
+```{r}
+data_to_show <- neurCog_allWeeks_restF %>% select(-corPermuted, -statistic, -p.value, -method, -alternative) %>%
+  unnest() %>% 
+  dplyr::mutate(adj.permute.p.val = p.adjust(permute.p.val, method="fdr")) %>% 
+  dplyr::rename(corr.adj.p.val = p.val.adj,
+                spearman.cor = estimate ) %>%
+  dplyr::mutate(corr.adj.p.val.log10 = -log10(corr.adj.p.val),
+                adj.permute.p.val.log10 = -log10(adj.permute.p.val)) %>%
+  dplyr::mutate(spearman.cor = round(spearman.cor, digits=4),
+                corr.adj.p.val = round(corr.adj.p.val, digits=4),
+                adj.permute.p.val = round(adj.permute.p.val, digits=4)) %>%
+  select(-permute.p.val) %>%
+  filter(!is.na(spearman.cor))
+  
+install_load("DT")
+DT::datatable(data_to_show %>% select(-corr.adj.p.val.log10, -adj.permute.p.val.log10), rownames=F)
+```
+
 
 
 
@@ -146,7 +185,6 @@ thisFilePrefix = "restBalance_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
 
-
 thisFilePrefix = "restBalance_features_analysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 gtToken = '~/.ssh/apratap_github_token_20190219.txt';
@@ -157,5 +195,35 @@ thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047'
 ###Store on Synapse
 synStore(thisFile_synapse, executed=thisFile_github_permaLink)
 unlink(paste0(thisFilePrefix, '.html'))
+```
+
+
+
+
+
+
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200, eval=F}
+##### Correlation Rest/Balance features (All Weeks) with Neuro-QoLs
+install_load("grid")
+p1 <- ggplot(neurCog_allWeeks_restF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
+p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p1
+ggsave("FIGURES/restF_n_NeuroQOLs_corr_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
+```
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200, eval=F}
+##### Scatter plot top 2 rest features(All Weeks) 
+p1 <- get_scatter_plot(restF_week_averaged, nQOL_uppExtremity_week_avg, x='postpeak', y='TScore')
+p2 <- get_scatter_plot(restF_week_averaged, nQOL_uppExtremity_week_avg, x='q3AA', y='TScore')
+p3 <- grid.arrange(p1,p2, nrow=1)
+ggsave("FIGURES/restF_top_2_feature_scatterPlot_allWeek.png", p3, height=3, width=9, units="in", dpi=150)
+```
+
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200, eval=F}
+#####  Balance rest/balance features(first common week) with Neuro-QoLs
+p1 <- ggplot(neurCog_firstCommonWeek_restF, aes(x=cor, y=-log10(p.val.adj))) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
+p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p1
+ggsave("FIGURES/restF_n_NeuroQOLs_corr_firstCommonWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
 ```
 
