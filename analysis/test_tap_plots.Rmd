@@ -1,0 +1,307 @@
+---
+title: "Sample plots of nTaps mpower and elevateMS(demographic bins)"
+author: "Meghasyam Tummalacherla"
+date: "`r base::date()`"
+output: html_document
+editor_options: 
+chunk_output_type: console
+---
+
+```{r knit2synapse, eval=FALSE, include=FALSE}
+library(synapser)
+library(knit2synapse)
+
+synapser::synLogin()
+
+knit2synapse::createAndKnitToFolderEntity(file = "./analysis/test_tap_plots.Rmd",
+                                          parentId = "syn11315047",
+                                          folderName = "test tap plots")
+```
+
+```{r libs.and.functions, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+###########################################################
+## Required libraries and analysis functions
+###########################################################
+synapser::synLogin()
+library(tidyverse)
+library(doParallel)
+library(doMC)
+library(foreach)
+library(githubr)
+library(knitr)
+library(ggpubr)
+cl = makeCluster(detectCores()-2)
+registerDoParallel(cl)
+
+options(xtable.type="html")
+
+knitr::opts_chunk$set(
+  echo=FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = TRUE,
+  cache.lazy = FALSE)
+```
+
+```{r github.synapse.parameters, include=FALSE, cache=TRUE}
+###########################################################
+## Github Parameters and links
+###########################################################
+# Synapse parameters
+parentId = 'syn11315047';
+activityName = 'test tap plots';
+activityDescription = 'plot sample distributions of nTaps for different populations'
+
+# Github link
+gtToken = '~/github_token.txt'
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+
+thisFileName <- 'test_tap_plots.Rmd'
+
+thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/',thisFileName))
+```
+
+#### Download tap features, filter participants with atleast N(=3) records, summarize numberTaps(median across all records per participant)
+```{r age.matched.healthcodes,include=FALSE}
+###########################################################
+## Get tap features for mpower
+###########################################################
+tap.demo.mpower = synapser::synTableQuery(paste0("SELECT * FROM ", 'syn10371840'))$asDataFrame() %>% 
+  dplyr::filter(dataGroups %in% c(NA, 'parkinson','control')) %>% 
+  # This is to remove test users
+  # NA also added because >90% data has dataGroups as NA
+  dplyr::select(healthCode, age, gender, PD = inferred_diagnosis) %>% 
+  na.omit() %>%
+  unique() 
+
+tap.ftrs.mpower = read.csv(synapser::synGet('syn20487877')$path, sep = '\t') %>% 
+  dplyr::select(recordId, healthCode, hand, numberTaps) %>% 
+  na.omit() %>% 
+  unique() %>% 
+  dplyr::filter(healthCode %in% tap.demo.mpower$healthCode)
+
+# summarized tap ftrs (median ntaps per healthCode, ignoring hand (left/right/unknown))
+summarized.tap.ftrs.mpower <- tap.ftrs.mpower %>% 
+  dplyr::select(-recordId, -hand) %>% 
+  tidyr::gather(Feature, Value, -healthCode) %>% 
+  dplyr::group_by(Feature, healthCode) %>% 
+  dplyr::summarise(md = stats::median(Value, na.rm = T))
+  
+# Find the healthCodes that contribute atleast nrec records
+hcrec <- tap.ftrs.mpower %>% 
+  dplyr::group_by(healthCode) %>% 
+  dplyr::count() 
+
+# Atleast N records
+hcrec.high <- hcrec %>% 
+  dplyr::filter(n >= 2)
+
+# Subset to filtered healthCodes using hcrec.high
+tap.ftrs.mpower <- tap.ftrs.mpower %>% 
+  dplyr::select(recordId, healthCode, numberTaps) %>% 
+  na.omit() %>%
+  dplyr::inner_join(tap.demo.mpower) %>%
+  na.omit() %>% 
+  dplyr::filter(healthCode %in% hcrec.high$healthCode)
+
+summarized.tap.ftrs.mpower <- summarized.tap.ftrs.mpower %>% 
+  dplyr::ungroup() %>% 
+  tidyr::spread(Feature, md) %>% 
+  dplyr::inner_join(tap.demo.mpower) %>% 
+  na.omit() %>% 
+  dplyr::filter(healthCode %in% hcrec.high$healthCode)
+
+
+tap.dframe = data.frame(table = c('mpower tap Features', ' mpower tap demo'),
+                        synId = c('syn20487877','syn10371840'))
+
+###########################################################
+## Get tap features for elevateMS
+###########################################################
+tap.demo.MS = synapser::synTableQuery(paste0("SELECT * FROM ", 'syn10235463'))$asDataFrame() %>% 
+  dplyr::select(healthCode, age = demographics.age, gender = demographics.gender) %>%
+  na.omit() %>%
+  unique()
+
+tap.ftrs.MS <- read.csv(synapser::synGet('syn10648415')$path, sep = '\t') %>% 
+  dplyr::filter(dataGroups %in% c('ms_patient','control')) %>% 
+  dplyr::select(recordId, healthCode, hand, numberTaps, dataGroups) %>% 
+  dplyr::filter(healthCode %in% tap.demo.MS$healthCode) %>% 
+  na.omit() %>% 
+  droplevels() %>% 
+  unique() 
+
+# summarized tap ftrs (median ntaps per healthCode, ignoring hand (left/right/unknown))
+summarized.tap.ftrs.MS <- tap.ftrs.MS %>% 
+  dplyr::select(-recordId, -hand) %>% 
+  tidyr::gather(Feature, Value, -healthCode, -dataGroups) %>% 
+  dplyr::group_by(Feature, healthCode, dataGroups) %>% 
+  dplyr::summarise(md = stats::median(Value, na.rm = T))
+
+summarized.tap.ftrs.MS <- summarized.tap.ftrs.MS %>% 
+  dplyr::ungroup() %>% 
+  tidyr::spread(Feature, md) %>%  
+  dplyr::inner_join(tap.demo.MS) %>% 
+  na.omit() 
+
+
+## Bring all data to one df
+mpower.control <- summarized.tap.ftrs.mpower %>% 
+  dplyr::filter(PD == FALSE) %>% 
+  dplyr::select(-PD) %>% 
+  dplyr::mutate(class = 'mpower control')
+
+mpower.case <- summarized.tap.ftrs.mpower %>% 
+  dplyr::filter(PD == TRUE) %>% 
+  dplyr::select(-PD) %>% 
+  dplyr::mutate(class = 'PD')
+
+MS.control <- summarized.tap.ftrs.MS %>% 
+  dplyr::filter(dataGroups == 'control') %>% 
+  dplyr::select(-dataGroups) %>% 
+  dplyr::mutate(class = 'elevateMS control')
+
+MS.case <- summarized.tap.ftrs.MS %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  dplyr::select(-dataGroups) %>% 
+  dplyr::mutate(class = 'MS')
+```
+
+```{r tap.syn}
+tap.dframe %>% knitr::kable()
+```
+
+```{r demographic.bins,include=FALSE}
+###########################################################
+## Demographic bins under consideration
+###########################################################
+## Age Buckets
+# Below 30
+# 31-40
+# 41-50
+# 51-60
+# 61+
+###########################################################
+## Sec Buckets
+# Male
+# Female
+###########################################################
+
+# Let's seperate the buckets into numbered buckets.
+# Odd buckets - males, with age groups in increasing order. i.e 
+# bucket 1 - male, <30 yrs 
+# bukcet 3 - male, 31-40 etc.,
+# Similarly even buckets for females
+
+# Function to calculate number of healthCodes in a given dataframe
+nhc <- function(dat){
+  return(length(unique(dat$healthCode)))
+}
+
+nclass <- function(dat, class.in){
+  dat <- dat %>% 
+    dplyr::filter(class == class.in)
+  return(length(unique(dat$healthCode)))
+}
+
+# What do we use as final tap ftrs file for the density plots
+tap.ftrs <- mpower.control %>% 
+  dplyr::full_join(mpower.case) %>% 
+  dplyr::full_join(MS.control) %>% 
+  dplyr::full_join(MS.case)
+
+# Male buckets
+bucket_1 <- tap.ftrs %>% 
+  dplyr::filter(age < 31, 
+                gender == 'Male')
+bucket_3 <- tap.ftrs %>% 
+  dplyr::filter(age <= 40, age >30, 
+                gender == 'Male')
+bucket_5 <- tap.ftrs %>% 
+  dplyr::filter(age <= 50, age > 40,
+                gender == 'Male')
+bucket_7 <- tap.ftrs %>% 
+  dplyr::filter(age <= 60, age > 50,
+                gender == 'Male')
+bucket_9 <- tap.ftrs %>% 
+  dplyr::filter(age > 60, 
+                gender == 'Male')
+
+# Female buckets
+bucket_2 <- tap.ftrs %>% 
+  dplyr::filter(age < 31, 
+                gender == 'Female')
+bucket_4 <- tap.ftrs %>% 
+  dplyr::filter(age <= 40, age >30, 
+                gender == 'Female')
+bucket_6 <- tap.ftrs %>% 
+  dplyr::filter(age <= 50, age > 40,
+                gender == 'Female')
+bucket_8 <- tap.ftrs %>% 
+  dplyr::filter(age <= 60, age > 50,
+                gender == 'Female')
+bucket_10 <- tap.ftrs %>% 
+  dplyr::filter(age > 60, 
+                gender == 'Female')
+
+dframe <- data.frame(Bucket = c('B1','B2','B3','B4','B5',
+                                'B6','B7','B8','B9','B10' ),
+                     sex = c('Male','Female','Male','Female','Male',
+                             'Female','Male','Female','Male','Female'),
+                     age = c('<= 30','<= 30', '31-40','31-40',
+                             '41-50','41-50','51-60','51-60',
+                             '>= 60','>=60'),
+                     # Nrecords = c(nrow(bucket_1),nrow(bucket_2),nrow(bucket_3),nrow(bucket_4),
+                     #              nrow(bucket_5),nrow(bucket_6),nrow(bucket_7),
+                     #              nrow(bucket_8),nrow(bucket_9),nrow(bucket_10)),
+                     NParticipant = c(nhc(bucket_1),nhc(bucket_2),nhc(bucket_3),nhc(bucket_4),
+                                      nhc(bucket_5),nhc(bucket_6),nhc(bucket_7),
+                                      nhc(bucket_8),nhc(bucket_9),nhc(bucket_10)),
+                     NPD =  c(nclass(bucket_1,'PD'),nclass(bucket_2,'PD'),nclass(bucket_3,'PD'),nclass(bucket_4,'PD'),
+                                      nclass(bucket_5,'PD'),nclass(bucket_6,'PD'),nclass(bucket_7,'PD'),
+                                      nclass(bucket_8,'PD'),nclass(bucket_9,'PD'),nclass(bucket_10,'PD')),
+                     NMS = c(nclass(bucket_1,'MS'),nclass(bucket_2,'MS'),nclass(bucket_3,'MS'),nclass(bucket_4,'MS'),
+                                      nclass(bucket_5,'MS'),nclass(bucket_6,'MS'),nclass(bucket_7,'MS'),
+                                      nclass(bucket_8,'MS'),nclass(bucket_9,'MS'),nclass(bucket_10,'MS')),
+                     NmpowerControl = c(nclass(bucket_1,'mpower control'),nclass(bucket_2,'mpower control'),nclass(bucket_3,'mpower control'),nclass(bucket_4,'mpower control'),
+                                      nclass(bucket_5,'mpower control'),nclass(bucket_6,'mpower control'),nclass(bucket_7,'mpower control'),
+                                      nclass(bucket_8,'mpower control'),nclass(bucket_9,'mpower control'),nclass(bucket_10,'mpower control')),
+                    NelevateMSControl = c(nclass(bucket_1,'elevateMS control'),nclass(bucket_2,'elevateMS control'),nclass(bucket_3,'elevateMS control'),nclass(bucket_4,'elevateMS control'),
+                                      nclass(bucket_5,'elevateMS control'),nclass(bucket_6,'elevateMS control'),nclass(bucket_7,'elevateMS control'),
+                                      nclass(bucket_8,'elevateMS control'),nclass(bucket_9,'elevateMS control'),nclass(bucket_10,'elevateMS control')),
+                    ) 
+```
+
+#### Demographic bins (as requested by BioMarin)
+```{r demographic.bins.show}
+dframe %>% knitr::kable()
+```
+
+#### Plots of numberTaps distributions across participants
+```{r plots, fig.height=15, fig.width=12}
+p1  = ggplot2::ggplot(bucket_1, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('male, <= 30, Bucket 1') + xlim(c(0,325))
+p2  = ggplot2::ggplot(bucket_2, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('Female, <= 30, Bucket 2') + xlim(c(0,325))
+p3  = ggplot2::ggplot(bucket_3, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('male, 31-40, Bucket 3') + xlim(c(0,325))
+p4  = ggplot2::ggplot(bucket_4, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('Female, 31-40, Bucket 4') + xlim(c(0,325))
+p5  = ggplot2::ggplot(bucket_5, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('male, 41-50, Bucket 5') + xlim(c(0,325))
+p6  = ggplot2::ggplot(bucket_6, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('Female, 41-50, Bucket 6') + xlim(c(0,325))
+p7  = ggplot2::ggplot(bucket_7, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('male, 51-60, Bucket 7') + xlim(c(0,325))
+p8  = ggplot2::ggplot(bucket_8, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('Female, 51-60, Bucket 8') + xlim(c(0,325))
+p9  = ggplot2::ggplot(bucket_9, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('male, >=61, Bucket 9') + xlim(c(0,325))
+p10  = ggplot2::ggplot(bucket_10, aes(x = numberTaps, color = class, fill = class)) + geom_density(adjust = 0.5, alpha = 0.2) + ggtitle('Female, >=61, Bucket 10') + xlim(c(0,325))
+ggpubr::ggarrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10, ncol = 2, nrow = 5)
+
+```
+
+#### Store results in synapse
+```{r syn.store, cache=FALSE, eval = TRUE, include=FALSE}
+CODE = Folder(name = 'test tap plots', 
+              parentId = "syn20555547")
+CODE = synStore(CODE)
+```
+
+### Source code in github
+[Source Code](`r thisFile`)
