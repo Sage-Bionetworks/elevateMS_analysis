@@ -227,36 +227,36 @@ tap.ftrs <- mpower.control %>%
 # Male buckets
 bucket_1 <- tap.ftrs %>% 
   dplyr::filter(age < 31, 
-                gender == 'Male')
+                gender == 'male')
 bucket_3 <- tap.ftrs %>% 
   dplyr::filter(age <= 40, age >30, 
-                gender == 'Male')
+                gender == 'male')
 bucket_5 <- tap.ftrs %>% 
   dplyr::filter(age <= 50, age > 40,
-                gender == 'Male')
+                gender == 'male')
 bucket_7 <- tap.ftrs %>% 
   dplyr::filter(age <= 60, age > 50,
-                gender == 'Male')
+                gender == 'male')
 bucket_9 <- tap.ftrs %>% 
   dplyr::filter(age > 60, 
-                gender == 'Male')
+                gender == 'male')
 
 # Female buckets
 bucket_2 <- tap.ftrs %>% 
   dplyr::filter(age < 31, 
-                gender == 'Female')
+                gender == 'female')
 bucket_4 <- tap.ftrs %>% 
   dplyr::filter(age <= 40, age >30, 
-                gender == 'Female')
+                gender == 'female')
 bucket_6 <- tap.ftrs %>% 
   dplyr::filter(age <= 50, age > 40,
-                gender == 'Female')
+                gender == 'female')
 bucket_8 <- tap.ftrs %>% 
   dplyr::filter(age <= 60, age > 50,
-                gender == 'Female')
+                gender == 'female')
 bucket_10 <- tap.ftrs %>% 
   dplyr::filter(age > 60, 
-                gender == 'Female')
+                gender == 'female')
 
 dframe <- data.frame(Bucket = c('B1','B2','B3','B4','B5',
                                 'B6','B7','B8','B9','B10' ),
