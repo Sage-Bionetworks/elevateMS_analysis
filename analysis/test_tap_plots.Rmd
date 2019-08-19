@@ -13,7 +13,7 @@ library(knit2synapse)
 
 synapser::synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "./analysis/test_tap_plots.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "test_tap_plots.Rmd",
                                           parentId = "syn11315047",
                                           folderName = "test tap plots")
 ```
@@ -271,8 +271,7 @@ dframe <- data.frame(Bucket = c('B1','B2','B3','B4','B5',
                                       nclass(bucket_8,'mpower control'),nclass(bucket_9,'mpower control'),nclass(bucket_10,'mpower control')),
                     NelevateMSControl = c(nclass(bucket_1,'elevateMS control'),nclass(bucket_2,'elevateMS control'),nclass(bucket_3,'elevateMS control'),nclass(bucket_4,'elevateMS control'),
                                       nclass(bucket_5,'elevateMS control'),nclass(bucket_6,'elevateMS control'),nclass(bucket_7,'elevateMS control'),
-                                      nclass(bucket_8,'elevateMS control'),nclass(bucket_9,'elevateMS control'),nclass(bucket_10,'elevateMS control')),
-                    ) 
+                                      nclass(bucket_8,'elevateMS control'),nclass(bucket_9,'elevateMS control'),nclass(bucket_10,'elevateMS control'))) 
 ```
 
 #### Demographic bins (as requested by BioMarin)
