@@ -75,7 +75,8 @@ tap.demo.mpower = synapser::synTableQuery(paste0("SELECT * FROM ", 'syn10371840'
   # NA also added because >90% data has dataGroups as NA
   dplyr::select(healthCode, age, gender, PD = inferred_diagnosis) %>% 
   na.omit() %>%
-  unique() 
+  unique() %>% 
+  dplyr::mutate(gender = tolower(gender))
 
 tap.ftrs.mpower = read.csv(synapser::synGet('syn20487877')$path, sep = '\t') %>% 
   dplyr::select(recordId, healthCode, hand, numberTaps) %>% 
