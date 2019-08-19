@@ -124,6 +124,17 @@ tap.dframe = data.frame(table = c('mpower tap Features', ' mpower tap demo'),
 tap.demo.MS = synapser::synTableQuery(paste0("SELECT * FROM ", 'syn10235463'))$asDataFrame() %>% 
   dplyr::select(healthCode, age = demographics.age, gender = demographics.gender) %>%
   na.omit() %>%
+  dplyr::mutate(gender = tolower(gender)) %>% 
+  unique()
+
+# more MS data from baseline characteristics
+baseline.char.MS <- read.csv(synapser::synGet('syn17115631')$path, sep = '\t') %>% 
+  dplyr::select(healthCode, age, gender) %>% 
+  na.omit() %>% 
+  unique()
+
+tap.demo.MS <- tap.demo.MS %>% 
+  dplyr::full_join(baseline.char.MS) %>% 
   unique()
 
 tap.ftrs.MS <- read.csv(synapser::synGet('syn10648415')$path, sep = '\t') %>% 
