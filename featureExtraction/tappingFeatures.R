@@ -13,7 +13,7 @@ install.load::install_load(c('plyr', 'dplyr', 'doMC', 'jsonlite', 'parallel', 't
 install.load::install_load(c('stringr', 'sqldf', 'parsedate', 'synapser'))
 library(githubr) 
 #devtools::install_github("brian-bot/githubr")
-#devtools::install_github("Sage-Bionetworks/mhealthtools")
+devtools::install_github("Sage-Bionetworks/mhealthtools")
 library("mhealthtools")
 ## Synapse Login
 synapser::synLogin()
@@ -56,9 +56,6 @@ featuresFromColumn <- function(dat,column,processingFunction, parallel = F){
 tapping.tbl.id = 'syn10278765' # Tapping activity v2
 tapping.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tapping.tbl.id))
 tapping.tbl <- tapping.tbl.syn$asDataFrame()
-
-## Convert createdOn into an understandable datetime format
-tapping.tbl$createdOn <- lubridate::as_datetime(tapping.tbl$createdOn/1000)
 
 ## Download required columns i,e the JSON files
 columnsToDownload = c("tapping_left.json.TappingSamples",
