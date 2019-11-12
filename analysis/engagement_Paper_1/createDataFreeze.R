@@ -8,7 +8,8 @@ FREEZE_DATE = lubridate::ymd("2019-02-28")
 DAYS_SINCE_LAUNCH = as.numeric(FREEZE_DATE - lubridate::ymd("2017-08-14"))
 WEEKS_SINCE_LAUNCH = ( (DAYS_SINCE_LAUNCH - 1) %/% 7) + 1
 
-baselineChar <- baselineChar %>% filter(dataGroups %in% c('ms_patient', 'control'))
+
+#baselineChar 
 userActivity <- userActivity %>% 
   filter(createdOn_localTime <= FREEZE_DATE & 
         healthCode %in% baselineChar$healthCode)

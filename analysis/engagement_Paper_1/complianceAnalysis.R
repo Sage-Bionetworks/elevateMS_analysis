@@ -13,6 +13,7 @@ install_load("ggridges", "viridis")
 load(synGet("syn11657929")$path)
 
 userCompliance_data <- userActivity %>% 
+  filter(dataGroups %in% c('control', 'ms_patient')) %>%
   inner_join(baselineChar %>% select(healthCode, referred_by_clinician, group)) %>%
   filter(!originalTable %in% c('Passive Data-v3', 'Weather-v3')) %>%
   mutate(activity = case_when(
@@ -165,6 +166,9 @@ compliance <- compliance %>%
   mutate(group = factor(group, levels=c('MS patient', 'MS patient(clinically referred)',
                                         'Control'))) %>%
   mutate(lineGroup = paste0(group,'-' ,complianceType))
+
+View(compliance  %>% filter(complianceType == 'withOneSensorTaskperWeek') %>%
+       arrange(group, week))
 
 p1 <- ggplot(data=compliance %>% filter(complianceType == 'withOneSensorTaskperWeek'),
              aes(x=week, y=percent, color=group))+ geom_point(size=1) + geom_line() 
