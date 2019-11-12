@@ -57,12 +57,6 @@ rest.tbl.id = 'syn10278766' # Walking Activity-v2
 rest.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", rest.tbl.id))
 rest.tbl <- rest.tbl.syn$asDataFrame()
 
-## Convert createdOn into an understandable datetime format
-rest.tbl$createdOn <- lubridate::as_datetime(rest.tbl$createdOn/1000)
-
-## Account for timezone change, if column is in local time
-# rest.tbl$createdOn <- rest.tbl$createdOn - 60*60*as.numeric(rest.tbl$createdOnTimeZone)/100
-
 ## Download required columns i,e the JSON files
 columnsToDownload = c("deviceMotion_walking_rest.json.items") 
 

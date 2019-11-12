@@ -23,7 +23,7 @@ library(sqldf)
 library(parsedate)
 library(githubr) 
 # devtools::install_github("brian-bot/githubr")
-
+synapser::synLogin()
 
 ####### -- NOTE -- #######
 # We will be using mpowertools for walking features since mhealthtools
