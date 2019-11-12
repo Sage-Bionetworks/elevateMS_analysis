@@ -236,6 +236,27 @@ baselineChar <- baselineChar %>% mutate(group = case_when(
 )) 
 
 
+#Add State based on ZipCode
+#load the zipcode level data summarized by first three digits of zipcode
+library(zipcode)
+data(zipcode)
+states = data.frame(state = state.abb, state.name = state.name)
+tmp_zipcode <- zipcode %>% inner_join(states)
+tmp_zipcode['zipcode_firstThree'] = substr(tmp_zipcode$zip, 1,3)
+tmp_zipcode <- tmp_zipcode %>%  select(state, state.name, zipcode_firstThree) %>% 
+  distinct() %>% dplyr::rename(state.abbr = state, state = state.name)
+
+
+# zipcodes whoose first three numbers are common across states - select first state
+tmp_zipcode <- tmp_zipcode %>% group_by(zipcode_firstThree) %>% summarise(state = state[1],
+                                                           state.abbr = state.abbr[1])
+#create the new col to match to tmp_zipcode
+baselineChar['zipcode_firstThree'] = substr(baselineChar$zipcode, 1,3)
+baselineChar <- merge(baselineChar, tmp_zipcode, all.x = T)
+baselineChar$zipcode_firstThree <- NULL
+
+
+
 outFile = 'elevateMS_baselineCharacteristics.tsv'
 PARENT_FOLDER = 'syn10140063'
 write.table(baselineChar, file=outFile, sep="\t", quote=F, row.names = F)

@@ -1,0 +1,173 @@
+---
+title: "ElevateMS -Daily Check-in's vs Weather"
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools')
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install("ComplexHeatmap", version = "3.8")
+install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+synapser::synLogin()
+
+###Load data freeze
+load(synGet("syn19273733")$path)
+source("common_analysis_functions.R")
+```
+
+
+
+```{r}
+dailyCheckins_flt <- dailyCheckins %>% dplyr::filter(dataGroups == 'ms_patient') %>%
+  dplyr::mutate(checkin_date = as.Date(activity_start_timestamp_GMT )) %>%
+  dplyr::select(healthCode, checkin_date, pain=mood_pain, mobility=mood_mobility, health=mood_health,
+                participant_day, participant_week) %>%
+  dplyr::mutate(pain = as.factor(pain),
+                mobility = as.factor(mobility),
+                health = as.factor(health))
+
+weatherF_flt <- weatherF %>%
+  dplyr::mutate(weather_date = as.Date(timestamp)) %>%
+  dplyr::select(healthCode, weather_date, atmosphericPressure, cloudCoverage, currentTemperature, humidity, maximumTemperature, minimumTemperature)
+
+
+dailyCheckins_N_weather <- merge(dailyCheckins_flt, weatherF_flt, 
+                            by.x=c('healthCode', 'checkin_date'), 
+                            by.y=c('healthCode', 'weather_date')) 
+```
+
+
+### Daily Health vs Weather
+
+
+```{r}
+#### Mixed effect modelling
+install_load("lme4", "lmerTest", "broom")
+res.1 <- lmer(atmosphericPressure ~ health + (1 | healthCode), 
+            data=dailyCheckins_N_weather )
+res.2 <- lmer(cloudCoverage ~ health  + (1 | healthCode), 
+            data=dailyCheckins_N_weather )
+res.3 <- lmer(currentTemperature ~ health + (1 | healthCode), 
+            data=dailyCheckins_N_weather )
+res.4 <- lmer(humidity ~ health + (1 | healthCode), 
+            data=dailyCheckins_N_weather )
+res.5 <- lmer(maximumTemperature ~ health + (1 | healthCode), 
+            data=dailyCheckins_N_weather )
+res.6 <- lmer(minimumTemperature ~ health + (1 | healthCode), 
+            data=dailyCheckins_N_weather )
+sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
+```
+
+
+
+### Visual difference between weather features and daily health
+
+```{r fig.align='center', fig.width=12, fig.height=4, dpi=100}
+### Plot top differentiator - cloudCoverage
+p <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=cloudCoverage)) + geom_boxplot(width=0.6)
+p1 <- p + theme_light(base_size = 12) + xlab('self reported daily health score')
+
+
+p <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=currentTemperature)) + geom_boxplot(width=0.6)
+p2 <- p + theme_light(base_size = 12) + xlab('self reported daily health score')
+
+p <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=humidity)) + geom_boxplot(width=0.6)
+p3 <- p + theme_light(base_size = 12) + xlab('self reported daily health score')
+
+
+gridExtra::grid.arrange(p1, p2, p3, nrow=1)
+```
+
+
+
+
+-------
+
+
+### Daily Mobility vs Weather
+
+```{r}
+#### Mixed effect modelling
+install_load("lme4", "lmerTest", "broom")
+res.1 <- lmer(atmosphericPressure ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+res.2 <- lmer(cloudCoverage ~ mobility  + (1 | healthCode),  data=dailyCheckins_N_weather )
+res.3 <- lmer(currentTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+res.4 <- lmer(humidity ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+res.5 <- lmer(maximumTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+res.6 <- lmer(minimumTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
+```
+
+
+
+### Visual difference between weather features and daily mobility
+```{r fig.align='center', fig.width=12, fig.height=4, dpi=100}
+### Plot top differentiator - cloudCoverage
+p <- ggplot(data=dailyCheckins_N_weather, aes(x=mobility, y=humidity)) + geom_boxplot(width=0.6)
+p1 <- p + theme_light(base_size = 12) + xlab('self reported daily mobility')
+
+p <- ggplot(data=dailyCheckins_N_weather, aes(x=mobility, y=maximumTemperature)) + geom_boxplot(width=0.6)
+p2 <- p + theme_light(base_size = 12) + xlab('self reported daily mobility')
+
+p <- ggplot(data=dailyCheckins_N_weather, aes(x=mobility, y=minimumTemperature)) + geom_boxplot(width=0.6)
+p3 <- p + theme_light(base_size = 12) + xlab('self reported daily mobility')
+
+gridExtra::grid.arrange(p1, p2, p3, nrow=1)
+```
+
+
+-------
+
+
+### Daily Pain vs Weather
+
+```{r}
+#### Mixed effect modelling
+install_load("lme4", "lmerTest", "broom")
+res.1 <- lmer(atmosphericPressure ~ pain + (1 | healthCode), data=dailyCheckins_N_weather )
+res.2 <- lmer(cloudCoverage ~ pain  + (1 | healthCode),  data=dailyCheckins_N_weather )
+res.3 <- lmer(currentTemperature ~ pain + (1 | healthCode), data=dailyCheckins_N_weather )
+res.4 <- lmer(humidity ~ pain + (1 | healthCode), data=dailyCheckins_N_weather )
+res.5 <- lmer(maximumTemperature ~ pain + (1 | healthCode), data=dailyCheckins_N_weather )
+res.6 <- lmer(minimumTemperature ~ pain + (1 | healthCode), data=dailyCheckins_N_weather )
+sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
+```
+
+
+### Visual difference between weather features and daily pain
+```{r fig.align='center', fig.width=4, fig.height=4, dpi=100}
+### Plot top differentiator - cloudCoverage
+p <- ggplot(data=dailyCheckins_N_weather, aes(x=pain, y=humidity)) + geom_boxplot(width=0.6)
+p1 <- p + theme_light(base_size = 12) + xlab('self reported daily pain')
+p1
+```
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+thisFilePrefix = "dailyCheckins_vs_Weather"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+thisFilePrefix = "dailyCheckins_vs_Weather"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt'
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
+###Store on Synapse
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+unlink(paste0(thisFilePrefix, '.html'))
+```

@@ -1,0 +1,97 @@
+---
+title: "elevateMS self-repored relpases"
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+----
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools', "synapser")
+synapser::synLogin()
+
+###Load data freeze
+load(synGet("syn19273733")$path)
+```
+
+
+
+```{r, echo=FALSE}
+relapses <- relapses %>% 
+  dplyr::mutate(relapse.date = as.Date(activity_start_timestamp_local))
+relapses.flt <- relapses %>% filter(dataGroups == 'ms_patient')
+```
+
+
+1. How many controls report relapses: `r nrow(relapses %>% filter(dataGroups == 'control'))`
+2. Cases reporting relapse: `r n_distinct(relapses.flt$healthCode)`
+3. Number of relapses reported by MS patients(median): `r median(table(relapses.flt$healthCode))`
+
+<br>
+<br>
+
+
+### Days when participants report relapse
+```{r, fig.width=15, fig.height=12}
+p <- ggplot(data=relapses.flt, aes(y=healthCode, x=participant_day)) + geom_point()
+p <- p + theme_light(base_size = 15) + theme(axis.text.y = element_blank(),
+                                             axis.ticks.y = element_blank())
+p
+```
+
+
+<br>
+<br>
+
+
+### Number of times each app-based task is completed by participants before and after they report a relapse
+```{r, fig.width=15, fig.height=12}
+### Avg number of activities before and after all relapses
+tmp_calcReplaseSummary <- function(userHealthCode, relapseDate){
+  df <- userActivity %>% filter(healthCode == userHealthCode)
+  before = df %>% filter(createdOn_localTime < relapseDate) %>% mutate(status = 'before')
+  after = df %>% filter(createdOn_localTime > relapseDate) %>% mutate(status = 'after')
+  res <- rbind.fill(before %>% select(status, originalTable), 
+        after %>% select(status, originalTable)) %>%
+    count(status, originalTable)
+}
+relapseSummary <- relapses.flt %>% 
+  dplyr::group_by(healthCode, relapse.date) %>%
+  do(relapseSummary = tmp_calcReplaseSummary(.$healthCode, .$relapse.date))
+relapseSummary <- relapseSummary %>% unnest() %>%
+  mutate(originalTable = gsub('-v.*', '', originalTable, perl = T))
+p2 <- ggplot(data=relapseSummary, aes(x=status, y=log2(n)))  + geom_boxplot() + facet_wrap(. ~ originalTable)
+p2 <- p2 + theme_minimal(base_size = 15)
+p2
+```
+
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+thisFileDir = '/Users/apratap/Dropbox/dev/elevateMS_analysis/analysis/Analytical_Paper_2/'
+setwd(thisFileDir)
+thisFilePrefix = "relapseAnalysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+thisFilePrefix = "relapseAnalysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt';
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
+###Store on Synapse
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+unlink(paste0(thisFilePrefix, '.html'))
+```
