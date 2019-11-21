@@ -82,7 +82,8 @@ ftrs = purrr::map(ftrs.id, function(id){
   dplyr::mutate(MS = 'control') %>% 
   unique() %>% 
   droplevels() %>% 
-  dplyr::mutate(IMF = paste0('IMF',IMF))
+  dplyr::mutate(IMF = paste0('IMF',IMF)) %>% 
+  dplyr::select(-age) # remove age column
 
 ftrs$energy.tm <- as.numeric(ftrs$energy.tm)
 
