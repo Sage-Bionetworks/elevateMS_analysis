@@ -69,8 +69,11 @@ profile.tbl.cleaned <- profile.tbl %>%
   na.omit()
 
 # Get tremor features from synapse and count number of windows available for each hc
-ftrs.id = c(handToNose_left = 'syn20057644', handToNose_right = 'syn20057941')
+# ftrs.id = c(handToNose_left = 'syn12104398', handToNose_right = 'syn12104396')
+ftrs.id = c(handToNose_left = 'syn20057644', handToNose_right = 'syn20057941') # time constraint
 all.used.ids = c(all.used.ids, as.character(ftrs.id))
+
+
 
 # Load features from synapse
 ftrs = purrr::map(ftrs.id, function(id){
