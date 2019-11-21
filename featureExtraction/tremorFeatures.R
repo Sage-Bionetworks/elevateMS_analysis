@@ -3,7 +3,7 @@
 # Purpose: Extract Tremor features
 # Author: Abhishek Pratap, Meghasyam Tummalacherla
 ############################################################################
-# rm(list=ls())
+rm(list=ls())
 gc()
 
 ##############
@@ -226,12 +226,6 @@ tremor.tbl.id = 'syn10278767' # Tremor Activity-v5
 # tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
 tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id))
 tremor.tbl <- tremor.tbl.syn$asDataFrame()
-
-## Convert createdOn into an understandable datetime format
-# tremor.tbl$createdOn <- lubridate::as_datetime(tremor.tbl$createdOn/1000)
-
-## Account for timezone change, if column is in local time
-# tremor.tbl$createdOn <- tremor.tbl$createdOn - 60*60*as.numeric(tremor.tbl$createdOnTimeZone)/100
 
 ## Download required columns i,e the JSON files
 columnsToDownload = c("ac4_motion_tremor_handToNose_right.json.items",

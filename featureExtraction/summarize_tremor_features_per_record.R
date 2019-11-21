@@ -69,7 +69,8 @@ profile.tbl.cleaned <- profile.tbl %>%
   na.omit()
 
 # Get tremor features from synapse and count number of windows available for each hc
-ftrs.id = c(handToNose_left = 'syn12104398', handToNose_right = 'syn12104396')
+# ftrs.id = c(handToNose_left = 'syn12104398', handToNose_right = 'syn12104396')
+ftrs.id = c(handToNose_left = 'syn20057644', handToNose_right = 'syn20057941') # time constraint
 all.used.ids = c(all.used.ids, as.character(ftrs.id))
 
 # Load features from synapse
@@ -188,7 +189,7 @@ activityDescription = "Summarize tremor features into IQR and median"
 
 # upload to Synapse, summary features
 synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
-OUTPUT_FILE <- "recordwiseSummaryFeatures.tsv" # name your file
+OUTPUT_FILE <- "recordwiseSummaryFeatures_time_constraint.tsv" # name your file
 write.table(kinetic.ftr.all, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
