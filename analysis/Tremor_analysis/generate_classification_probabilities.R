@@ -13,7 +13,7 @@ registerDoParallel(cl)
 ###########################################################
 ## Download age matched healthcodes
 ###########################################################
-age.records.matched.id = 'syn19123754'
+age.records.matched.id = 'syn19123754' # matched with gender in qn
 age.records.matched.syn = synapser::synGet(age.records.matched.id)
 age.records.matched = read.csv(age.records.matched.syn$path, sep = '\t')
 all.used.ids = age.records.matched.id
@@ -21,14 +21,14 @@ all.used.ids = age.records.matched.id
 ###########################################################
 ## Download healthCode wise summarized features
 ###########################################################
-summarized.ftrs.healthCode.id = 'syn20503415'
+summarized.ftrs.healthCode.id = 'syn21297772'
 summarized.ftrs.healthCode = read.csv(synapser::synGet(summarized.ftrs.healthCode.id)$path, sep = '\t')
 all.used.ids <- c(all.used.ids, summarized.ftrs.healthCode.id)
 
 ###########################################################
 ## Download record wise summarized features
 ###########################################################
-summarized.ftrs.record.id = 'syn20503416'
+summarized.ftrs.record.id = 'syn21297786'
 summarized.ftrs.record = read.csv(synapser::synGet(summarized.ftrs.record.id)$path, sep = '\t')
 all.used.ids <- c(all.used.ids, summarized.ftrs.record.id)
 
