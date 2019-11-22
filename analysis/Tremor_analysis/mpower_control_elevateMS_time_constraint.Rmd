@@ -83,14 +83,14 @@ ggpubr::ggarrange(p2,p1, p3,ncol = 3, nrow = 1)
 ###########################################################
 ## Download healthCode wise summarized features
 ###########################################################
-summarized.ftrs.healthCode.id = 'syn20237147'
+summarized.ftrs.healthCode.id = 'syn20503296'
 summarized.ftrs.healthCode = read.csv(synapser::synGet(summarized.ftrs.healthCode.id)$path, sep = '\t')
 all.used.ids <- c(all.used.ids, summarized.ftrs.healthCode.id)
 
 ###########################################################
 ## Download record wise summarized features
 ###########################################################
-summarized.ftrs.record.id = 'syn20237150'
+summarized.ftrs.record.id = 'syn20503297'
 summarized.ftrs.record = read.csv(synapser::synGet(summarized.ftrs.record.id)$path, sep = '\t')
 all.used.ids <- c(all.used.ids, summarized.ftrs.record.id)
 
