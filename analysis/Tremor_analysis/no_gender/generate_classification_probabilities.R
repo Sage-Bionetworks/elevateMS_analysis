@@ -13,7 +13,7 @@ registerDoParallel(cl)
 ###########################################################
 ## Download age matched healthcodes
 ###########################################################
-age.records.matched.id = 'syn19123754' # matched with gender in qn
+age.records.matched.id = 'syn19275827' #age matched without gender
 age.records.matched.syn = synapser::synGet(age.records.matched.id)
 age.records.matched = read.csv(age.records.matched.syn$path, sep = '\t')
 all.used.ids = age.records.matched.id
