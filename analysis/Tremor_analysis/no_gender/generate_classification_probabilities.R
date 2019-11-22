@@ -13,7 +13,7 @@ registerDoParallel(cl)
 ###########################################################
 ## Download age matched healthcodes
 ###########################################################
-age.records.matched.id = 'syn19275827' #age matched without gender
+age.records.matched.id = 'syn19275827' # age matched without gender
 age.records.matched.syn = synapser::synGet(age.records.matched.id)
 age.records.matched = read.csv(age.records.matched.syn$path, sep = '\t')
 all.used.ids = age.records.matched.id
@@ -44,7 +44,7 @@ all.used.ids <- c(all.used.ids, demo.tbl.id.ms)
 dat.train <- summarized.ftrs.healthCode %>% 
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
   dplyr::left_join(age.records.matched %>% 
-                     dplyr::select(healthCode, MS, age, gender)) %>% 
+                     dplyr::select(healthCode, MS, age)) %>% 
   as.data.frame() %>% 
   droplevels() %>% 
   unique()
