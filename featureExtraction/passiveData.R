@@ -32,12 +32,6 @@ passive.tbl.id = 'syn10651116' # Passive data-v3
 passive.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", passive.tbl.id))
 passive.tbl <- passive.tbl.syn$asDataFrame()
 
-## Convert createdOn into an understandable datetime format
-passive.tbl$createdOn <- lubridate::as_datetime(passive.tbl$createdOn/1000)
-
-## Account for timezone change, if column is in local time
-# passive.tbl$createdOn <- passive.tbl$createdOn - 60*60*as.numeric(passive.tbl$createdOnTimeZone)/100
-
 ## Download required columns i,e the JSON files
 columnsToDownload = c("pedometer.json.pedometerData") 
 

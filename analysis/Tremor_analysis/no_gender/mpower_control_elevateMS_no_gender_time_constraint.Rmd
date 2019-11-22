@@ -1,5 +1,5 @@
 ---
-title: "Classify case-control in kinetic state tremors using random forest models with median and iqr features, for Multiple Sclerosis. The training is done using controls from mpower and elevateMS, and cases from elevateMS"
+title: "Classify case-control in kinetic state tremors using random forest models with median and iqr features, for Multiple Sclerosis. The training is done using controls from mpower and elevateMS, and cases from elevateMS. Gender removed as a factor variable in the Random forest model"
 author: "Meghasyam Tummalacherla"
 author options: "This would not have been possible without Thanneer Perumal's skeleton code"
 date: "`r base::date()`"
@@ -13,9 +13,9 @@ library(knit2synapse)
 
 synapser::synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS_no_gender_time_constraint.Rmd",
                                           parentId = "syn19120636",
-                                          folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)")
+                                          folderName = "elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(no gender)(time constraint)")
 ```
 
 ```{r libs.and.functions, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -23,7 +23,7 @@ knit2synapse::createAndKnitToFolderEntity(file = "./mpower_control_elevateMS.Rmd
 ## Required libraries and analysis functions
 ###########################################################
 ## It is assumed your working directory is where this file
-source('analysis_functions.R')
+source('analysis_functions_no_gender.R')
 
 loadRequiredLibraries()
 
@@ -57,10 +57,10 @@ activityDescription = 'Classify case-control in kinetic state tremors using rand
 gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 
-thisFileName <- 'mpower_control_elevateMS.Rmd'
+thisFileName <- 'mpower_control_elevateMS_no_gender_time_constraint.Rmd'
 
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Tremor_analysis/',thisFileName))
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Tremor_analysis/no_gender/',thisFileName))
 ```
 
 #### Download age matched elevateMS (control + cases) + mpower (cases) pool
@@ -68,7 +68,7 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/T
 ###########################################################
 ## Download age matched healthcodes
 ###########################################################
-age.records.matched.id = 'syn19123754'
+age.records.matched.id = 'syn19275827'
 age.records.matched.syn = synapser::synGet(age.records.matched.id)
 age.records.matched = read.csv(age.records.matched.syn$path, sep = '\t')
 all.used.ids = age.records.matched.id
@@ -83,14 +83,14 @@ ggpubr::ggarrange(p2,p1, p3,ncol = 3, nrow = 1)
 ###########################################################
 ## Download healthCode wise summarized features
 ###########################################################
-summarized.ftrs.healthCode.id = 'syn21297772'
+summarized.ftrs.healthCode.id = 'syn20503296'
 summarized.ftrs.healthCode = read.csv(synapser::synGet(summarized.ftrs.healthCode.id)$path, sep = '\t')
 all.used.ids <- c(all.used.ids, summarized.ftrs.healthCode.id)
 
 ###########################################################
 ## Download record wise summarized features
 ###########################################################
-summarized.ftrs.record.id = 'syn21297786'
+summarized.ftrs.record.id = 'syn20503297'
 summarized.ftrs.record = read.csv(synapser::synGet(summarized.ftrs.record.id)$path, sep = '\t')
 all.used.ids <- c(all.used.ids, summarized.ftrs.record.id)
 
@@ -109,7 +109,7 @@ all.used.ids <- c(all.used.ids, demo.tbl.id.ms)
 dat.train <- summarized.ftrs.healthCode %>% 
   dplyr::filter(healthCode %in% age.records.matched$healthCode) %>% 
   dplyr::left_join(age.records.matched %>% 
-                     dplyr::select(healthCode, MS, age, gender)) %>% 
+                     dplyr::select(healthCode, MS, age)) %>% 
   as.data.frame() %>% 
   droplevels() %>% 
   unique()
@@ -238,7 +238,7 @@ kable(mdl.performance)
 
 ### Store results in synapse
 ```{r syn.store, cache=FALSE, eval = TRUE}
-CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)', 
+CODE = Folder(name = 'elevateMS action tremor test (mpower PD action tremor train)(no scaling)(atleast 2 records)(no gender)(time constraint)', 
               parentId = "syn19120636")
 CODE = synStore(CODE)
 

@@ -1,9 +1,9 @@
 ############################################################################
 # ElevateMS project
-# Purpose: Extract Tremor features
+# Purpose: Extract Tremor features (test conditions - time constraint 2-8secs)
 # Author: Abhishek Pratap, Meghasyam Tummalacherla
 ############################################################################
-rm(list=ls())
+# rm(list=ls())
 gc()
 
 ##############
@@ -116,7 +116,8 @@ errorTremorFeatureDataFrame <- function(flag_){
       detrend = T,
       derived_kinematics = T,
       frequency_filter = c(1,25),
-      IMF = 2
+      IMF = 2,
+      time_filter = c(2,8)
     )
     
     tremorFeatures <- tremorFeatures$extracted_features
@@ -161,7 +162,8 @@ extractTremorFeatures <- function(dat_, column_, runParallel_){
           detrend = T,
           derived_kinematics = T,
           frequency_filter = c(1,25),
-          IMF = 4
+          IMF = 4,
+          time_filter = c(2,8)
         )
         
         tremorFeatures <- tremorFeatures$extracted_features
@@ -226,6 +228,12 @@ tremor.tbl.id = 'syn10278767' # Tremor Activity-v5
 # tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
 tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id))
 tremor.tbl <- tremor.tbl.syn$asDataFrame()
+
+## Convert createdOn into an understandable datetime format
+# tremor.tbl$createdOn <- lubridate::as_datetime(tremor.tbl$createdOn/1000)
+
+## Account for timezone change, if column is in local time
+# tremor.tbl$createdOn <- tremor.tbl$createdOn - 60*60*as.numeric(tremor.tbl$createdOnTimeZone)/100
 
 ## Download required columns i,e the JSON files
 columnsToDownload = c("ac4_motion_tremor_handToNose_right.json.items",
@@ -395,9 +403,9 @@ tremor_features_right <- tremor_features_right %>%
 ## Github link
 # Copy paste the github token string and store it as 'github_token.txt' file
 # A github token is required to access the elevateMS_analysis repository as it is private
-gtToken = 'github_token.txt'
+gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/tremorFeatures.R" # location of file inside github repo
+thisFileName <- "featureExtraction/tremorFeatures_time_constraint.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
@@ -409,7 +417,7 @@ activityDescription = "Extract tremor features from tremor activity-v5"
 
 # upload to Synapse, left hand features
 synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
-OUTPUT_FILE <- "tremorFeatures_handToNoseLeft.tsv" # name your file
+OUTPUT_FILE <- "tremorFeatures_handToNoseLeft_time_constraint.tsv" # name your file
 write.table(tremor_features_left, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
@@ -420,7 +428,7 @@ unlink(OUTPUT_FILE)
 
 # upload to Synapse, right hand features
 synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
-OUTPUT_FILE <- "tremorFeatures_handToNoseRight.tsv" # name your file
+OUTPUT_FILE <- "tremorFeatures_handToNoseRight_time_constraint.tsv" # name your file
 write.table(tremor_features_right, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,

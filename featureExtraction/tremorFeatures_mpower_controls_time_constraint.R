@@ -1,9 +1,10 @@
 ############################################################################
 # ElevateMS project
-# Purpose: Extract Tremor features
-# Author: Abhishek Pratap, Meghasyam Tummalacherla
+# Purpose: Extract Tremor features for mpower controls in age matched sample
+#          to be used later in analysis (test conditions - time constraint 2-8secs)
+# Author: Meghasyam Tummalacherla
 ############################################################################
-rm(list=ls())
+# rm(list=ls())
 gc()
 
 ##############
@@ -116,7 +117,8 @@ errorTremorFeatureDataFrame <- function(flag_){
       detrend = T,
       derived_kinematics = T,
       frequency_filter = c(1,25),
-      IMF = 2
+      IMF = 2,
+      time_filter = c(2,8)
     )
     
     tremorFeatures <- tremorFeatures$extracted_features
@@ -161,7 +163,8 @@ extractTremorFeatures <- function(dat_, column_, runParallel_){
           detrend = T,
           derived_kinematics = T,
           frequency_filter = c(1,25),
-          IMF = 4
+          IMF = 4,
+          time_filter = c(2,8)
         )
         
         tremorFeatures <- tremorFeatures$extracted_features
@@ -222,14 +225,20 @@ synapser::synLogin()
 # set system environment to UTC
 Sys.setenv(TZ='GMT')
 
-tremor.tbl.id = 'syn10278767' # Tremor Activity-v5
-# tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id, " WHERE healthCode = 'adeca5c5-856d-49e8-b3d9-3402b961c05d'"))
-tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id))
+# Get age matched healthCodes from synapse
+age.records.matched.id = 'syn19123754' # Age matched healthCodes
+age.records.matched.syn <- synapser::synGet(age.records.matched.id)
+age.records.matched <- age.records.matched.syn$path %>% read.csv(sep = '\t')
+
+tremor.tbl.id = 'syn10676309' # Tremor Activity-v5
+# Select only those healthCodes from the mpower tremor table that are present in the age matched healthcodes
+tremor.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tremor.tbl.id, " WHERE healthCode IN (", 
+                                                 paste0( paste0("'",age.records.matched$healthCode,"'"),collapse = ','),")"))
 tremor.tbl <- tremor.tbl.syn$asDataFrame()
 
 ## Download required columns i,e the JSON files
-columnsToDownload = c("ac4_motion_tremor_handToNose_right.json.items",
-                      "ac4_motion_tremor_handToNose_left.json.items") 
+columnsToDownload = c("deviceMotion_tremor_handToNose_left.json.items",
+                      "deviceMotion_tremor_handToNose_right.json.items") 
 
 tremor.json.loc = lapply(columnsToDownload, function(col.name){
   tbl.files = synapser::synDownloadTableColumns(tremor.tbl.syn, col.name) %>%
@@ -239,10 +248,10 @@ tremor.json.loc = lapply(columnsToDownload, function(col.name){
 })
 
 ## Convert column format to be able to do join and merge filelocations
-tremor.tbl$ac4_motion_tremor_handToNose_right.json.items <- as.character(
-  tremor.tbl$ac4_motion_tremor_handToNose_right.json.items)
-tremor.tbl$ac4_motion_tremor_handToNose_left.json.items <- as.character(
-  tremor.tbl$ac4_motion_tremor_handToNose_left.json.items)
+tremor.tbl$deviceMotion_tremor_handToNose_left.json.items <- as.character(
+  tremor.tbl$deviceMotion_tremor_handToNose_left.json.items)
+tremor.tbl$deviceMotion_tremor_handToNose_right.json.items <- as.character(
+  tremor.tbl$deviceMotion_tremor_handToNose_right.json.items)
 
 tremor.tbl.meta = data.table::rbindlist(
   list(tremor.tbl %>%
@@ -256,10 +265,10 @@ tremor.tbl.meta = data.table::rbindlist(
   as.data.frame
 
 ## Convert column format from factors to strings for the fileLocations
-tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items <- as.character(
-  tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items)
-tremor.tbl.meta$ac4_motion_tremor_handToNose_left.fileLocation.items <- as.character(
-  tremor.tbl.meta$ac4_motion_tremor_handToNose_left.fileLocation.items)
+tremor.tbl.meta$deviceMotion_tremor_handToNose_left.fileLocation.items <- as.character(
+  tremor.tbl.meta$deviceMotion_tremor_handToNose_left.fileLocation.items)
+tremor.tbl.meta$deviceMotion_tremor_handToNose_right.fileLocation.items <- as.character(
+  tremor.tbl.meta$deviceMotion_tremor_handToNose_right.fileLocation.items)
 
 #############
 # Extract Tremor features
@@ -272,120 +281,74 @@ if (detectCores() >= 2) {
 doMC::registerDoMC(detectCores() - 2)
 
 # Left Hand Features
-tremor.tbl.meta.noNA.left <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_left.fileLocation.items),] %>%
-  dplyr::select(recordId, ac4_motion_tremor_handToNose_left.fileLocation.items)
+tremor.tbl.meta.noNA.left <- tremor.tbl.meta[!is.na(tremor.tbl.meta$deviceMotion_tremor_handToNose_left.fileLocation.items),] %>%
+  dplyr::select(recordId, deviceMotion_tremor_handToNose_left.fileLocation.items)
 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1:500,]
 tremor_features_left_1 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  column_ = "deviceMotion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 # 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[501:1000,]
 tremor_features_left_2 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  column_ = "deviceMotion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 # 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1001:1500,]
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1001:nrow(tremor.tbl.meta.noNA.left),]
 tremor_features_left_3 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
+  column_ = "deviceMotion_tremor_handToNose_left.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 # 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[1501:2000,]
-tremor_features_left_4 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-# 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2001:2500,]
-tremor_features_left_5 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-# 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.left[2501:nrow(tremor.tbl.meta.noNA.left),]
-tremor_features_left_6 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_left.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-# 
+
 tremor_features_left <- rbind(tremor_features_left_1, tremor_features_left_2,
-                              tremor_features_left_3, tremor_features_left_4,
-                              tremor_features_left_5, tremor_features_left_6)
+                              tremor_features_left_3)
 
 # Remove the error tremor data frames by filtering on skew.fr
 # (look at errorTremorFeatureDataFrame)
 tremor_features_left <- tremor_features_left %>%
   dplyr::filter(skew.fr != -88888) %>% 
-  dplyr::select(-ac4_motion_tremor_handToNose_left.fileLocation.items)
+  dplyr::select(-deviceMotion_tremor_handToNose_left.fileLocation.items)
 
 ## right Hand Features
-tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$ac4_motion_tremor_handToNose_right.fileLocation.items),] %>%
-  dplyr::select(recordId, ac4_motion_tremor_handToNose_right.fileLocation.items)
-# 
+tremor.tbl.meta.noNA.right <- tremor.tbl.meta[!is.na(tremor.tbl.meta$deviceMotion_tremor_handToNose_right.fileLocation.items),] %>%
+  dplyr::select(recordId, deviceMotion_tremor_handToNose_right.fileLocation.items)
+
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1:500,]
 tremor_features_right_1 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+  column_ = "deviceMotion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 # 
 tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[501:1000,]
 tremor_features_right_2 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+  column_ = "deviceMotion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 # 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1001:1500,]
+tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1001:nrow(tremor.tbl.meta.noNA.right),]
 tremor_features_right_3 <- extractTremorFeatures(
   dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
+  column_ = "deviceMotion_tremor_handToNose_right.fileLocation.items",
   runParallel_ = runParallel)
 gc()
 # 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[1501:2000,]
-tremor_features_right_4 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-# 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2001:2500,]
-# tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA[-441,] # Since this record has just 5 samples
-# # and is throwing an error with mhealthtools
-tremor_features_right_5 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-# 
-tremor.tbl.meta.noNA <- tremor.tbl.meta.noNA.right[2501:nrow(tremor.tbl.meta.noNA.right),]
-tremor_features_right_6 <- extractTremorFeatures(
-  dat_ = tremor.tbl.meta.noNA,
-  column_ = "ac4_motion_tremor_handToNose_right.fileLocation.items",
-  runParallel_ = runParallel)
-gc()
-# 
-tremor_features_right <- rbind(tremor_features_right_1, tremor_features_right_2,
-                               tremor_features_right_3, tremor_features_right_4,
-                               tremor_features_right_5, tremor_features_right_6)
 
+tremor_features_right <- rbind(tremor_features_right_1, tremor_features_right_2,
+                               tremor_features_right_3)
 
 # Remove the error tremor data frames by filtering on skew.fr
 # (look at errorTremorFeatureDataFrame)
 tremor_features_right <- tremor_features_right %>%
   dplyr::filter(skew.fr != -88888) %>% 
-  dplyr::select(-ac4_motion_tremor_handToNose_right.fileLocation.items)
-
+  dplyr::select(-deviceMotion_tremor_handToNose_right.fileLocation.items)
 #############
 # Upload data to Synapse
 #############
@@ -395,21 +358,21 @@ tremor_features_right <- tremor_features_right %>%
 ## Github link
 # Copy paste the github token string and store it as 'github_token.txt' file
 # A github token is required to access the elevateMS_analysis repository as it is private
-gtToken = 'github_token.txt'
+gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/tremorFeatures.R" # location of file inside github repo
+thisFileName <- "featureExtraction/tremorFeatures_mpower_controls_time_constraint.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # name and describe this activity
-activityName = "Extract tremor features"
+activityName = "Extract tremor features for age matched mpower controls"
 activityDescription = "Extract tremor features from tremor activity-v5"
 
 # upload to Synapse, left hand features
 synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
-OUTPUT_FILE <- "tremorFeatures_handToNoseLeft.tsv" # name your file
+OUTPUT_FILE <- "tremorFeatures_handToNoseLeft_mpower_controls_time_constraint.tsv" # name your file
 write.table(tremor_features_left, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
@@ -420,7 +383,7 @@ unlink(OUTPUT_FILE)
 
 # upload to Synapse, right hand features
 synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
-OUTPUT_FILE <- "tremorFeatures_handToNoseRight.tsv" # name your file
+OUTPUT_FILE <- "tremorFeatures_handToNoseRight_mpower_controls_time_constraint.tsv" # name your file
 write.table(tremor_features_right, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,

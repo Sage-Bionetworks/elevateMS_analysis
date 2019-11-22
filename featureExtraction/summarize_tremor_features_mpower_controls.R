@@ -54,11 +54,14 @@ all.used.ids = tremor.tbl.id
 demo.tbl.id = 'syn10371840' # Demographics table-v2
 demo.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", demo.tbl.id))
 demo.tbl <- demo.tbl.syn$asDataFrame()
+metadata.columns <- colnames(demo.tbl)
+metadata.columns <- metadata.columns[grepl('metadata', metadata.columns)]
 all.used.ids <- c(all.used.ids, demo.tbl.id)
 
 
 # Get tremor features from synapse and count number of windows available for each hc
-ftrs.id = c(handToNose_left = 'syn19164063', handToNose_right = 'syn19164114')
+# ftrs.id = c(handToNose_left = 'syn19164063', handToNose_right = 'syn19164114') 
+ftrs.id = c(handToNose_left = 'syn19988311', handToNose_right = 'syn19988346') # time constraint
 all.used.ids = c(all.used.ids, as.character(ftrs.id))
 
 # Load features from synapse
@@ -79,7 +82,8 @@ ftrs = purrr::map(ftrs.id, function(id){
   dplyr::mutate(MS = 'control') %>% 
   unique() %>% 
   droplevels() %>% 
-  dplyr::mutate(IMF = paste0('IMF',IMF))
+  dplyr::mutate(IMF = paste0('IMF',IMF)) %>% 
+  dplyr::select(-age) # remove age column
 
 ftrs$energy.tm <- as.numeric(ftrs$energy.tm)
 
@@ -178,8 +182,8 @@ activityName = "Summarize tremor features for mpower controls"
 activityDescription = "Summarize tremor features for mpower controls into IQR and median"
 
 # upload to Synapse, summary features
-synapse.folder.id <- "syn10140063" # synId of folder to upload your file to
-OUTPUT_FILE <- "hcwiseSummaryFeatures_mpower_controls.tsv" # name your file
+synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
+OUTPUT_FILE <- "hcwiseSummaryFeatures_mpower_controls_time_constraint.tsv" # name your file
 write.table(kinetic.ftr.all, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,

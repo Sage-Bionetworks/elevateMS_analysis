@@ -73,8 +73,6 @@ profile.tbl.cleaned <- profile.tbl %>%
 ftrs.id = c(handToNose_left = 'syn20057644', handToNose_right = 'syn20057941') # time constraint
 all.used.ids = c(all.used.ids, as.character(ftrs.id))
 
-
-
 # Load features from synapse
 ftrs = purrr::map(ftrs.id, function(id){
   fread(synapser::synGet(id)$path, fill = TRUE) %>%
@@ -121,9 +119,9 @@ kinetic.ftr = ftrs %>%
   dplyr::select(-contains('EnergyInBand')) %>%
   dplyr::left_join(energy.ftr.cmbn) %>%
   tidyr::separate(rid, c('recordId', 'Assay', 'sensor', 'measurementType', 'IMF', 'axis', 'window'), sep = '\\.') %>%
-  dplyr::select(-recordId, -Assay, -axis, -window) %>%
-  tidyr::gather(Feature, Value, -healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
-  dplyr::group_by(Feature, healthCode, gender, MS, sensor, measurementType, IMF) %>%
+  dplyr::select(-axis, -window) %>%
+  tidyr::gather(Feature, Value, -Assay, -recordId,-healthCode, -gender, -MS, -sensor, -measurementType, -IMF) %>%
+  dplyr::group_by(Feature, Assay, recordId, healthCode, gender, MS, sensor, measurementType, IMF) %>%
   dplyr::summarise(iqr = stats::IQR(Value, na.rm = T),
                    md = stats::median(Value, na.rm = T))
 
@@ -139,7 +137,7 @@ rownames(kinetic.cov) = kinetic.cov$healthCode
 # Get median of features
 kinetic.ftr.md = kinetic.ftr %>%
   dplyr::ungroup() %>%
-  dplyr::select(healthCode, sensor, measurementType, Feature, IMF, md) %>%
+  dplyr::select(recordId, healthCode, Assay, sensor, measurementType, Feature, IMF, md) %>%
   dplyr::mutate(type = 'md') %>%
   tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
   tidyr::spread(nFeature, md)
@@ -147,7 +145,7 @@ kinetic.ftr.md = kinetic.ftr %>%
 # Get iqr of features
 kinetic.ftr.iqr = kinetic.ftr %>%
   dplyr::ungroup() %>%
-  dplyr::select(healthCode, sensor, measurementType, Feature, IMF, iqr) %>%
+  dplyr::select(recordId, healthCode, Assay, sensor, measurementType, Feature, IMF, iqr) %>%
   dplyr::mutate(type = 'iqr') %>%
   tidyr::unite(nFeature, Feature, IMF, type, sep = '.') %>%
   tidyr::spread(nFeature, iqr)
@@ -162,9 +160,12 @@ kinetic.ftr = dplyr::inner_join(kinetic.ftr.md, kinetic.ftr.iqr)
 
 kinetic.ftr.all = kinetic.ftr %>%
   # dplyr::select(-one_of(colnames(tmp.mat)[lm.combo$remove])) %>%
-  tidyr::gather(Feature, Value, -healthCode, -sensor, -measurementType) %>%
+  tidyr::gather(Feature, Value, -Assay, -recordId, -healthCode, -sensor, -measurementType) %>%
   tidyr::unite(featureName, Feature, measurementType, sensor, sep = '_') %>%
-  tidyr::spread(featureName, Value) 
+  tidyr::spread(featureName, Value) %>% 
+  dplyr::left_join(demo.tbl %>%
+                     dplyr::select(recordId, metadata.columns))
+
 #############
 # Upload data to Synapse
 #############
@@ -176,19 +177,19 @@ kinetic.ftr.all = kinetic.ftr %>%
 # A github token is required to access the elevateMS_analysis repository as it is private
 gtToken = '~/github_token.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
-thisFileName <- "featureExtraction/summarize_tremor_features.R" # location of file inside github repo
+thisFileName <- "featureExtraction/summarize_tremor_features_per_record.R" # location of file inside github repo
 thisRepo <- getRepo(repository = "itismeghasyam/elevateMS_analysis", 
                     ref="branch", 
                     refName="master")
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
 
 # name and describe this activity
-activityName = "Summarize tremor features"
+activityName = "Summarize tremor features per record"
 activityDescription = "Summarize tremor features into IQR and median"
 
 # upload to Synapse, summary features
 synapse.folder.id <- "syn19963670" # synId of folder to upload your file to
-OUTPUT_FILE <- "hcwiseSummaryFeatures_time_constraint.tsv" # name your file
+OUTPUT_FILE <- "recordwiseSummaryFeatures_time_constraint.tsv" # name your file
 write.table(kinetic.ftr.all, OUTPUT_FILE, sep="\t", row.names=F, quote=F, na="")
 synStore(File(OUTPUT_FILE, parentId=synapse.folder.id),
          activityName = activityName,
