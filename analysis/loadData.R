@@ -125,6 +125,7 @@ tmp <- function(x){
   x <- strsplit(as.character(x), ',')
   unique(unlist(x))
 }
+
 ## deleting cases when same trigger is present more than once in the entry
 triggers <- triggers %>% 
   mutate(trigger = purrr::map(.$trigger, tmp)) %>%
@@ -244,6 +245,8 @@ getDailyCheckin <- function(){
 }
 dailyCheckins <- getDailyCheckin()
 
+
+
 ##########
 #TappingF
 ##########
@@ -343,36 +346,29 @@ restF <- getRestF()
 ##############
 #TremorF
 ##############
-# getTremorF <- function(){
-#   df <- fread(synGet('syn20184333')$path, data.table = F)
-#   colnames(df)
-#   
-#   %>%
-#     dplyr::select(-accelerometer_walking_outbound.json.items, -deviceMotion_walking_outbound.json.items, 
-#                   -pedometer_walking_outbound.json.items, -accelerometer_walking_rest.json.items,   
-#                   -deviceMotion_walking_rest.json.items)
-#   df <- df %>% filter(healthCode %in% STUDY_HEALTHCODES) %>%
-#     dplyr:: select(-dataGroups) %>%
-#     dplyr::inner_join( baselineChar %>% select(healthCode, dataGroups)) %>%
-#     dplyr::filter(dataGroups %in% c('control', 'ms_patient')) %>%
-#     dplyr::mutate(metadata.json.startDate = lubridate::ymd_hms(metadata.json.startDate),
-#                   metadata.json.endDate = lubridate::ymd_hms(metadata.json.endDate))
-#   timeStampCol = 'metadata.json.startDate'
-#   timeZoneCol = 'metadata.json.startDate.timezone'
-#   df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
-#   df <- df %>%
-#     dplyr::mutate(activityDuration = as.numeric(metadata.json.endDate - metadata.json.startDate)) %>%
-#     dplyr::filter(participant_day >= 1) %>%
-#     dplyr::select(-uploadDate, -createdOn, -validationErrors,
-#                   -metadata.json.scheduledActivityGuid, -metadata.json.taskRunUUID,
-#                   -metadata.json.startDate, -metadata.json.startDate.timezone,
-#                   -metadata.json.endDate, -metadata.json.endDate.timezone,
-#                   -metadata.json.dataGroups, -metadata.json.taskIdentifier)
-# }
-# restF <- getRestF()
-
-
-
+getTremorF <- function(){
+  df <- fread(synGet('syn21297786')$path, data.table = F) %>%
+    dplyr::filter(healthCode %in% STUDY_HEALTHCODES) %>%
+    dplyr:: select(-dataGroups) %>%
+    dplyr::inner_join( baselineChar %>% select(healthCode, dataGroups)) %>%
+    dplyr::filter(dataGroups %in% c('control', 'ms_patient')) %>%
+    dplyr::mutate(metadata.json.startDate = lubridate::ymd_hms(metadata.json.startDate),
+                  metadata.json.endDate = lubridate::ymd_hms(metadata.json.endDate)) 
+  timeStampCol = 'metadata.json.startDate'
+  timeZoneCol = 'metadata.json.startDate.timezone'
+  df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
+  
+  df <- df %>%
+    dplyr::mutate(activityDuration = as.numeric(metadata.json.endDate - metadata.json.startDate)) %>%
+    dplyr::filter(participant_day >= 1) %>%
+    dplyr::select(-createdOn, -metadata.json.scheduledActivityGuid, -metadata.json.taskRunUUID,
+                  -metadata.json.startDate, -metadata.json.startDate.timezone,
+                  -metadata.json.endDate, -metadata.json.endDate.timezone,
+                  -metadata.json.taskIdentifier) %>%
+    dplyr::mutate(hand = gsub('handToNose_', '', Assay)) %>%
+    dplyr::select(-Assay)
+}
+tremorF <- getTremorF()
 
 
 ###############
@@ -463,6 +459,19 @@ nQOL_lowExtremity_week_avg <- nQOL_lowExtremity %>%   dplyr::group_by(healthCode
 
 nQOL_cognition_week_avg <- nQOL_cognition %>%  dplyr::group_by(healthCode, participant_week) %>%
   dplyr::summarise(TScore = mean(TScore, na.rm = T))
+
+
+##### WAPI Survey
+get_wapi_survey <- function(){
+  df <- fread(synGet('syn17868161')$path, data.table = F) %>%
+    dplyr:: select(-dataGroups, -ROW_ID, -ROW_VERSION, -rawData, -dayInStudy, -validationErrors) %>%
+    dplyr::inner_join( baselineChar %>% select(healthCode, dataGroups)) %>%
+    dplyr::filter(dataGroups %in% c('control', 'ms_patient')) 
+  timeStampCol = 'createdOn'
+  timeZoneCol = 'createdOnTimeZone'
+  df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
+}
+wapi_survey <- get_wapi_survey()
 
 
 
