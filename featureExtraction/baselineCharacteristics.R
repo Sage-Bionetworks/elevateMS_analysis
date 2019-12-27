@@ -38,7 +38,7 @@ race <- demog %>%
   dplyr::group_by(healthCode) %>%
   dplyr::summarise(race = paste(unique(race),collapse=','))
 demog <- merge(demog, race) %>% 
-  dplyr::select(-raceCols)
+  dplyr::select(-raceCols, -dayInStudy)
 demog <- demog %>% mutate(weight = weight/2.2) ##Pounds to Lb 
 
 
@@ -69,6 +69,7 @@ demog = rbind(demog, demog_from_profiles %>% dplyr::select(colnames(demog))) %>%
            health_insurance, employment, race, .keep_all=T) 
 
 
+colnames(demog)
 demog_long <- demog %>% gather(feature, value, c(2:11, 13))
 tmp_select_val <- function(date_of_entry, value){
     x <- data.frame(date_of_entry=date_of_entry, value=value) %>% 
