@@ -3,13 +3,12 @@ library(install.load)
 install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr'))
 
 source("~/dev/elevateMS_analysis/analysis/loadData.R")
-FREEZE_DATE = lubridate::ymd("2019-05-31")
+FREEZE_DATE = lubridate::ymd("2019-10-30")
 DAYS_SINCE_LAUNCH = as.numeric(FREEZE_DATE - lubridate::ymd("2017-08-14"))
 WEEKS_SINCE_LAUNCH = ( (DAYS_SINCE_LAUNCH - 1) %/% 7) + 1
 
 
 #baselineChar - no need to filter
-
 userActivity <- userActivity %>% filter(createdOn_localTime <= FREEZE_DATE)
 triggers <- triggers %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
 relapses <- relapses %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
@@ -30,6 +29,7 @@ tremorF <- tremorF %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
 #nQOL_lowExtremity_week_avg
 #nQOL_cognition_week_avg
 #weatherF <- weatherF - not filtered due to passive nature
+#wapi_survey
 
 needed <- c('triggers', 'dailyCheckins', 'relapses', 'weatherF',
             'nQOL_uppExtremity_week_avg', 'nQOL_lowExtremity_week_avg',
@@ -37,7 +37,7 @@ needed <- c('triggers', 'dailyCheckins', 'relapses', 'weatherF',
             'symptoms', 'nQOL_uppExtremity', 
             'nQOL_lowExtremity', 'dsst','nQOL_cognition',
             'tapF', 'walkF', 'restF', 'tremorF',
-            'userActivity', 'baselineChar', 'FREEZE_DATE', 
+            'userActivity', 'baselineChar', 'FREEZE_DATE', 'wapi_survey',
             'DAYS_SINCE_LAUNCH', 'WEEKS_SINCE_LAUNCH')
 
 rm(list=ls()[!ls() %in% needed])
