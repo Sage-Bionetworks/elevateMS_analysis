@@ -3,8 +3,10 @@
 .RData
 .Ruserdata
 *.tiff
+*.html
 *.png
 *.csv
 analysis/engagement_Paper_1/FINAL_FIGS/
 *.DS_Store
+analysis/Analytical_Paper_2/Figs_N_Tables/
 
