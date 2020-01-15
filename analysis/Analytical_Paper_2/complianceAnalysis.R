@@ -177,6 +177,14 @@ compliance <- compliance %>%
 View(compliance  %>% filter(complianceType == 'withOneSensorTaskperWeek') %>%
        arrange(group, week))
 
+## Save output for Publication
+tmp <- compliance  %>% 
+  dplyr::filter(complianceType == 'withOneSensorTaskperWeek') %>%
+  dplyr::arrange(group, week)
+write.table(tmp, file="analysis/Analytical_Paper_2/Figs_N_Tables/complianceNumbers.tsv", 
+            col.names = T, quote=F, row.names = F, sep="\t")
+
+
 
 #### This plot is showing compliance for users that remained in the study each week and completed atleast one active task
 p1 <- ggplot(data=compliance %>% filter(complianceType == 'withOneSensorTaskperWeek'),

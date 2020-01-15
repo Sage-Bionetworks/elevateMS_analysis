@@ -60,6 +60,11 @@ install_load("survival", "survminer")
 censor <- rep(1, nrow(userRetention))
 fit <- survfit(Surv(time=duration_in_study, event=censor) ~ group, data = userRetention )
 summary(fit)$table
+survivalData <- as.data.frame.matrix(summary(fit)$table)  %>%
+  dplyr::select(records, n.start, events, median, '0.95LCL','0.95UCL' )
+write.table(survivalData, file="analysis/Analytical_Paper_2/Figs_N_Tables/survivalAnalysis_Numbers.tsv",
+            row.names = T, col.names = T, sep="\t")
+
 summary(fit)
 p1 <- ggsurvplot(fit, pval = TRUE, conf.int = TRUE, 
                  xlab = "Days in study ", 
