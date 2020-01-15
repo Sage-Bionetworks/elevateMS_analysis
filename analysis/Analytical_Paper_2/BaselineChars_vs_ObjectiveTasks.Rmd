@@ -1,0 +1,89 @@
+---
+title: "elevateMS baseline PDDS vs objective tests"
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools', 'gridExtra')
+install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+synapser::synLogin()
+
+
+###Load data freeze
+load(synGet("syn19273733")$path)
+source("analysis/Analytical_Paper_2/common_analysis_functions.R")
+#source("common_analysis_functions.R")
+
+```
+
+
+
+```{r}
+#Baseline PDDS
+baseline_PDDS_value <- baselineChar %>% 
+  filter(!is.na(overallPhysicalAbility)) %>%
+  filter(dataGroups == 'ms_patient') %>%
+  select(healthCode, overallPhysicalAbility) %>%
+  mutate(overallPhysicalAbility = factor(overallPhysicalAbility, levels=c('normal', 'milddisability', 'moderatedisability', 'gaitdisability')))
+```
+
+
+
+##### Association between Number of Taps(averaged across all weeks) and baseline PDDS survey
+```{r}
+c <- tapF %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, c(TAP_FEATURES)) %>% 
+  select(healthCode, hand, feature, value) %>%
+  group_by(healthCode, hand, feature) %>% 
+  dplyr::summarise_all(.funs=c(mean=mean, median=median, IQR=IQR), na.rm=T) 
+
+#Integrate with baselineChars
+
+View(tapF_averaged)
+
+  inner_join(tmp_baselineChar) %>%
+  mutate(overallPhysicalAbility = factor(overallPhysicalAbility, levels=c('normal', 'milddisability', 'moderatedisability', 'gaitdisability')))
+
+tmp_df <- tapF_averaged  %>%
+  group_by(feature, hand) %>%
+  nest() %>%
+  mutate(res = purrr::map(data, function(x){
+    anova(lm(value ~ overallPhysicalAbility, data=x))
+  })) %>%
+  mutate(glance = res %>% map(broom::tidy))
+
+tmp_get_anova_pval <- function(x){
+  x %>% filter(term == 'overallPhysicalAbility') %>% .$p.value
+}
+
+tmp_df<- tmp_df %>% 
+  mutate(p.val = unlist(glance  %>% map( tmp_get_anova_pval ))) %>%
+  select(-glance, -data, -res)
+```
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=100}
+p <- ggboxplot(tapF_averaged %>% filter(feature == 'numberTaps'), 
+               x = "overallPhysicalAbility", y = "value", 
+               font.label = list(size=6, face="plain"),
+               legend.title="hand", ylab='number of taps', width=.5, size=.3,
+               color = "hand", palette = c('#247BA0', '#F25F5C'))
+my_comparisons <- list( c("normal", "milddisability"), c("normal", "moderatedisability"))
+p <- p + stat_compare_means(comparisons = my_comparisons) + # Add pairwise comparisons p-value
+  stat_compare_means(label.y = 0, label.x = 1.2, label.size = 0.25) 
+p <- p + theme_few()
+p
+ggsave("Figs_N_Tables/numberTaps_ALLWeeks_with_physicalDisability_boxplot.png", p, height=4, width=8, units="in", dpi=300)
+```
+
