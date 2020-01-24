@@ -1,12 +1,11 @@
 ---
-title: "elevateMS baseline PDDS vs objective tests"
+title: "elevateMS baseline characteristics vs objective tests"
 author: "Abhi Pratap"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 editor_options: 
   chunk_output_type: console
 ---
-
 
 
 ```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -19,61 +18,332 @@ install_load('ggthemes', 'devtools', 'gridExtra')
 install_load("ComplexHeatmap", "circlize", "RColorBrewer")
 synapser::synLogin()
 
-
 ###Load data freeze
 load(synGet("syn19273733")$path)
-source("analysis/Analytical_Paper_2/common_analysis_functions.R")
-#source("common_analysis_functions.R")
-
+#source("analysis/Analytical_Paper_2/common_analysis_functions.R")
+source("common_analysis_functions.R")
 ```
 
 
 
+
 ```{r}
-#Baseline PDDS
-baseline_PDDS_value <- baselineChar %>% 
-  filter(!is.na(overallPhysicalAbility)) %>%
-  filter(dataGroups == 'ms_patient') %>%
-  select(healthCode, overallPhysicalAbility) %>%
-  mutate(overallPhysicalAbility = factor(overallPhysicalAbility, levels=c('normal', 'milddisability', 'moderatedisability', 'gaitdisability')))
+baselineChar_tmp <- baselineChar  %>%
+  dplyr::filter(dataGroups == 'ms_patient') %>%
+  dplyr::mutate(age_group = cut(as.numeric(age), breaks=c(17,29,39,49, 59, 120)),
+                age_group = revalue(age_group, replace=c('(17,29]' = '18-29','(29,39]' = '30-39',
+                                                         '(39,49]' = '40-49','(49,59]' = '50-59',
+                                                         '(59,120]' = '60+')),
+                YearsSinceDiagnosis.grouped = cut(as.numeric(YearsSinceDiagnosis), breaks=c(1,4,10,18,100)),
+                YearsSinceFirstDMT.grouped = cut(as.numeric(YearsSinceFirstDMT), breaks=c(1,4,10,18,100)),
+                race.mod = ifelse(race == 'caucasian', 'Caucasian', 'Non-Caucasian'),
+                race.mod = factor(race.mod),
+                education = factor(education),
+                gender = factor(gender),
+                health_insurance.mod = ifelse(health_insurance == 'no insurance', NA, health_insurance),
+                health_insurance.mod = factor(health_insurance.mod),
+                msFamilyHistory = factor(msFamilyHistory),
+                employment = factor(employment)) %>%
+  dplyr::select(healthCode, overallPhysicalAbility, race.mod, age_group, education, employment,
+                gender, health_insurance.mod, YearsSinceFirstDMT.grouped, 
+                YearsSinceDiagnosis.grouped, msFamilyHistory ) %>%
+  dplyr::mutate(overallPhysicalAbility = factor(overallPhysicalAbility, 
+                                                levels=c('normal', 'milddisability', 
+                                                         'moderatedisability', 'gaitdisability')))
 ```
 
 
+-----
 
-##### Association between Number of Taps(averaged across all weeks) and baseline PDDS survey
+
+### Correlation between PDDS Survey(Overall Physical Disability) and other meta data 
+
+```{r, fig.align='center', fig.width=8, fig.height=6}
+library(heatmaply)
+#devtools::install_github("th1vairam/CovariateAnalysis")
+corOutput = CovariateAnalysis::getAssociationStatistics(baselineChar_tmp %>% 
+                                              select(overallPhysicalAbility, health_insurance.mod,
+                                                     YearsSinceDiagnosis.grouped, employment,
+                                                     YearsSinceFirstDMT.grouped,msFamilyHistory,
+                                                     age_group, education, race.mod))
+
+cors <- as.data.frame( corOutput$ESTIMATE) %>% 
+  rownames_to_column(var='var1') %>% 
+  tidyr::gather('var2', 'cor', -var1)
+
+pvals <- as.data.frame( corOutput$PVAL) %>% 
+  rownames_to_column(var='var1') %>% 
+  tidyr::gather('var2', 'pval', -var1) 
+
+res = merge(pvals, cors) %>% 
+  mutate(pval = round(pval, digits = 4),
+         cor = round(cor, digits=4)) %>%
+  filter(var1 == 'overallPhysicalAbility') %>%
+  select(-var1) %>%
+  dplyr::arrange(desc(cor))
+
+library(DT)
+datatable(res, rownames = F)
+```
+
+
+------
+
+
+### Association between Tap Features(summarized over time) and baseline characteristics survey
+_We adjust for hand in the model_
+
 ```{r}
-c <- tapF %>% 
+tmp_calc_kurtosis <- function(x, na.rm){
+  e1071::kurtosis(x, na.rm = na.rm, type=1)
+}
+
+tapF_averaged <- tapF %>% 
   dplyr::filter(dataGroups == 'ms_patient') %>% 
   tidyr::gather(feature, value, c(TAP_FEATURES)) %>% 
   select(healthCode, hand, feature, value) %>%
   group_by(healthCode, hand, feature) %>% 
-  dplyr::summarise_all(.funs=c(mean=mean, median=median, IQR=IQR), na.rm=T) 
+  dplyr::summarise_all(.funs=c(median=median, IQR=IQR), na.rm=T) %>%
+  tidyr::gather(stat, value, c('median', 'IQR')) %>%
+  dplyr::mutate(feature = paste0(feature,'.',stat)) %>% 
+  dplyr::select(-stat)
 
-#Integrate with baselineChars
+baselineChars_vs_tapF <- baselineChar_tmp %>% 
+  dplyr::select(healthCode, overallPhysicalAbility, YearsSinceDiagnosis.grouped,
+                YearsSinceFirstDMT.grouped, msFamilyHistory,
+                age_group, education, race.mod) %>%
+  tidyr::gather(baselineChar, baselineValue, c(2:8)) %>%
+  inner_join(tapF_averaged)
 
-View(tapF_averaged)
-
-  inner_join(tmp_baselineChar) %>%
-  mutate(overallPhysicalAbility = factor(overallPhysicalAbility, levels=c('normal', 'milddisability', 'moderatedisability', 'gaitdisability')))
-
-tmp_df <- tapF_averaged  %>%
-  group_by(feature, hand) %>%
+association_baselineChars_vs_tapF <- baselineChars_vs_tapF  %>%
+  group_by(feature, baselineChar) %>%
   nest() %>%
-  mutate(res = purrr::map(data, function(x){
-    anova(lm(value ~ overallPhysicalAbility, data=x))
-  })) %>%
-  mutate(glance = res %>% map(broom::tidy))
+  mutate(res = purrr::map(data, function(x){ anova(lm(value ~ baselineValue + hand, data=x)) })) %>%
+  mutate(glance = res %>% map(broom::tidy)) %>%
+  select(-data, -res) %>%
+  unnest() %>%
+  dplyr::filter(term == 'baselineValue') %>% as.data.frame() %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
 
-tmp_get_anova_pval <- function(x){
-  x %>% filter(term == 'overallPhysicalAbility') %>% .$p.value
-}
 
-tmp_df<- tmp_df %>% 
-  mutate(p.val = unlist(glance  %>% map( tmp_get_anova_pval ))) %>%
-  select(-glance, -data, -res)
+##Feature with best association with PDDS
+bestTapF_PDDS_feature  <- association_baselineChars_vs_tapF %>%
+  dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
+  dplyr::slice(which.min(p.val.adj)) %>% .$feature
+
+bestTapF_vs_baselineChar <- association_baselineChars_vs_tapF %>%
+  dplyr::filter(feature == bestTapF_PDDS_feature) %>%
+  dplyr::select(baselineChar, feature, p.val.adj) %>%
+  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
+  
+datatable(bestTapF_vs_baselineChar)
 ```
 
-```{r, fig.align='center', fig.width=8, fig.height=5, dpi=100}
+
+<br><br>
+
+
+#### Median number of taps vs top baseline characteristics
+
+```{r, fig.align='center', fig.width=6, fig.height=4}
+ggplot(data = baselineChars_vs_tapF %>% 
+         dplyr::filter(feature == 'numberTaps.median', baselineChar == 'overallPhysicalAbility'),
+       aes(y=value, x=(baselineValue))) + geom_boxplot()  + theme_bw() + xlab('overallPhysicalAbility')
+
+ggplot(data = baselineChars_vs_tapF %>% 
+         dplyr::filter(feature == 'numberTaps.median', baselineChar == 'age_group'),
+       aes(y=value, x=(baselineValue))) + geom_boxplot()  + theme_bw() +  xlab('overallPhysicalAbility')
+
+ggplot(data = baselineChars_vs_tapF %>% 
+         dplyr::filter(feature == 'numberTaps.median', baselineChar == 'education'),
+       aes(y=value, x=baselineValue)) + geom_boxplot()  + theme_bw() +  xlab('overallPhysicalAbility')
+```
+
+
+
+<br><br>
+
+
+### Association between Walk Features(summarized over time) and baseline characteristics survey
+
+```{r}
+walkF_averaged <- walkF %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, c(WALK_FEATURES)) %>% 
+  select(healthCode, feature, value) %>%
+  group_by(healthCode, feature) %>% 
+  dplyr::summarise_all(.funs=c(median=median, IQR=IQR), na.rm=T) %>%
+  tidyr::gather(stat, value, c('median', 'IQR')) %>%
+  dplyr::mutate(feature = paste0(feature,'.',stat)) %>% 
+  dplyr::select(-stat)
+
+
+baselineChars_vs_walkF <- baselineChar_tmp %>% 
+   dplyr::select(healthCode, overallPhysicalAbility, YearsSinceDiagnosis.grouped,
+                YearsSinceFirstDMT.grouped, msFamilyHistory,
+                age_group, education, race.mod) %>%
+  tidyr::gather(baselineChar, baselineValue, c(2:8)) %>%
+  inner_join(walkF_averaged)
+
+
+association_baselineChars_vs_walkF <- baselineChars_vs_walkF  %>%
+  group_by(feature, baselineChar) %>%
+  nest() %>%
+  mutate(res = purrr::map(data, function(x){ anova(lm(value ~ baselineValue, data=x)) })) %>%
+  mutate(glance = res %>% map(broom::tidy)) %>%
+  select(-data, -res) %>%
+  unnest() %>%
+  dplyr::filter(term == 'baselineValue') %>% as.data.frame() %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+
+
+##Feature with best association with PDDS
+bestWalkF_PDDS_feature  <- association_baselineChars_vs_walkF %>%
+  dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
+  dplyr::slice(which.min(p.val.adj)) %>% .$feature
+
+  
+bestWalkF_vs_baselineChar <- association_baselineChars_vs_walkF %>% 
+  dplyr::filter(feature == bestWalkF_PDDS_feature) %>%
+  dplyr::select(baselineChar, feature, p.val.adj) %>%
+  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
+
+datatable(bestWalkF_vs_baselineChar %>% dplyr::arrange(p.val.adj))
+```
+
+
+
+```{r, fig.align='center', fig.width=5, fig.height=5}
+ggplot(data = baselineChars_vs_walkF %>% 
+         dplyr::filter(feature == 'P0FY.median', baselineChar == 'overallPhysicalAbility'),
+       aes(y=log10(value), x=baselineValue)) + geom_boxplot() +  theme_bw() +  xlab('overallPhysicalAbility')
+```
+
+
+
+<br>
+
+
+### Association between Tremor Features(summarized over time) and baseline characteristics survey
+
+
+```{r}
+tremorF_averaged <- tremorF %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, c(TREMOR_FEATURES)) %>% 
+  select(healthCode, feature, value) %>%
+  group_by(healthCode, feature) %>% 
+  dplyr::summarise_all(.funs=c(median=median, IQR=IQR), na.rm=T) %>%
+  tidyr::gather(stat, value, c('median', 'IQR')) %>%
+  dplyr::mutate(feature = paste0(feature,'.',stat)) %>% 
+  dplyr::select(-stat)
+
+baselineChars_vs_tremorF <- baselineChar_tmp %>% 
+   dplyr::select(healthCode, overallPhysicalAbility, YearsSinceDiagnosis.grouped,
+                YearsSinceFirstDMT.grouped, msFamilyHistory,
+                age_group, education, race.mod) %>%
+  tidyr::gather(baselineChar, baselineValue, c(2:8)) %>%
+  inner_join(tremorF_averaged)
+
+association_baselineChars_vs_tremorF <- baselineChars_vs_tremorF  %>%
+  group_by(feature, baselineChar) %>%
+  nest() %>%
+  mutate(res = purrr::map(data,function(x) anova(lm(value ~ baselineValue, data=x)))) %>%
+  mutate(glance = res %>% map(broom::tidy)) %>%
+  select(-data, -res) %>%
+  unnest() %>%
+  dplyr::filter(term == 'baselineValue') %>% as.data.frame() %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+
+##Feature with best association with PDDS
+bestTremorF_PDDS_feature  <- association_baselineChars_vs_tremorF %>%
+  dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
+  dplyr::slice(which.min(p.val.adj)) %>% .$feature
+
+bestTremorF_vs_baselineChar <- association_baselineChars_vs_tremorF %>% 
+  dplyr::filter(feature == bestTremorF_PDDS_feature) %>%
+  dplyr::select(baselineChar, feature, p.val.adj) %>%
+  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
+
+datatable(bestTremorF_vs_baselineChar %>% dplyr::arrange(p.val.adj))
+```
+
+
+----
+<br>
+
+### Association between Rest Features(summarized over time) and baseline characteristics survey
+
+
+```{r}
+restF_averaged <- restF %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, c(REST_FEATURES)) %>% 
+  select(healthCode, feature, value) %>%
+  group_by(healthCode, feature) %>% 
+  dplyr::summarise_all(.funs=c(median=median, IQR=IQR), na.rm=T) %>%
+  tidyr::gather(stat, value, c('median', 'IQR')) %>%
+  dplyr::mutate(feature = paste0(feature,'.',stat)) %>% 
+  dplyr::select(-stat)
+
+baselineChars_vs_restF <- baselineChar_tmp %>% 
+   dplyr::select(healthCode, overallPhysicalAbility, YearsSinceDiagnosis.grouped,
+                YearsSinceFirstDMT.grouped, msFamilyHistory,
+                age_group, education, race.mod) %>%
+  tidyr::gather(baselineChar, baselineValue, c(2:8)) %>%
+  inner_join(restF_averaged)
+
+association_baselineChars_vs_restF <- baselineChars_vs_restF  %>%
+  group_by(feature, baselineChar) %>%
+  nest() %>%
+  mutate(res = purrr::map(data,function(x) anova(lm(value ~ baselineValue, data=x)))) %>%
+  mutate(glance = res %>% map(broom::tidy)) %>%
+  select(-data, -res) %>%
+  unnest() %>%
+  dplyr::filter(term == 'baselineValue') %>% as.data.frame() %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+
+
+##Feature with best association with PDDS
+bestRestF_PDDS_feature  <- association_baselineChars_vs_restF %>%
+  dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
+  dplyr::slice(which.min(p.val.adj)) %>% .$feature
+
+bestRestF_vs_baselineChar <- association_baselineChars_vs_restF %>% 
+  dplyr::filter(feature == bestRestF_PDDS_feature) %>%
+  dplyr::select(baselineChar, feature, p.val.adj) %>%
+  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
+
+datatable(bestRestF_vs_baselineChar %>% dplyr::arrange(p.val.adj))
+```
+
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+thisFileDir = '~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/'
+setwd(thisFileDir)
+thisFilePrefix = "BaselineChars_vs_ObjectiveTasks"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+thisFilePrefix = "BaselineChars_vs_ObjectiveTasks"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt';
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
+###Store on Synapse
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+unlink(paste0(thisFilePrefix, '.html'))
+```
+
+
+
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=100, eval=F}
 p <- ggboxplot(tapF_averaged %>% filter(feature == 'numberTaps'), 
                x = "overallPhysicalAbility", y = "value", 
                font.label = list(size=6, face="plain"),
