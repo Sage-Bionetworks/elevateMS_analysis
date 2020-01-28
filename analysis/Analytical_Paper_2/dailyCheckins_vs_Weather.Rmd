@@ -1,10 +1,9 @@
 ---
-title: "ElevateMS -Daily Check-in's vs Weather"
+title: "ElevateMS Daily Check-in's vs Weather"
 author: "Abhi Pratap"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
-
 
 
 ```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -22,7 +21,7 @@ synapser::synLogin()
 
 ###Load data freeze
 load(synGet("syn19273733")$path)
-source("common_analysis_functions.R")
+source("~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/common_analysis_functions.R")
 ```
 
 
@@ -30,29 +29,36 @@ source("common_analysis_functions.R")
 ```{r}
 dailyCheckins_flt <- dailyCheckins %>% dplyr::filter(dataGroups == 'ms_patient') %>%
   dplyr::mutate(checkin_date = as.Date(activity_start_timestamp_GMT )) %>%
-  dplyr::select(healthCode, checkin_date, pain=mood_pain, mobility=mood_mobility, health=mood_health,
+  dplyr::select(healthCode, checkin_date, pain=mood_pain, 
+                mobility=mood_mobility, health=mood_health,
                 participant_day, participant_week) %>%
   dplyr::mutate(pain = as.factor(pain),
                 mobility = as.factor(mobility),
                 health = as.factor(health))
 
+
 weatherF_flt <- weatherF %>%
   dplyr::mutate(weather_date = as.Date(timestamp)) %>%
-  dplyr::select(healthCode, weather_date, atmosphericPressure, cloudCoverage, currentTemperature, humidity, maximumTemperature, minimumTemperature)
+  dplyr::select(healthCode, weather_date, atmosphericPressure, 
+                cloudCoverage, currentTemperature, humidity, 
+                maximumTemperature, minimumTemperature)
 
 
 dailyCheckins_N_weather <- merge(dailyCheckins_flt, weatherF_flt, 
                             by.x=c('healthCode', 'checkin_date'), 
-                            by.y=c('healthCode', 'weather_date')) 
+                            by.y=c('healthCode', 'weather_date')) %>%
+  dplyr::mutate(pain = as.factor(pain),
+                mobility = as.factor(mobility),
+                health = as.factor(mobility))
 ```
 
 
 ### Daily Health vs Weather
 
-
 ```{r}
 #### Mixed effect modelling
 install_load("lme4", "lmerTest", "broom")
+
 res.1 <- lmer(atmosphericPressure ~ health + (1 | healthCode), 
             data=dailyCheckins_N_weather )
 res.2 <- lmer(cloudCoverage ~ health  + (1 | healthCode), 
@@ -70,22 +76,43 @@ sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 
 
 
+```{r, eval=F}
+#orindal GEE
+install_load("multgee")
+data("arthritis", package = "multgee")
+
+x <- dailyCheckins_N_weather %>% 
+  group_by(healthCode) %>%
+  arrange(healthCode, checkin_date) %>%
+  mutate(wave = 1:length(checkin_date)) %>%
+  as.data.frame()
+str(x)
+
+mod <- geepack::ordgee( formula = ordered(health) ~  humidity, 
+                        id=healthCode, corstr = ("exchangeable"), data=x)
+
+summary(mod)
+```
+
+
 ### Visual difference between weather features and daily health
 
 ```{r fig.align='center', fig.width=12, fig.height=4, dpi=100}
 ### Plot top differentiator - cloudCoverage
-p <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=cloudCoverage)) + geom_boxplot(width=0.6)
-p1 <- p + theme_light(base_size = 12) + xlab('self reported daily health score')
+p1 <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=currentTemperature)) + geom_boxplot(width=0.6)
+p1 <- p1 + xlab('daily health score') + ylab("Temperature(F)")
+p1 <- p1 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15)
+ggsave("Figs_N_Tables/WeatherTemp_vs_HealthScore.jpeg", plot = p1, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/WeatherTemp_vs_HealthScore.tiff", plot = p1, width = 8, height = 6, dpi = 300)
 
 
-p <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=currentTemperature)) + geom_boxplot(width=0.6)
-p2 <- p + theme_light(base_size = 12) + xlab('self reported daily health score')
+p2 <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=humidity)) + geom_boxplot(width=0.6)
+p2 <- p2 + xlab('daily health score') + ylab("Humidity")
+p2 <- p2 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15)
+ggsave("Figs_N_Tables/WeatherHumidity_vs_HealthScore.jpeg", plot = p1, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/WeatherHumidity_vs_HealthScore.tiff", plot = p1, width = 8, height = 6, dpi = 300)
 
-p <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=humidity)) + geom_boxplot(width=0.6)
-p3 <- p + theme_light(base_size = 12) + xlab('self reported daily health score')
-
-
-gridExtra::grid.arrange(p1, p2, p3, nrow=1)
+gridExtra::grid.arrange(p1, p2, nrow=1)
 ```
 
 
@@ -111,23 +138,17 @@ sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 
 
 ### Visual difference between weather features and daily mobility
-```{r fig.align='center', fig.width=12, fig.height=4, dpi=100}
-### Plot top differentiator - cloudCoverage
-p <- ggplot(data=dailyCheckins_N_weather, aes(x=mobility, y=humidity)) + geom_boxplot(width=0.6)
-p1 <- p + theme_light(base_size = 12) + xlab('self reported daily mobility')
-
-p <- ggplot(data=dailyCheckins_N_weather, aes(x=mobility, y=maximumTemperature)) + geom_boxplot(width=0.6)
-p2 <- p + theme_light(base_size = 12) + xlab('self reported daily mobility')
-
-p <- ggplot(data=dailyCheckins_N_weather, aes(x=mobility, y=minimumTemperature)) + geom_boxplot(width=0.6)
-p3 <- p + theme_light(base_size = 12) + xlab('self reported daily mobility')
-
-gridExtra::grid.arrange(p1, p2, p3, nrow=1)
+```{r fig.align='center', fig.width=6, fig.height=4, dpi=100}
+p1 <- ggplot(data=dailyCheckins_N_weather, aes(x=mobility, y=currentTemperature)) + geom_boxplot(width=0.6)
+p1 <- p1 + xlab('daily mobility') +  ylab("Temperature(F)")
+p1 <- p1 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_light(base_size = 15)
+p1
+ggsave("Figs_N_Tables/WeatherTemp_vs_dailyMobility.jpeg", plot = p1, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/WeatherTemp_vs_dailyMobility.tiff", plot = p1, width = 8, height = 6, dpi = 300)
 ```
 
 
 -------
-
 
 ### Daily Pain vs Weather
 
@@ -144,8 +165,8 @@ sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 ```
 
 
+```{r fig.align='center', fig.width=4, fig.height=4, dpi=100, eval=F}
 ### Visual difference between weather features and daily pain
-```{r fig.align='center', fig.width=4, fig.height=4, dpi=100}
 ### Plot top differentiator - cloudCoverage
 p <- ggplot(data=dailyCheckins_N_weather, aes(x=pain, y=humidity)) + geom_boxplot(width=0.6)
 p1 <- p + theme_light(base_size = 12) + xlab('self reported daily pain')
