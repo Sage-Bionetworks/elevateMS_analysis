@@ -30,8 +30,8 @@ library(githubr)
 # does not have a good feature extraction pipeline for walk
 ####### -- NOTE -- #######
 
+#devtools::install_github("Sage-Bionetworks/mpowertools")
 library(mpowertools) 
-# devtools::install_github("Sage-Bionetworks/mpowertools")
 
 
 #############
@@ -65,7 +65,7 @@ walk.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", walk.tbl.id))
 walk.tbl <- walk.tbl.syn$asDataFrame()
 
 ## Convert createdOn into an understandable datetime format
-walk.tbl$createdOn <- lubridate::as_datetime(walk.tbl$createdOn/1000)
+walk.tbl$createdOn <- lubridate::ymd_hms(walk.tbl$createdOn)
 
 ## Account for timezone change, if column is in local time
 # walk.tbl$createdOn <- walk.tbl$createdOn - 60*60*as.numeric(walk.tbl$createdOnTimeZone)/100
