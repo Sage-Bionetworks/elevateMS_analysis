@@ -20,8 +20,7 @@ synapser::synLogin()
 
 ###Load data freeze
 load(synGet("syn19273733")$path)
-#source("analysis/Analytical_Paper_2/common_analysis_functions.R")
-source("common_analysis_functions.R")
+source("~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/common_analysis_functions.R")
 ```
 
 
@@ -78,7 +77,8 @@ res = merge(pvals, cors) %>%
          cor = round(cor, digits=4)) %>%
   filter(var1 == 'overallPhysicalAbility') %>%
   select(-var1) %>%
-  dplyr::arrange(desc(cor))
+  dplyr::arrange(desc(cor)) %>%
+  rename(baselineChar = var2)
 
 library(DT)
 datatable(res, rownames = F)
@@ -120,9 +120,13 @@ association_baselineChars_vs_tapF <- baselineChars_vs_tapF  %>%
   mutate(glance = res %>% map(broom::tidy)) %>%
   select(-data, -res) %>%
   unnest() %>%
-  dplyr::filter(term == 'baselineValue') %>% as.data.frame() %>%
-  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
-
+  dplyr::filter(term == 'baselineValue') %>% 
+  group_by(baselineChar) %>%
+  nest() %>%
+  mutate(res = map(data, function(df) { data.frame(feature = df$feature,p.value = df$p.value,
+                                                   p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
+  select(-data) %>% 
+    unnest()
 
 ##Feature with best association with PDDS
 bestTapF_PDDS_feature  <- association_baselineChars_vs_tapF %>%
@@ -144,17 +148,35 @@ datatable(bestTapF_vs_baselineChar)
 #### Median number of taps vs top baseline characteristics
 
 ```{r, fig.align='center', fig.width=6, fig.height=4}
-ggplot(data = baselineChars_vs_tapF %>% 
-         dplyr::filter(feature == 'numberTaps.median', baselineChar == 'overallPhysicalAbility'),
-       aes(y=value, x=(baselineValue))) + geom_boxplot()  + theme_bw() + xlab('overallPhysicalAbility')
+#1 
+df <- baselineChars_vs_tapF %>%
+  dplyr::filter(baselineChar == "overallPhysicalAbility", feature == 'numberTaps.median') %>%
+  filter(!is.na(baselineValue)) %>%
+  dplyr::mutate(baselineValue = gsub('disability', '-disability', baselineValue),
+                  baselineValue = factor(baselineValue, 
+                                         levels=c('normal', 'mild-disability',
+                                                  'moderate-disability', 'gait-disability')))
 
-ggplot(data = baselineChars_vs_tapF %>% 
-         dplyr::filter(feature == 'numberTaps.median', baselineChar == 'age_group'),
-       aes(y=value, x=(baselineValue))) + geom_boxplot()  + theme_bw() +  xlab('overallPhysicalAbility')
+p <- ggplot(data = df, aes(y=value, x=(baselineValue))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15) + xlab('PDDS Category') + ylab("number of taps(median)")
+ggsave("Figs_N_Tables/BaselinePDDS_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
 
-ggplot(data = baselineChars_vs_tapF %>% 
-         dplyr::filter(feature == 'numberTaps.median', baselineChar == 'education'),
-       aes(y=value, x=baselineValue)) + geom_boxplot()  + theme_bw() +  xlab('overallPhysicalAbility')
+
+#2 
+df <- baselineChars_vs_tapF %>%
+  dplyr::filter(baselineChar == "age_group", feature == 'numberTaps.median') %>%
+  filter(!is.na(baselineValue))
+p <- ggplot(data = df, aes(y=value, x=(baselineValue))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15) +  xlab('Age group') + ylab("number of taps(median)")
+ggsave("Figs_N_Tables/BaselineAge_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/BaselineAge_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+
+
+
+#3
+#df <- baselineChars_vs_tapF %>%
+#  dplyr::filter(baselineChar == "education", feature == 'numberTaps.median') %>%
+#  filter(!is.na(baselineValue))
+#ggplot(data = df, aes(y=value, x=baselineValue)) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60")  + theme_bw(base_size = 15) +  xlab('overallPhysicalAbility')
 ```
 
 
@@ -191,8 +213,13 @@ association_baselineChars_vs_walkF <- baselineChars_vs_walkF  %>%
   mutate(glance = res %>% map(broom::tidy)) %>%
   select(-data, -res) %>%
   unnest() %>%
-  dplyr::filter(term == 'baselineValue') %>% as.data.frame() %>%
-  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+  dplyr::filter(term == 'baselineValue') %>% 
+  group_by(baselineChar) %>%
+  nest() %>%
+  mutate(res = map(data, function(df) { data.frame(feature = df$feature,p.value = df$p.value,
+                                                   p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
+  select(-data) %>% 
+    unnest()
 
 
 ##Feature with best association with PDDS
@@ -200,7 +227,6 @@ bestWalkF_PDDS_feature  <- association_baselineChars_vs_walkF %>%
   dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
   dplyr::slice(which.min(p.val.adj)) %>% .$feature
 
-  
 bestWalkF_vs_baselineChar <- association_baselineChars_vs_walkF %>% 
   dplyr::filter(feature == bestWalkF_PDDS_feature) %>%
   dplyr::select(baselineChar, feature, p.val.adj) %>%
@@ -212,9 +238,18 @@ datatable(bestWalkF_vs_baselineChar %>% dplyr::arrange(p.val.adj))
 
 
 ```{r, fig.align='center', fig.width=5, fig.height=5}
-ggplot(data = baselineChars_vs_walkF %>% 
-         dplyr::filter(feature == 'P0FY.median', baselineChar == 'overallPhysicalAbility'),
-       aes(y=log10(value), x=baselineValue)) + geom_boxplot() +  theme_bw() +  xlab('overallPhysicalAbility')
+df <- baselineChars_vs_walkF %>%
+  dplyr::filter(baselineChar == "overallPhysicalAbility", feature == 'medianF0FAJ.median') %>%
+  filter(!is.na(baselineValue)) %>%
+  dplyr::mutate(baselineValue = gsub('disability', '-disability', baselineValue),
+                  baselineValue = factor(baselineValue, 
+                                         levels=c('normal', 'mild-disability',
+                                                  'moderate-disability', 'gait-disability')))
+
+p <- ggplot(data = df,
+       aes(y=log10(value), x=baselineValue)) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") +  theme_bw()  + theme_bw(base_size = 15) + xlab('PDDS Category') + ylab("F0FAJ.median")
+ggsave("Figs_N_Tables/BaselinePDDS_vs_WalkF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_WalkF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
 ```
 
 
@@ -250,8 +285,14 @@ association_baselineChars_vs_tremorF <- baselineChars_vs_tremorF  %>%
   mutate(glance = res %>% map(broom::tidy)) %>%
   select(-data, -res) %>%
   unnest() %>%
-  dplyr::filter(term == 'baselineValue') %>% as.data.frame() %>%
-  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+  dplyr::filter(term == 'baselineValue') %>% 
+  group_by(baselineChar) %>%
+  nest() %>%
+  mutate(res = map(data, function(df) { data.frame(feature = df$feature,p.value = df$p.value,
+                                                   p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
+  select(-data) %>% 
+    unnest()
+
 
 ##Feature with best association with PDDS
 bestTremorF_PDDS_feature  <- association_baselineChars_vs_tremorF %>%
@@ -271,7 +312,6 @@ datatable(bestTremorF_vs_baselineChar %>% dplyr::arrange(p.val.adj))
 <br>
 
 ### Association between Rest Features(summarized over time) and baseline characteristics survey
-
 
 ```{r}
 restF_averaged <- restF %>% 
@@ -298,8 +338,14 @@ association_baselineChars_vs_restF <- baselineChars_vs_restF  %>%
   mutate(glance = res %>% map(broom::tidy)) %>%
   select(-data, -res) %>%
   unnest() %>%
-  dplyr::filter(term == 'baselineValue') %>% as.data.frame() %>%
-  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+  dplyr::filter(term == 'baselineValue') %>% 
+  group_by(baselineChar) %>%
+  nest() %>%
+  mutate(res = map(data, function(df) { data.frame(feature = df$feature,p.value = df$p.value,
+                                                   p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
+  select(-data) %>% 
+    unnest()
+
 
 
 ##Feature with best association with PDDS
@@ -315,6 +361,75 @@ bestRestF_vs_baselineChar <- association_baselineChars_vs_restF %>%
 datatable(bestRestF_vs_baselineChar %>% dplyr::arrange(p.val.adj))
 ```
 
+
+
+### Association between DSST Features (summarized over time) and baseline characteristics survey
+
+```{r}
+DSST_FEATURES <- c("numDigits", "numCorrect", "percentCorrect", 
+                   "avgTime", "sdTime", "totalTime")
+
+dsstF_averaged <- dsst %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, c(DSST_FEATURES)) %>% 
+  select(healthCode, feature, value) %>%
+  group_by(healthCode, feature) %>% 
+  dplyr::summarise_all(.funs=c(median=median, IQR=IQR), na.rm=T) %>%
+  tidyr::gather(stat, value, c('median', 'IQR')) %>%
+  dplyr::mutate(feature = paste0(feature,'.',stat)) %>% 
+  dplyr::select(-stat)
+
+baselineChars_vs_dsstF <- baselineChar_tmp %>% 
+   dplyr::select(healthCode, overallPhysicalAbility, YearsSinceDiagnosis.grouped,
+                YearsSinceFirstDMT.grouped, msFamilyHistory,
+                age_group, education, race.mod) %>%
+  tidyr::gather(baselineChar, baselineValue, c(2:8)) %>%
+  inner_join(dsstF_averaged)
+
+association_baselineChars_vs_dsstF <- baselineChars_vs_dsstF  %>%
+  group_by(feature, baselineChar) %>%
+  nest() %>%
+  mutate(res = purrr::map(data,function(x) anova(lm(value ~ baselineValue, data=x)))) %>%
+  mutate(glance = res %>% map(broom::tidy)) %>%
+  select(-data, -res) %>%
+  unnest() %>%
+  dplyr::filter(term == 'baselineValue') %>% 
+  group_by(baselineChar) %>%
+  nest() %>%
+  mutate(res = map(data, function(df) { data.frame(feature = df$feature,p.value = df$p.value,
+                                                   p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
+  select(-data) %>% 
+    unnest()
+
+##Feature with best association with PDDS
+bestDSSTF_PDDS_feature  <- association_baselineChars_vs_dsstF %>%
+  dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
+  dplyr::slice(which.min(p.val.adj)) %>% .$feature
+
+bestDSSTF_vs_baselineChar <- association_baselineChars_vs_dsstF %>% 
+  dplyr::filter(feature == bestDSSTF_PDDS_feature) %>%
+  dplyr::select(baselineChar, feature, p.val.adj) %>%
+  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
+
+datatable(bestDSSTF_vs_baselineChar %>% dplyr::arrange(p.val.adj))
+```
+
+
+
+```{r, fig.align='center', fig.width=8, fig.height=6}
+df <- baselineChars_vs_dsstF %>%
+  dplyr::filter(baselineChar == "overallPhysicalAbility", feature == 'numCorrect.median') %>%
+  filter(!is.na(baselineValue)) %>%
+  dplyr::mutate(baselineValue = gsub('disability', '-disability', baselineValue),
+                  baselineValue = factor(baselineValue, 
+                                         levels=c('normal', 'mild-disability',
+                                                  'moderate-disability', 'gait-disability')))
+p <- ggplot(data = df,
+       aes(y=(value), x=baselineValue)) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") +  theme_bw()  + theme_bw(base_size = 15) + xlab('PDDS Category') + ylab("number correct (median)")
+p
+ggsave("Figs_N_Tables/BaselinePDDS_vs_DSSTF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_DSSTF1.tiff", plot = p, width =8, height = 6, dpi = 300)
+```
 
 
 
@@ -339,19 +454,4 @@ unlink(paste0(thisFilePrefix, '.html'))
 ```
 
 
-
-
-```{r, fig.align='center', fig.width=8, fig.height=5, dpi=100, eval=F}
-p <- ggboxplot(tapF_averaged %>% filter(feature == 'numberTaps'), 
-               x = "overallPhysicalAbility", y = "value", 
-               font.label = list(size=6, face="plain"),
-               legend.title="hand", ylab='number of taps', width=.5, size=.3,
-               color = "hand", palette = c('#247BA0', '#F25F5C'))
-my_comparisons <- list( c("normal", "milddisability"), c("normal", "moderatedisability"))
-p <- p + stat_compare_means(comparisons = my_comparisons) + # Add pairwise comparisons p-value
-  stat_compare_means(label.y = 0, label.x = 1.2, label.size = 0.25) 
-p <- p + theme_few()
-p
-ggsave("Figs_N_Tables/numberTaps_ALLWeeks_with_physicalDisability_boxplot.png", p, height=4, width=8, units="in", dpi=300)
-```
 

@@ -208,11 +208,19 @@ df <- df$data[[1]]
 #   mutate(ymin = mean-sd,
 #          ymax = mean + sd)
 
-ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL-Cognition') + ylab('log10(maxTapInterval)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL-Cognition') + ylab('log10(maxTapInterval)') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/NeuroQoL_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+
  
 df  <- tapF_association %>% filter(feature == 'maxTapInter', survey == 'neuroQOL Upper Extremity')
 df <- df$data[[1]]
-ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.9) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL Upper Extremity') + ylab('log10(maxTapInterval)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.9) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL Upper Extremity') + ylab('log10(maxTapInterval)') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/NeuroQoL_vs_TapF2.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_TapF2.tiff", plot = p, width = 8, height = 6, dpi = 300)
+
 ```
 
 
@@ -246,7 +254,10 @@ datatable(top_walkF_associated_with_nQOLs,
 df  <- walkF_association %>% filter(feature == 'P0Y', survey == 'neuroQOL Lower Extremity')
 df <- df$data[[1]]
 
-ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('lgo10(P0Y)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('lgo10(P0Y)') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/NeuroQoL_vs_WalkF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_WalkF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
 
 ```
 _(we might need to filter out classes that dont have sufficient data e.g - Severe category NeuroQoL)_
@@ -314,12 +325,16 @@ datatable(top_dsstF_associated_with_nQOLs,
 ```{r, fig.align='center', fig.width=8, fig.height=6}
 df  <- dsstF_association %>% filter(feature == 'sdTime', survey == 'neuroQOL Cognition')
 df <- df$data[[1]]
-ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(sdTime)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(sdTime)') + theme_bw(base_size = 15)
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+
 
 
 df  <- dsstF_association %>% filter(feature == 'avgTime', survey == 'neuroQOL Cognition')
 df <- df$data[[1]]
-ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('lgo10(Average time)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('lgo10(Average time)') + theme_bw(base_size = 15)
+c
 
 ```
 
