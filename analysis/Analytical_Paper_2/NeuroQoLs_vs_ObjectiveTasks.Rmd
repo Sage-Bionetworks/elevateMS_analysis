@@ -156,19 +156,18 @@ get_neruoQOL_association <- function(features, ...){
 }
 
 
-top_features <- function(df){
-  
+clean_features <- function(df){
   df %>%
-    filter(lmm.anova.pval.adj <= .05) %>%
-    select(survey, feature, lmm.mod.res, lmm.anova.pval, lmm.anova.pval.adj) %>%
+    dplyr::select(survey, feature, lmm.mod.res, lmm.anova.pval, lmm.anova.pval.adj) %>%
     unnest() %>%
-    filter(str_detect(term, 'class')) %>%
-    mutate(lmm.pval = round(p.value, digits=5), 
-           lmm.anova.pval = round(lmm.anova.pval, digits=5),
-           lmm.anova.pval.adj = round(lmm.anova.pval.adj, digits=5),
-           estimate = round(estimate, digits=5),
-           std.error = round(std.error, digits=5)) %>%
-    select(-group, -statistic, -df, -p.value)
+    dplyr::filter(str_detect(term, 'class')) %>%
+    dplyr::mutate(lmm.pval = round(p.value, digits=5), 
+                  lmm.anova.pval = round(lmm.anova.pval, digits=5),
+                  lmm.anova.pval.adj = round(lmm.anova.pval.adj, digits=5),
+                  estimate = round(estimate, digits=5),
+                  std.error = round(std.error, digits=5)) %>%
+    dplyr::select(-group, -statistic, -df, -p.value) %>%
+    arrange(lmm.anova.pval.adj)
 }
 
 ```
@@ -186,10 +185,10 @@ tapF_week_avg <- tapF %>% filter(dataGroups == 'ms_patient') %>%
 
 tapF_association <- get_neruoQOL_association(tapF_week_avg, hand=T)
 
-#features associated with FDR < .05
-top_tapF_associated_with_nQOLs <- top_features(tapF_association)
+# #features associated with FDR < .05
+# top_tapF_associated_with_nQOLs <- top_features(tapF_association)
 
-datatable(top_tapF_associated_with_nQOLs, 
+datatable(clean_features(tapF_association),
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
@@ -199,14 +198,6 @@ datatable(top_tapF_associated_with_nQOLs,
 ```{r, fig.align='center', fig.width=8, fig.height=6}
 df  <- tapF_association %>% filter(feature == 'maxTapInter', survey == 'neuroQOL Cognition')
 df <- df$data[[1]]
-
-# df_summary <- df %>% group_by(class) %>%
-#   summarise(median = median(value, na.rm = T),
-#             mean = mean(value, na.rm=T),
-#             iqr = IQR(value, na.rm=T),
-#             sd = sd(value, na.rm=T)) %>%
-#   mutate(ymin = mean-sd,
-#          ymax = mean + sd)
 
 p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL-Cognition') + ylab('log10(maxTapInterval)') + theme_bw(base_size = 15)
 p
@@ -235,14 +226,13 @@ ggsave("Figs_N_Tables/NeuroQoL_vs_TapF2.tiff", plot = p, width = 8, height = 6, 
 walkF_week_avg <- walkF %>% filter(dataGroups == 'ms_patient') %>% 
   tidyr::gather(feature, value, c(WALK_FEATURES)) %>%
   dplyr::select(healthCode, participant_week, feature, value) %>%
-  dplyr::group_by(healthCode, participant_week, feature) %>% 
+
+    dplyr::group_by(healthCode, participant_week, feature) %>% 
   dplyr::summarise_all(.funs=c(mean), na.rm=T) 
 
 walkF_association <- get_neruoQOL_association(walkF_week_avg)
 
-top_walkF_associated_with_nQOLs <- top_features(walkF_association)
-
-datatable(top_walkF_associated_with_nQOLs, 
+datatable(clean_features(walkF_association), 
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
@@ -276,9 +266,7 @@ restF_week_avg <- restF %>% filter(dataGroups == 'ms_patient') %>%
 
 restF_association <- get_neruoQOL_association(restF_week_avg)
 
-top_restF_associated_with_nQOLs <- top_features(restF_association)
-
-datatable(top_restF_associated_with_nQOLs, 
+datatable(clean_features(restF_association), 
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
@@ -312,9 +300,7 @@ dsstF_week_avg <-  dsst %>% filter(dataGroups == 'ms_patient') %>%
 
 dsstF_association <- get_neruoQOL_association(dsstF_week_avg)
 
-top_dsstF_associated_with_nQOLs <- top_features(dsstF_association)
-
-datatable(top_dsstF_associated_with_nQOLs, 
+datatable(clean_features(dsstF_association), 
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
@@ -326,16 +312,17 @@ datatable(top_dsstF_associated_with_nQOLs,
 df  <- dsstF_association %>% filter(feature == 'sdTime', survey == 'neuroQOL Cognition')
 df <- df$data[[1]]
 p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(sdTime)') + theme_bw(base_size = 15)
+p
 ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
 ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
 
 
-
-df  <- dsstF_association %>% filter(feature == 'avgTime', survey == 'neuroQOL Cognition')
+df  <- dsstF_association %>% filter(feature == 'sdTime', survey == 'neuroQOL Lower Extremity')
 df <- df$data[[1]]
-p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('lgo10(Average time)') + theme_bw(base_size = 15)
-c
-
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('lgo10(Time(SD))') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.tiff", plot = p, width = 8, height = 6, dpi = 300)
 ```
 
 
