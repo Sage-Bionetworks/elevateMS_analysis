@@ -166,6 +166,7 @@ get_dsst_features <- function(){
   dsstResults <- synTableQuery("select * from syn11309241")
   dsstResults <- dsstResults$asDataFrame()
   dsstResults <- merge(dsstResults, healthCode_to_externalID, all.x=T)
+  
   dsst <- dsstResults %>%  dplyr::group_by(healthCode, blockId) %>% 
     dplyr::summarise(numDigits = n(), 
                      activtyStartTime_GMT = min(createdOn),
@@ -174,8 +175,8 @@ get_dsst_features <- function(){
                      avgTime = mean(durationMS/1000, na.rm=T),
                      sdTime = sd(durationMS/1000, na.rm=T),
                      totalTime = sum(durationMS/1000, na.rm=T))
-  intersect(colnames(dsst), colnames(userStartDates))
-  df<- dsst %>%  inner_join(userStartDates) %>%
+  
+  df <- dsst %>%  inner_join(userStartDates) %>%
     dplyr::mutate(participant_day = as.numeric(lubridate::date(activtyStartTime_GMT) - elevateMS_startDate_GMT ) + 1,
                   participant_week = ((participant_day - 1) %/% 7 ) + 1,
                   study_day = as.numeric(lubridate::date(activtyStartTime_GMT) - lubridate::ymd("2017-08-14")) + 1,
