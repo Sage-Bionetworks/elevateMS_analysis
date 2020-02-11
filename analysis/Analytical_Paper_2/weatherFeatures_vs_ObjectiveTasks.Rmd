@@ -1,0 +1,314 @@
+---
+title: "ElevateMS Weather vs Objective features "
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools')
+synapser::synLogin()
+install_load("DT", "lme4", "broom.mixed", "lmerTest")
+
+
+###Load data freeze
+load(synGet("syn19273733")$path)
+source("~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/common_analysis_functions.R")
+```
+
+
+
+```{r}
+weatherF_flt <- weatherF %>%
+  dplyr::mutate(weather_date = as.Date(timestamp)) %>%
+  dplyr::select(healthCode, weather_date, atmosphericPressure, 
+                cloudCoverage, currentTemperature, humidity, 
+                maximumTemperature, minimumTemperature) %>%
+  tidyr::gather(weatherFeature, weatherFeatureVal, -c('healthCode', 'weather_date')) 
+```
+
+
+### Association between Tap features and local weather 
+
+```{r}
+tapF_flt <- tapF %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  dplyr::mutate(tap_date = as.Date(activity_start_timestamp_local)) %>%
+  tidyr::gather(objFeature, objFeatureVal, all_of(TAP_FEATURES)) %>%
+  dplyr::select(healthCode, tap_date, hand, objFeature, objFeatureVal)
+
+tapF_and_weatherF <- merge(tapF_flt, weatherF_flt, 
+                           by.x=c('tap_date', 'healthCode'), 
+                           by.y=c("weather_date", "healthCode"))
+
+tapF_and_weatherF_assoc <- tapF_and_weatherF %>% 
+  dplyr::group_by(weatherFeature, objFeature) %>%
+  nest() %>%
+  dplyr::mutate(mod = map(data, function(df) {
+    lmer(objFeatureVal ~ weatherFeatureVal  + hand + (1 | healthCode), data=df) } )) %>%
+  dplyr::mutate(lmm.res = map(mod, broom::tidy))
+  
+res <- tapF_and_weatherF_assoc %>% select(-data, -mod) %>% unnest() %>%
+  dplyr::filter(term == "weatherFeatureVal") %>% as.data.frame() %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+
+datatable(res %>% select(objFeature, weatherFeature, estimate, p.val.adj) %>%
+            mutate(estimate  = round(estimate, digits=3),
+                   p.val.adj = round(p.val.adj, digits=5)) %>%
+            arrange(p.val.adj),
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+```
+
+```{r, fig.align='center', fig.width=6, fig.height=4}
+df <- tapF_and_weatherF %>% 
+  filter(objFeature == "numberTaps" , weatherFeature == 'currentTemperature') %>%
+  mutate(weatherFeatureVal = cut(weatherFeatureVal, breaks = c(0,50, 80, 130), 
+                                 labels = c('0-50', '51-80', '80+')))
+
+p <- ggplot(data=df %>% filter(!is.na(weatherFeatureVal)),
+       aes(y=objFeatureVal, x=weatherFeatureVal)) 
+p <- p + geom_boxplot() + geom_jitter(size=0.3, width = 0.3, color="gray70") + theme_bw() 
+p <- p + xlab('Daily Temperature(F)') + ylab('Number of Taps') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/weatherF_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/weatherF_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+```
+
+
+### Association between DSST features and local weather 
+
+```{r}
+DSST_FEATURES <- c("numDigits", "numCorrect", "percentCorrect", "avgTime", "sdTime", "totalTime")
+
+dsst_flt <- dsst %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  dplyr::filter(totalTime < 150) %>%
+  dplyr::mutate(dsst_date = as.Date(activtyStartTime_GMT)) %>%
+  tidyr::gather(objFeature, objFeatureVal, all_of(DSST_FEATURES)) %>%
+  dplyr::select(healthCode, dsst_date, objFeature, objFeatureVal) 
+  
+  
+dsstF_and_weatherF <- merge(dsst_flt, weatherF_flt, 
+                           by.x=c('dsst_date', 'healthCode'), 
+                           by.y=c("weather_date", "healthCode"))
+
+dsstF_and_weatherF_assoc <- dsstF_and_weatherF %>% 
+  dplyr::group_by(weatherFeature, objFeature) %>%
+  nest() %>%
+  dplyr::mutate(mod = map(data, function(df) {
+    lmer(objFeatureVal ~ weatherFeatureVal + (1 | healthCode), data=df) } )) %>%
+  dplyr::mutate(lmm.res = map(mod, broom::tidy))
+  
+res <- dsstF_and_weatherF_assoc %>% 
+  dplyr::select(-data, -mod) %>% unnest() %>%
+  dplyr::filter(term == "weatherFeatureVal") %>% as.data.frame() %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+
+datatable(res %>% select(objFeature, weatherFeature, estimate, p.val.adj) %>%
+            mutate(estimate  = round(estimate, digits=5),
+                   p.val.adj = round(p.val.adj, digits=5)) %>%
+            arrange(p.val.adj),
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+
+```
+
+
+
+```{r, fig.align='center', fig.width=8, fig.height=6}
+df <- dsstF_and_weatherF %>% 
+  dplyr::filter(objFeature == "numCorrect" , weatherFeature == 'currentTemperature') %>%
+  dplyr::filter(objFeatureVal < 100) %>%
+  mutate(weatherFeatureVal = cut(weatherFeatureVal, breaks = c(0,50, 80, 130), 
+                                 labels = c('0-50', '51-80', '80+')))
+
+p <- ggplot(data=df %>% filter(!is.na(weatherFeatureVal)),
+       aes(y=objFeatureVal, x=weatherFeatureVal)) 
+p <- p + geom_boxplot() + geom_jitter(size=0.3, width = 0.3, color="gray70") + theme_bw() 
+p <- p + xlab('Daily Temperature(F)') + ylab('t') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/weatherF_vs_DSST.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/weatherF_vs_DSST.tiff", plot = p, width = 8, height = 6, dpi = 300)
+```
+
+
+
+
+
+
+----------
+
+
+### Association between Walk features and local weather 
+
+```{r}
+walkF_flt <- walkF %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  dplyr::mutate(walk_date = as.Date(activity_start_timestamp_local)) %>%
+  tidyr::gather(objFeature, objFeatureVal, all_of(WALK_FEATURES)) %>%
+  dplyr::select(healthCode, walk_date, objFeature, objFeatureVal)
+
+walkF_and_weatherF <- merge(walkF_flt, weatherF_flt, 
+                           by.x=c('walk_date', 'healthCode'), 
+                           by.y=c("weather_date", "healthCode"))
+
+walkF_and_weatherF_assoc <- walkF_and_weatherF %>% 
+  dplyr::group_by(weatherFeature, objFeature) %>%
+  nest() %>%
+  dplyr::mutate(mod = map(data, function(df) {
+    lmer(objFeatureVal ~ weatherFeatureVal + (1 | healthCode), data=df) } )) %>%
+  dplyr::mutate(lmm.res = map(mod, broom::tidy))
+  
+res <- walkF_and_weatherF_assoc %>% select(-data, -mod) %>% unnest() %>%
+  dplyr::filter(term == "weatherFeatureVal") %>% as.data.frame() %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+
+
+datatable(res %>% select(objFeature, weatherFeature, estimate, p.val.adj) %>%
+            mutate(estimate  = round(estimate, digits=5),
+                   p.val.adj = round(p.val.adj, digits=5)) %>%
+            arrange(p.val.adj),
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+
+```
+
+----------
+
+
+### Association between Rest features and local weather 
+
+```{r}
+restF_flt <- restF %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  dplyr::mutate(walk_date = as.Date(activity_start_timestamp_local)) %>%
+  tidyr::gather(objFeature, objFeatureVal, all_of(REST_FEATURES)) %>%
+  dplyr::select(healthCode, walk_date, objFeature, objFeatureVal)
+
+restF_and_weatherF <- merge(restF_flt, weatherF_flt, 
+                           by.x=c('walk_date', 'healthCode'), 
+                           by.y=c("weather_date", "healthCode"))
+
+restF_and_weatherF_assoc <- restF_and_weatherF %>% 
+  dplyr::group_by(weatherFeature, objFeature) %>%
+  nest() %>%
+  dplyr::mutate(mod = map(data, function(df) {
+    lmer(objFeatureVal ~ weatherFeatureVal + (1 | healthCode), data=df) } )) %>%
+  dplyr::mutate(lmm.res = map(mod, broom::tidy))
+  
+res <- restF_and_weatherF_assoc %>% select(-data, -mod) %>% unnest() %>%
+  dplyr::filter(term == "weatherFeatureVal") %>% as.data.frame() %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+
+datatable(res %>% select(objFeature, weatherFeature, estimate, p.val.adj) %>%
+            mutate(estimate  = round(estimate, digits=5),
+                   p.val.adj = round(p.val.adj, digits=5)) %>%
+            arrange(p.val.adj),
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+
+```
+
+
+
+### Association between Tremor features and local weather 
+
+```{r}
+tremorF_flt <- tremorF %>% 
+  dplyr::filter(dataGroups == 'ms_patient') %>% 
+  dplyr::mutate(tremor_date = as.Date(activity_start_timestamp_local)) %>%
+  tidyr::gather(objFeature, objFeatureVal, all_of(TREMOR_FEATURES)) %>%
+  dplyr::select(healthCode, tremor_date, hand, objFeature, objFeatureVal)
+
+tremorF_and_weatherF <- merge(tremorF_flt, weatherF_flt, 
+                           by.x=c('tremor_date', 'healthCode'), 
+                           by.y=c("weather_date", "healthCode"))
+
+tmp_lmer_mod1 <- function(df) {
+  lmer(objFeatureVal ~ weatherFeatureVal  + hand + (1 | healthCode), data=df) } 
+tmp_lmer_mod1 <- purrr::possibly(tmp_lmer_mod1, otherwise = 'Error')
+
+tremorF_and_weatherF_assoc <- tremorF_and_weatherF %>% 
+  dplyr::group_by(weatherFeature, objFeature) %>%
+  nest() %>%
+  dplyr::mutate(mod = map(data, tmp_lmer_mod1))
+          
+
+## Checking if a feature model failed - mod column will have "Error" (so a character) ELSE it will contain Lmer model object
+tremorF_and_weatherF_assoc <- tremorF_and_weatherF_assoc %>%
+  dplyr::mutate(error = map_lgl(mod, is.character))
+features_that_failed_modelling <- tremorF_and_weatherF_assoc %>% filter(error == T) %>% select(-mod)
+features_that_failed_modelling
+
+##Features for which the mixed modelling worked
+tremorF_and_weatherF_assoc <- tremorF_and_weatherF_assoc %>% filter(error == F) %>% select(-error)
+tremorF_and_weatherF_assoc <- tremorF_and_weatherF_assoc %>% dplyr::mutate(lmm.res = map(mod, broom::tidy))
+res <- tremorF_and_weatherF_assoc %>% select(-data, -mod) %>% unnest() %>%
+  dplyr::filter(term == "weatherFeatureVal") %>% as.data.frame() %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+
+datatable(res %>% select(objFeature, weatherFeature, estimate, p.val.adj) %>%
+            mutate(estimate  = round(estimate, digits=3),
+                   p.val.adj = round(p.val.adj, digits=5)) %>%
+            arrange(p.val.adj),
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+
+```
+
+
+
+```{r, fig.align='center', fig.width=8, fig.height=6}
+df <- tremorF_and_weatherF %>% 
+  dplyr::filter(objFeature == "energy.tm.IMF1.iqr_uj_accelerometer" , weatherFeature == 'currentTemperature') %>%
+  mutate(weatherFeatureVal = cut(weatherFeatureVal, breaks = c(0,50, 80, 130), 
+                                 labels = c('0-50', '51-80', '80+')))
+p <- ggplot(data=df %>% filter(!is.na(weatherFeatureVal)),
+       aes(y=log10(objFeatureVal), x=weatherFeatureVal)) 
+p <- p + geom_boxplot() + geom_jitter(size=0.3, width = 0.3, color="gray70") + theme_bw() 
+p <- p + xlab('Daily Temperature(F)') + ylab('log10(energy.tm.IMF1.iqr_uj_accelerometer)') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/weatherF_vs_TremorF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/weatherF_vs_TremorF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+```
+
+
+
+
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+thisFilePrefix = "dailyCheckins_vs_Weather"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+thisFilePrefix = "dailyCheckins_vs_Weather"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt'
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
+###Store on Synapse
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+unlink(paste0(thisFilePrefix, '.html'))
+```
+
+
+
+
+
