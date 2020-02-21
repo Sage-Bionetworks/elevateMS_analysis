@@ -30,6 +30,7 @@ tremorF <- tremorF %>% filter(activity_start_timestamp_local <= FREEZE_DATE)
 #nQOL_cognition_week_avg
 #weatherF <- weatherF - not filtered due to passive nature
 #wapi_survey
+#HK.data
 
 
 ##TAP FEATURE COLS -
@@ -117,7 +118,7 @@ needed <- c('triggers', 'dailyCheckins', 'relapses', 'weatherF',
             'tapF', 'walkF', 'restF', 'tremorF',
             'userActivity', 'baselineChar', 'FREEZE_DATE', 'wapi_survey',
             'DAYS_SINCE_LAUNCH', 'WEEKS_SINCE_LAUNCH', 
-            'TAP_FEATURES', 'TREMOR_FEATURES', 'WALK_FEATURES', 'REST_FEATURES')
+            'TAP_FEATURES', 'TREMOR_FEATURES', 'WALK_FEATURES', 'REST_FEATURES', 'HK.data')
 
 rm(list=ls()[!ls() %in% needed])
 ls()
