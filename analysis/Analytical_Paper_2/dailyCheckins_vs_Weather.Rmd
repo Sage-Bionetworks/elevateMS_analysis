@@ -32,10 +32,15 @@ dailyCheckins_flt <- dailyCheckins %>% dplyr::filter(dataGroups == 'ms_patient')
   dplyr::select(healthCode, checkin_date, pain=mood_pain, 
                 mobility=mood_mobility, health=mood_health,
                 participant_day, participant_week) %>%
-  dplyr::mutate(pain = as.factor(pain),
-                mobility = as.factor(mobility),
-                health = as.factor(health))
-
+  ## The following mapping obtained from elevateMS bridge project thru Larsson
+  dplyr::mutate(pain = recode(pain, '1'='None', '2'='Mild',  '3'='Moderate', '4'='Severe' , '5'='Horrible'),
+                pain = factor(pain, levels=c('None', 'Mild', 'Moderate', 'Severe' ,'Horrible')),
+                
+                mobility = recode(mobility, '1'='Excellent', '2'='Very Good', '3'='Good', '4'='Not Great', '5'='Horrible'),
+                mobility = factor(mobility, levels=c('Excellent', 'Very Good', 'Good', 'Not Great', 'Horrible')),
+                
+                health = recode(health, '1'='Amazing', '2'='Okay', '3'='So-So', '4'='Not Great', '5'='Horrible'),
+                health = factor(health, levels=c('Amazing', 'Okay', 'So-So', 'Not Great', 'Horrible')))
 
 weatherF_flt <- weatherF %>%
   dplyr::mutate(weather_date = as.Date(timestamp)) %>%
@@ -79,7 +84,6 @@ sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 ```{r, eval=F}
 #orindal GEE
 install_load("multgee")
-data("arthritis", package = "multgee")
 
 x <- dailyCheckins_N_weather %>% 
   group_by(healthCode) %>%
@@ -89,8 +93,7 @@ x <- dailyCheckins_N_weather %>%
 str(x)
 
 mod <- geepack::ordgee( formula = ordered(health) ~  humidity, 
-                        id=healthCode, corstr = ("exchangeable"), data=x)
-
+                        id=healthCode, corstr = ("ar1"), data=x)
 summary(mod)
 ```
 
@@ -165,11 +168,12 @@ sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 ```
 
 
-```{r fig.align='center', fig.width=4, fig.height=4, dpi=100, eval=F}
+```{r fig.align='center', fig.width=6, fig.height=4, dpi=100, eval=F}
 ### Visual difference between weather features and daily pain
 ### Plot top differentiator - cloudCoverage
-p <- ggplot(data=dailyCheckins_N_weather, aes(x=pain, y=humidity)) + geom_boxplot(width=0.6)
-p1 <- p + theme_light(base_size = 12) + xlab('self reported daily pain')
+p1  <- ggplot(data=dailyCheckins_N_weather, aes(x=pain, y=humidity)) + geom_boxplot(width=0.6)
+p1  <- p1 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_light(base_size = 15)
+p1  <- p1 + xlab('self reported daily pain')
 p1
 ```
 
