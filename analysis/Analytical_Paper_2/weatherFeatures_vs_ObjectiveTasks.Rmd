@@ -134,7 +134,7 @@ df <- dsstF_and_weatherF %>%
 p <- ggplot(data=df %>% filter(!is.na(weatherFeatureVal)),
        aes(y=objFeatureVal, x=weatherFeatureVal)) 
 p <- p + geom_boxplot() + geom_jitter(size=0.3, width = 0.3, color="gray70") + theme_bw() 
-p <- p + xlab('Daily Temperature(F)') + ylab('t') + theme_bw(base_size = 15)
+p <- p + xlab('Daily Temperature(F)') + ylab('Number of correctly called digits') + theme_bw(base_size = 15)
 p
 ggsave("Figs_N_Tables/weatherF_vs_DSST.jpeg", plot = p, width = 8, height = 6, dpi = 300)
 ggsave("Figs_N_Tables/weatherF_vs_DSST.tiff", plot = p, width = 8, height = 6, dpi = 300)
@@ -286,22 +286,19 @@ ggsave("Figs_N_Tables/weatherF_vs_TremorF1.tiff", plot = p, width = 8, height = 
 
 
 
-
-
-
-
 ```{r, syn.store, eval=F}
 # Knit html document and push to synapse
-thisFilePrefix = "dailyCheckins_vs_Weather"
+thisFilePrefix = "weatherFeatures_vs_ObjectiveTasks"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
 
-thisFilePrefix = "dailyCheckins_vs_Weather"
+thisFilePrefix = "weatherFeatures_vs_ObjectiveTasks"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 gtToken = '~/.ssh/apratap_github_token_20190219.txt'
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
-thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo,
+                                                  repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
 thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
 ###Store on Synapse
 synStore(thisFile_synapse, executed=thisFile_github_permaLink)
