@@ -464,7 +464,9 @@ nQOL_cognition_week_avg <- nQOL_cognition %>%  dplyr::group_by(healthCode, parti
   dplyr::summarise(TScore = mean(TScore, na.rm = T))
 
 
+####################
 ##### WAPI Survey
+####################
 get_wapi_survey <- function(){
   df <- fread(synGet('syn17868161')$path, data.table = F) %>%
     dplyr:: select(-dataGroups, -ROW_ID, -ROW_VERSION, -rawData, -dayInStudy, -validationErrors) %>%
@@ -478,69 +480,28 @@ wapi_survey <- get_wapi_survey()
 
 
 
-#   fixTimeZone <- function(x){
-#     x <- as.integer(x)
-#     mins <- x %% 100
-#     hours <- x %/% 100
-#     #total
-#     #hours <- hours + mins/60
-#     hours
-#   }
-#   
-#   df$createdOn
-#   
-#   fixTimeZone(df$createdOnTimeZone)
-#   lubridate::as_datetime(df$createdOn)
-#   
-#   df['timeZone'] = fixTimeZone(df[[timeZoneCol]])
-#   df['activity_start_timestamp_GMT'] = lubridate::as_datetime(df[[timeStampCol]])
-#   df<- df %>%  inner_join(userStartDates) %>%
-#     dplyr::mutate(activity_start_timestamp_local = activity_start_timestamp_GMT + lubridate::hours(timeZone),
-#                   participant_day = as.numeric(lubridate::date(activity_start_timestamp_GMT) - elevateMS_startDate_GMT ) + 1,
-#                   participant_week = ((participant_day - 1) %/% 7 ) + 1,
-#                   study_day = as.numeric(lubridate::date(activity_start_timestamp_GMT) - lubridate::ymd("2017-08-14")) + 1,
-#                   study_week = ((study_day - 1) %/% 7 ) + 1) %>%
-#     dplyr::filter(participant_day >= 1)
-#   df
-
-
-
-#Tremor // TBD AFTER FEATURES ARE RE-DONE
-# getTremorF <- function(){
-#   #Left
-#   df_left <- fread(synGet("syn10701254")@filePath, data.table = F) %>%
-#     dplyr::filter(dataGroups %in% c('control', 'ms_patient')) %>%
-#     dplyr::mutate(createdOnTimeZone = as.numeric(metadata.json.endDate.timezone)/100,
-#                   createdOn = lubridate::ymd_hms(metadata.json.endDate, tz='UTC'),
-#                   side = 'left')
-#   #Right 
-#   df_right <- fread(synGet("syn10701250")@filePath, data.table = F) %>%
-#     dplyr::filter(dataGroups %in% c('control', 'ms_patient')) %>%
-#     dplyr::mutate(createdOnTimeZone = as.numeric(metadata.json.endDate.timezone)/100,
-#                   createdOn = lubridate::ymd_hms(metadata.json.endDate, tz='UTC'),
-#                   side = 'right')
-#   
-#   df <- rbind(df_left, df_right)
-#   insert_study_times(df, userStartDates)
-# }
-
-
-# getWalkingF_new <- function(){
-#   df <- loadFile("syn17093339")
-#   timeStampCol = 'metadata.json.startDate'
-#   timeZoneCol = 'metadata.json.startDate.timezone'
-#   df <- insert_study_times(df, timeStampCol=timeStampCol, timeZoneCol=timeZoneCol, userStartDates=userStartDates)
-#   df <- df %>%
-#     dplyr::mutate(activityDuration = as.numeric(metadata.json.endDate - metadata.json.startDate)/1000) %>%
-#     dplyr::filter(healthCode %in% STUDY_HEALTHCODES) %>%
-#     select(-c(1:6, 14:28))
-# }
-# walkF_new <- getWalkingF_new()
-
-# #MSIS29
-# getMSIS29 <- function(){
-#   df <- loadFile("syn11336100")
-# }
-
-
-
+######################
+# HealthKit based passive data
+######################
+get_HK_passiveData <- function(){
+  
+  df <- fread(synGet('syn17037368')$path, data.table = F) %>%
+    dplyr::mutate(startTimeStamp = lubridate::ymd_hms(startDate),
+                  endTimeStamp = lubridate::ymd_hms(endDate),
+                  hk.date = as.Date(startTimeStamp))
+  
+  df.summary <- df %>% 
+    dplyr::group_by(healthCode, hk.date) %>%
+    dplyr::summarise(numberOfSteps = sum(numberOfSteps, na.rm = T),
+                     floorsDescended = sum(floorsDescended, na.rm = T),
+                     floorsAscended = sum(floorsAscended, na.rm = T),
+                     distance = sum(distance, na.rm = T),
+                     mean.averageActivePace = mean(averageActivePace, na.rm=T),
+                     median.averageActivePace = median(averageActivePace, na.rm=T)) %>%
+    dplyr::mutate(mean.averageActivePace = ifelse(mean.averageActivePace < .01, 0, mean.averageActivePace),
+                  median.averageActivePace = ifelse(median.averageActivePace < .01, 0, median.averageActivePace),
+                  mean.averageActivePace = ifelse(mean.averageActivePace > 1000, NA, mean.averageActivePace),
+                  median.averageActivePace = ifelse(median.averageActivePace > 1000, NA, median.averageActivePace),
+                  distance = ifelse(distance < .01, 0, distance))
+}
+HK.data <- get_HK_passiveData()
