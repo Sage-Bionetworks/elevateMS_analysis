@@ -1,0 +1,219 @@
+---
+title: "elevateMS tapping features analysis"
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools', 'gridExtra')
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install("ComplexHeatmap", version = "3.8")
+install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+synapser::synLogin()
+
+
+###Load data freeze
+load(synGet("syn19273733")$path)
+#source("analysis/Analytical_Paper_2/common_analysis_functions.R")
+source("common_analysis_functions.R")
+
+```
+
+-----
+
+```{r}
+
+tmp_tapF <- tapF %>% filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, c(TAP_FEATURES))
+
+tapF_week_averaged =  tmp_tapF %>% 
+  select(healthCode, participant_week, hand, feature, value) %>%
+  group_by(healthCode, participant_week, hand, feature) %>% 
+  dplyr::summarise_all(.funs=c(mean), na.rm=T) 
+```
+
+<br>
+<br>
+
+#### Correlations of all tapping features with Neuro-QoLs
+
+_Given the scatterplot of 2 tapping features shows impact of outliers and even a spearman rank-based correlation wont fix the problem due to ties - we tried a permutation based approach _
+
+```{r, fig.align='center', fig.width=8, fig.height=5, dpi=200}
+p1 <- get_scatter_plot(tapF_week_averaged %>% filter(hand == 'left'), nQOL_uppExtremity_week_avg, 
+                       x='numberTaps', y='TScore', use_first_common_week = F)
+p2 <- get_scatter_plot(tapF_week_averaged %>% filter(hand == 'left'), nQOL_uppExtremity_week_avg, 
+                       x='meanTapInter', y='TScore', use_first_common_week = F)
+p3 <- grid.arrange(p2,p1, nrow=1)
+#ggsave("FIGURES/tapping_n_NeuroQOLs_top_2_features_scatterPlot_allWeeks.png", p3, height=3, width=9, units="in", dpi=150)
+```
+
+
+
+```{r, neuroQoLCors}
+## Correlations- All Weeks
+neurCog_allWeeks_tapF <- get_neuroQOL_cors(tapF_week_averaged, 
+                                           additional_group_by='hand', 
+                                           use_first_common_week=F, 
+                                           nPermute = 1000)
+##Cacl permutation based p-val
+tmp_get_perm_pval <- function(permuteCors, estimate){
+ 2 * ( sum(permuteCors >= abs(estimate)) / length(permuteCors))
+}
+neurCog_allWeeks_tapF <- neurCog_allWeeks_tapF %>% dplyr::mutate(permute.p.val = map2(corPermuted, estimate, tmp_get_perm_pval))
+
+## Correlations- First common week
+#neurCog_firstCommonWeek_tapF <- get_neuroQOL_cors(tapF_week_averaged,                                                   additional_group_by='hand',  use_first_common_week=T)
+```
+
+<br>
+<br>
+
+
+```{r}
+tmp_plot_permute_results <- function(permuteResuls, select_neruoQoL_survey){
+  intercepts <- permuteResuls %>% 
+    dplyr::filter(hand == 'right' & survey == select_neruoQoL_survey) %>% 
+    dplyr::select(feature, estimate, survey)
+  tmp <-  permuteResuls %>% 
+    dplyr::filter(hand == 'right' & survey == select_neruoQoL_survey) %>% 
+    dplyr::select(feature, corPermuted) %>% unnest()
+  p <- ggplot(data=tmp, aes(x=corPermuted)) + geom_density() + 
+    geom_vline(data=intercepts, aes(xintercept=estimate,color="red")) +  facet_wrap(feature ~ .) 
+  p <- p + theme_bw() + xlab('distribution of 1000 random permutations') + ggtitle(select_neruoQoL_survey)
+  p + theme(legend.position = "none")
+}
+```
+
+
+-----
+
+#### Permutation Results - neuroQOL Cognition
+
+```{r, fig.align="center", fig.width=18, fig.height=13}
+tmp_plot_permute_results(neurCog_allWeeks_tapF, 'neuroQOL Cognition')
+```
+
+
+-----
+
+#### Permutation Results - neuroQOL Lower Extremity
+
+```{r, fig.align="center", fig.width=18, fig.height=13}
+tmp_plot_permute_results(neurCog_allWeeks_tapF, 'neuroQOL Lower Extremity')
+```
+
+
+-----
+
+#### Permutation Results - neuroQOL Upper Extremity
+
+```{r, fig.align="center", fig.width=18, fig.height=13}
+tmp_plot_permute_results(neurCog_allWeeks_tapF, 'neuroQOL Upper Extremity')
+```
+
+-------
+
+#### Data Summary (round to 4 decimal points)
+
+```{r}
+data_to_show <- neurCog_allWeeks_tapF %>% select(-corPermuted, -statistic, -p.value, -method, -alternative) %>%
+  unnest() %>% 
+  dplyr::mutate(adj.permute.p.val = p.adjust(permute.p.val, method="fdr")) %>% 
+  dplyr::rename(corr.adj.p.val = p.val.adj,
+                spearman.cor = estimate ) %>%
+  dplyr::mutate(corr.adj.p.val.log10 = -log10(corr.adj.p.val),
+                adj.permute.p.val.log10 = -log10(adj.permute.p.val)) %>%
+  dplyr::mutate(spearman.cor = round(spearman.cor, digits=4),
+                corr.adj.p.val = round(corr.adj.p.val, digits=4),
+                adj.permute.p.val = round(adj.permute.p.val, digits=4)) %>%
+  select(-permute.p.val) 
+  
+  
+
+install_load("DT")
+DT::datatable(data_to_show %>% select(-corr.adj.p.val.log10, -adj.permute.p.val.log10), rownames=F)
+```
+
+
+
+-------
+
+#### Scatter plot - comparing the p-values from standard spearman correlations to permutation test derived p-values
+
+```{r, fig.align="center", fig.width=5, fig.height=5}
+p <- ggscatter(data_to_show, x="corr.adj.p.val.log10" , y="adj.permute.p.val.log10",
+                 size = 1,
+                 add = "reg.line",  # Add regressin line
+                 add.params = list(color = "grey10", fill = "lightgray"),
+                 conf.int = TRUE, 
+                 cor.coef = TRUE,
+                 cor.method = "spearman",
+                 cor.coef.size = 4,
+                 xlab = "-log10 Spearman corr p-vals(fdr adjusted) ",
+                 ylab = "-log10 Permutation based p-vals(fdr adjusted)")
+p + theme_few() + theme(text = element_text(size=12)) 
+```
+
+
+
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200, eval=F}
+##### Tapping features(All Weeks) with Neuro-QoLs
+install_load("grid")
+p1 <- ggplot(neurCog_allWeeks_tapF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
+p1 <- p1 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p1
+ggsave("Figs_N_Tables//tapCorrelation_allWeeks_volcanoPlot.jpeg", plot=p1, height=4, width=10, units="in", dpi=300)
+```
+
+
+<br>
+
+-----
+
+```{r, fig.align='center', fig.width=14, fig.height=8, dpi=200, eval=F}
+#####  Tapping features(first common week) with Neuro-QoLs
+
+p2 <- ggplot(neurCog_firstCommonWeek_tapF, aes(x=cor, y=-log10(p.val.adj), color=hand)) + theme_few() + geom_point(size=.7)  + facet_grid( . ~ survey )
+p2 <- p2 + scale_color_manual(values=c("#d01c8b", "#4dac26")) + theme(text = element_text(size=15)) 
+p2 <- p2 + xlab('correlation(spearman)') + geom_hline(yintercept=2, color='grey30', size=.8) + theme(panel.spacing = unit(2, "lines"))
+p2
+ggsave("Figs_N_Tables/tap_N_NeuroQOLs_Correlation_firstCommonWeek_volcanoPlot.jpeg", plot=p2, height=4, width=10, units="in", dpi=300)
+```
+
+
+
+
+
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+thisFilePrefix = "analysis/Analytical_Paper_2/tapping_features_analysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+thisFilePrefix = "analysis/Analytical_Paper_2/tapping_features_analysis"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt';
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=thisFileName)
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
+###Store on Synapse
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+unlink(paste0(thisFilePrefix, '.html'))
+```
+
