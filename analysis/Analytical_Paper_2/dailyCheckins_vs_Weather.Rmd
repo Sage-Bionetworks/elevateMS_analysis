@@ -42,6 +42,9 @@ dailyCheckins_flt <- dailyCheckins %>% dplyr::filter(dataGroups == 'ms_patient')
                 health = recode(health, '1'='Amazing', '2'='Okay', '3'='So-So', '4'='Not Great', '5'='Horrible'),
                 health = factor(health, levels=c('Amazing', 'Okay', 'So-So', 'Not Great', 'Horrible')))
 
+# View(dailyCheckins_flt)
+# table(dailyCheckins_flt$health, dailyCheckins_flt$mobility)
+
 weatherF_flt <- weatherF %>%
   dplyr::mutate(weather_date = as.Date(timestamp)) %>%
   dplyr::select(healthCode, weather_date, atmosphericPressure, 
@@ -54,28 +57,22 @@ dailyCheckins_N_weather <- merge(dailyCheckins_flt, weatherF_flt,
                             by.y=c('healthCode', 'weather_date')) %>%
   dplyr::mutate(pain = as.factor(pain),
                 mobility = as.factor(mobility),
-                health = as.factor(mobility))
+                health = as.factor(health))
 ```
 
 
 ### Daily Health vs Weather
-
+_Baseline health level - Amazing_
 ```{r}
 #### Mixed effect modelling
 install_load("lme4", "lmerTest", "broom")
 
-res.1 <- lmer(atmosphericPressure ~ health + (1 | healthCode), 
-            data=dailyCheckins_N_weather )
-res.2 <- lmer(cloudCoverage ~ health  + (1 | healthCode), 
-            data=dailyCheckins_N_weather )
-res.3 <- lmer(currentTemperature ~ health + (1 | healthCode), 
-            data=dailyCheckins_N_weather )
-res.4 <- lmer(humidity ~ health + (1 | healthCode), 
-            data=dailyCheckins_N_weather )
-res.5 <- lmer(maximumTemperature ~ health + (1 | healthCode), 
-            data=dailyCheckins_N_weather )
-res.6 <- lmer(minimumTemperature ~ health + (1 | healthCode), 
-            data=dailyCheckins_N_weather )
+res.1 <- lmer(atmosphericPressure ~ health + (1 | healthCode), data=dailyCheckins_N_weather )
+res.2 <- lmer(cloudCoverage ~ health  + (1 | healthCode), data=dailyCheckins_N_weather )
+res.3 <- lmer(currentTemperature ~ health + (1 | healthCode), data=dailyCheckins_N_weather )
+res.4 <- lmer(humidity ~ health + (1 | healthCode), data=dailyCheckins_N_weather )
+res.5 <- lmer(maximumTemperature ~ health + (1 | healthCode), data=dailyCheckins_N_weather )
+res.6 <- lmer(minimumTemperature ~ health + (1 | healthCode), data=dailyCheckins_N_weather )
 sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 ```
 
@@ -108,7 +105,6 @@ p1 <- p1 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size
 ggsave("Figs_N_Tables/WeatherTemp_vs_HealthScore.jpeg", plot = p1, width = 8, height = 6, dpi = 300)
 ggsave("Figs_N_Tables/WeatherTemp_vs_HealthScore.tiff", plot = p1, width = 8, height = 6, dpi = 300)
 
-
 p2 <- ggplot(data=dailyCheckins_N_weather, aes(x=health, y=humidity)) + geom_boxplot(width=0.6)
 p2 <- p2 + xlab('daily health score') + ylab("Humidity")
 p2 <- p2 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15)
@@ -125,19 +121,21 @@ gridExtra::grid.arrange(p1, p2, nrow=1)
 
 
 ### Daily Mobility vs Weather
+_Baseline Mobility level - Excellent_
 
 ```{r}
 #### Mixed effect modelling
 install_load("lme4", "lmerTest", "broom")
-res.1 <- lmer(atmosphericPressure ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
-res.2 <- lmer(cloudCoverage ~ mobility  + (1 | healthCode),  data=dailyCheckins_N_weather )
-res.3 <- lmer(currentTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
-res.4 <- lmer(humidity ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
-res.5 <- lmer(maximumTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
-res.6 <- lmer(minimumTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
-sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
-```
 
+View(dailyCheckins_N_weather)
+mobility.1 <- lmer(atmosphericPressure ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+mobility.2 <- lmer(cloudCoverage ~ mobility  + (1 | healthCode),  data=dailyCheckins_N_weather )
+mobility.3 <- lmer(currentTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+mobility.4 <- lmer(humidity ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+mobility.5 <- lmer(maximumTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+mobility.6 <- lmer(minimumTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+sjPlot::tab_model(mobility.1, mobility.2, mobility.3, mobility.4, mobility.6, mobility.6, show.ci = F)
+```
 
 
 ### Visual difference between weather features and daily mobility
@@ -154,6 +152,8 @@ ggsave("Figs_N_Tables/WeatherTemp_vs_dailyMobility.tiff", plot = p1, width = 8, 
 -------
 
 ### Daily Pain vs Weather
+_Baseline Pain level - None_
+
 
 ```{r}
 #### Mixed effect modelling
