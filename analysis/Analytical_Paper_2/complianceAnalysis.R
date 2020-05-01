@@ -166,12 +166,12 @@ View(compliance)
 
 #Editing labels for plotting
 compliance <- compliance %>%
-  mutate(dataGroups = replace(dataGroups, dataGroups == 'ms_patient', 'MS patient'),
-         dataGroups = replace(dataGroups, dataGroups == 'control', 'Control'),
-         dataGroups = replace(dataGroups, referred_by_clinician == T, 'MS patient(clinically referred)') ) %>%
+  mutate(dataGroups = replace(dataGroups, (dataGroups == 'ms_patient' & referred_by_clinician == F),  'MS participants(self-referred)'),
+         dataGroups = replace(dataGroups, dataGroups == 'control', 'participants without MS(Controls)'),
+         dataGroups = replace(dataGroups, referred_by_clinician == T, 'MS participants(clinic-referred)') ) %>%
   rename(group = dataGroups) %>%
-  mutate(group = factor(group, levels=c('MS patient', 'MS patient(clinically referred)',
-                                        'Control'))) %>%
+  # mutate(group = factor(group, levels=c('MS patient', 'MS patient(clinically referred)',
+  #                                       'Control'))) %>%
   mutate(lineGroup = paste0(group,'-' ,complianceType))
 
 View(compliance  %>% filter(complianceType == 'withOneSensorTaskperWeek') %>%
@@ -193,5 +193,5 @@ p1 <- p1 + scale_y_continuous(limits = c(0,100)) + geom_line(size=.8) + theme_li
 p1 <- p1 + scale_color_manual(name='',values=c(COL_MS_PATIENT, COL_MS_PATIENT_CLINICAL_REF, COL_CONTROL))
 p1 <- p1 + theme(legend.position="top") + xlab('weeks in study')
 p1
-ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/userCompliance.png", plot=print(p1), height = 5, width = 6, units="in", dpi=300)
-ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/userCompliance.tiff", plot=print(p1), height = 5, width = 6, units="in", dpi=300)
+ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/userCompliance.png", plot=print(p1), height = 6, width = 7.5, units="in", dpi=300)
+ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/userCompliance.tiff", plot=print(p1), height = 6, width = 7.5, units="in", dpi=300)

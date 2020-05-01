@@ -12,11 +12,9 @@ install_load('ggthemes', 'gridExtra', 'devtools')
 ## LOAD DATA 
 load(synGet("syn19273733")$path)
 
-
 userActivity <- userActivity %>% 
   filter(dataGroups %in% c('control', 'ms_patient')) %>%
   filter(!originalTable %in% c('Passive Data-v3', 'Weather-v3')) 
-
 
 lastDayinStudy <- userRetention <- userActivity %>%
   dplyr::group_by(healthCode) %>%
@@ -48,9 +46,9 @@ userRetention <- userRetention %>%
   ) 
 
 userRetention <- userRetention %>% mutate(group = case_when(
-  referred_by_clinician == T & dataGroups == 'ms_patient' ~ 'MS patients(clinical referral)',
-  referred_by_clinician == F & dataGroups == 'ms_patient' ~ 'MS patients',
-  dataGroups == 'control' ~ 'Controls'
+  referred_by_clinician == T & dataGroups == 'ms_patient' ~ 'MS participants(clinic-referred)',
+  referred_by_clinician == F & dataGroups == 'ms_patient' ~ 'MS participants(self-referred)',
+  dataGroups == 'control' ~ 'participants without MS(Controls)'
 ))
 
 
@@ -70,12 +68,14 @@ p1 <- ggsurvplot(fit, pval = TRUE, conf.int = TRUE,
                  xlab = "Days in study ", 
                  palette = c(COL_CONTROL, COL_MS_PATIENT, COL_MS_PATIENT_CLINICAL_REF),
                  risk.table.y.text.col = F, risk.table.y.text = F, legend = "top",
+                 legend.labs = (c('MS participants(clinic-referred)', 'MS participants(self-referred)', 'participants without MS(Controls)' )),
+                 legend.title = "",
                  xlim = c(1,81),
                  surv.median.line = "hv", ggtheme = theme_light(base_size = 12))
 
 p1 
-ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/survivalCurve_by_caseControl.png", plot=print(p1), height = 6, width = 7, units="in", dpi=300)
-ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/survivalCurve_by_caseControl.tiff", plot=print(p1), height = 6, width = 7, units="in", dpi=300)
+ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/survivalCurve_by_caseControl.png", plot=print(p1), height = 6, width = 7.5, units="in", dpi=300)
+ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/survivalCurve_by_caseControl.tiff", plot=print(p1), height = 6, width = 7.5, units="in", dpi=300)
 
 
 # EDA
