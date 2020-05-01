@@ -24,8 +24,8 @@ synapser::synLogin()
 
 ###Load data freeze
 load(synGet("syn19273733")$path)
-#source("analysis/Analytical_Paper_2/common_analysis_functions.R")
-source("common_analysis_functions.R")
+source("analysis/Analytical_Paper_2/common_analysis_functions.R")
+#source("common_analysis_functions.R")
 ```
 
 
@@ -60,6 +60,8 @@ demogTable_withOut_missing = tableone::CreateTableOne(data=baselineChar_flt, var
                                                    strata = c("group"), includeNA = F)
 demogTable_withOut_missing_mat <- print(demogTable_withOut_missing, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
 
+demogTable_withOut_missing_mat
+
 ## Save to a CSV file
 write.csv(demogTable_withOut_missing_mat, file = "elevateMS_overall_demog_table_withoutMissingData.csv")
 
@@ -74,7 +76,28 @@ demogTable_with_missing_mat <- print(demogTable_with_missing, quote = FALSE, noS
 write.csv(demogTable_with_missing_mat, file = "elevateMS_overall_demog_table_withMissingData.csv")
 
 table1::table1(~ age + gender + race + education + health_insurance + employment | group, data=baselineChar_flt, overall="Total")
+
+
+
+#########
+# Compare demogs of participants willing to share broadly vs not
+#########
+demog_across_willingnesstoShare = tableone::CreateTableOne(data=baselineChar_flt, 
+                                                           vars=listVars, factorVars = catVars, 
+                                                           strata = c("userSharingScope"), 
+                                                           includeNA = T)
+
+demog_across_willingnesstoShare_mat <- print(demog_across_willingnesstoShare, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
+
+demog_across_willingnesstoShare_mat
+
+#demogTable_with_missing_mat
+## Save to a CSV file
+write.csv(demog_across_willingnesstoShare_mat, 
+          file = "elevateMS_overall_demog_table_compareWillingnessToShare.csv")
 ```
+
+
 
 
 
@@ -91,12 +114,12 @@ listVars <- c("currentDiagnosis", "msFamilyHistory",
               "YearsSinceDiagnosis", "currentDMT", "YearsSinceFirstDMT", "overallPhysicalAbility")
 #Define categorical variables
 catVars <- c( "currentDiagnosis", "currentDMT", "msFamilyHistory",
-             "health_insurance", "employment", "userSharingScope", "overallPhysicalAbility")
+             "health_insurance", "employment", "overallPhysicalAbility")
 
 tmp_data <- baselineChar_flt %>% filter(dataGroups == 'ms_patient')
 demogTable = CreateTableOne(data=tmp_data, vars=listVars, factorVars = catVars, strata = c("group"), includeNA = T)
 demogTableMat <- print(demogTable, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
-#demogTableMat
+demogTableMat
 ## Save to a CSV file
 write.csv(demogTableMat, file = "elevateMS_MSpatients_diseaseChars_table.csv")
 
