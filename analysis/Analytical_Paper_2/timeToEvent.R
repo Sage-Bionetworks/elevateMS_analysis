@@ -67,15 +67,15 @@ summary(fit)
 p1 <- ggsurvplot(fit, pval = TRUE, conf.int = TRUE, 
                  xlab = "Days in study ", 
                  palette = c(COL_CONTROL, COL_MS_PATIENT, COL_MS_PATIENT_CLINICAL_REF),
-                 risk.table.y.text.col = F, risk.table.y.text = F, legend = "top",
+                 risk.table.y.text.col = F, risk.table.y.text = F, legend = "none",
                  legend.labs = (c('MS participants(clinic-referred)', 'MS participants(self-referred)', 'participants without MS(Controls)' )),
                  legend.title = "",
                  xlim = c(1,81),
-                 surv.median.line = "hv", ggtheme = theme_light(base_size = 12))
+                 surv.median.line = "hv", ggtheme = theme_light(base_size = 15))
 
 p1 
-ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/survivalCurve_by_caseControl.png", plot=print(p1), height = 6, width = 7.5, units="in", dpi=300)
-ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/survivalCurve_by_caseControl.tiff", plot=print(p1), height = 6, width = 7.5, units="in", dpi=300)
+ggsave("Figs_N_Tables/survivalCurve_by_caseControl.png", plot=print(p1), height = 6, width = 6, units="in", dpi=300)
+ggsave("Figs_N_Tables/survivalCurve_by_caseControl.tiff", plot=print(p1), height = 6, width = 6, units="in", dpi=300)
 
 
 # EDA

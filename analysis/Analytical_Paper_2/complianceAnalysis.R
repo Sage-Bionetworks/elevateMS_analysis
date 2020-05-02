@@ -185,13 +185,12 @@ write.table(tmp, file="analysis/Analytical_Paper_2/Figs_N_Tables/complianceNumbe
             col.names = T, quote=F, row.names = F, sep="\t")
 
 
-
 #### This plot is showing compliance for users that remained in the study each week and completed atleast one active task
 p1 <- ggplot(data=compliance %>% filter(complianceType == 'withOneSensorTaskperWeek'),
              aes(x=week, y=percent, color=group))+ geom_point(size=1) + geom_line() 
 p1 <- p1 + scale_y_continuous(limits = c(0,100)) + geom_line(size=.8) + theme_light( base_size=15) + scale_x_continuous(breaks=seq(1,12,1))
 p1 <- p1 + scale_color_manual(name='',values=c(COL_MS_PATIENT, COL_MS_PATIENT_CLINICAL_REF, COL_CONTROL))
-p1 <- p1 + theme(legend.position="top") + xlab('weeks in study')
+p1 <- p1 + theme(legend.position="none") + xlab('weeks in study')
 p1
-ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/userCompliance.png", plot=print(p1), height = 6, width = 7.5, units="in", dpi=300)
-ggsave("analysis/Analytical_Paper_2/Figs_N_Tables/userCompliance.tiff", plot=print(p1), height = 6, width = 7.5, units="in", dpi=300)
+ggsave("Figs_N_Tables/userCompliance.png", plot=print(p1), height = 6, width = 6, units="in", dpi=300)
+ggsave("Figs_N_Tables/userCompliance.tiff", plot=print(p1), height = 6, width = 6, units="in", dpi=300)
