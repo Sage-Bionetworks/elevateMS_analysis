@@ -1,0 +1,382 @@
+---
+title: "Association between NeuroQoLs vs objective tests - Sensitivity Analysis"
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Given that the participant response to Neuro-QoL's fall in the center (Mild and Moderate) with very few responsed in the severe category, the following analysis assess the sensitivity of association 
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools', 'gridExtra')
+install_load("ComplexHeatmap", "circlize", "RColorBrewer")
+synapser::synLogin()
+install_load("DT", "lme4", "broom.mixed", "lmerTest")
+
+###Load data freeze
+load(synGet("syn19273733")$path)
+setwd("~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/")
+source("common_analysis_functions.R")
+```
+
+
+```{r}
+##Cutting the NeuroQoLs based on the following literature
+
+#Ref - https://pubmed.ncbi.nlm.nih.gov/25148759-creating-meaningful-cut-scores-for-neuro-qol-measures-of-fatigue-physical-functioning-and-sleep-disturbance-using-standard-setting-with-patients-and-providers/
+# http://www.healthmeasures.net/score-and-interpret/interpret-scores/neuro-qol/neuro-qol-score-cut-points
+
+nQOL_cognition_week_avg <- nQOL_cognition_week_avg %>%
+  dplyr::mutate(class  = case_when(
+    TScore >= 55 ~ "Normal",
+    TScore < 55 & TScore >= 40 ~ "Mild",
+    TScore < 40 & TScore >= 30 ~ "Moderate",
+    TScore < 30 ~ "Severe",
+    TRUE ~ as.character(NA))) %>% 
+  as.data.frame() %>%
+  filter(class != 'Severe') %>%
+  mutate(class = relevel(factor(class), ref="Normal"))
+
+
+nQOL_lowExtremity_week_avg <- nQOL_lowExtremity_week_avg %>%
+  dplyr::mutate( 
+    TScore_rnd = round(TScore),
+    class  = case_when(
+    TScore_rnd > 50 ~ "Normal",
+    TScore_rnd <= 50 & TScore_rnd >= 40 ~ "Mild",
+    TScore_rnd <= 39 & TScore_rnd >= 30 ~ "Moderate",
+    TScore_rnd < 30 ~ "Severe",
+    TRUE ~ as.character(NA))) %>%
+  select(-TScore_rnd) %>% 
+  as.data.frame() %>%
+  filter(class != 'Severe') %>%
+  mutate(class = relevel(factor(class), ref="Normal"))
+
+
+nQOL_uppExtremity_week_avg <- nQOL_uppExtremity_week_avg %>%
+  dplyr::mutate( 
+    TScore_rnd = round(TScore),
+    class  = case_when(
+    TScore_rnd > 46 ~ "Normal",
+    TScore_rnd <= 46 & TScore_rnd >= 31 ~ "Mild",
+    TScore_rnd <= 30 & TScore_rnd >= 21 ~ "Moderate",
+    TScore_rnd < 21 ~ "Severe",
+    TRUE ~ as.character(NA))) %>%
+  select(-TScore_rnd) %>% 
+  as.data.frame() %>%
+  filter(class != 'Severe') %>%
+  mutate(class = relevel(factor(class), ref="Normal"))
+```
+
+
+```{r}
+#controlling for hand
+tmp_lmer_mod1 <- function(df) { lmer(value ~ class  + hand + (1 | healthCode), data=df) }
+tmp_lmer_mod1 <- purrr::possibly(tmp_lmer_mod1, otherwise = 'Error')
+
+#NOT controlling for hand
+tmp_lmer_mod2 <- function(df) { lmer(value ~ class + (1 | healthCode), data=df) }
+tmp_lmer_mod2 <- purrr::possibly(tmp_lmer_mod2, otherwise = 'Error')
+
+tmp_calc_assoc <- function(features, survey, hand=F){
+  
+  tmp_df <- merge(survey, features)
+  if(hand == T){
+    res <- tmp_df %>%
+    group_by(feature) %>%
+    nest() %>%
+    dplyr::mutate(mod = map(data, tmp_lmer_mod1))
+  } else {
+    res <- tmp_df %>%
+    group_by(feature) %>%
+    nest() %>%
+    dplyr::mutate(mod = map(data, tmp_lmer_mod2))
+  } 
+
+  ## Checking if a feature model failed - mod column will have "Error" (so a character) ELSE it will contain Lmer model object
+  res <- res %>%
+    mutate(error = map_lgl(mod, is.character))
+    
+  features_failed_modelling <- res %>% filter(error == T) %>% select(-mod)
+  res <- res %>% filter(error == F) %>% select(-error)
+  
+  if(nrow(features_failed_modelling) > 0){
+    cat(paste0(nrow(features_failed_modelling), 'features failed lmer model \n'))
+  }
+  
+#Bind the anova pval and FDR corrected
+  res <- res %>% 
+    mutate(lmm.mod.res = map(mod, broom.mixed::tidy),
+           anova = map(mod, anova),
+           anova = map(anova, broom::tidy),
+           lmm.anova.pval = map_dbl(anova, function(df) df %>% filter(term == "class") %>% .$p.value)) %>%
+    select(-anova)
+  
+  res['lmm.anova.pval.adj'] = p.adjust(res$lmm.anova.pval, method ="fdr")
+  
+  # ## Add back features that failed modelling for error handling
+  # if(nrow(features_failed_modelling) > 0){
+  #   res <- res %>% full_join(features_failed_modelling, by=c("feature", "data"))
+  # }
+  res
+  }
+
+get_neruoQOL_association <- function(features, ...){
+  x1 <- tmp_calc_assoc(features, nQOL_cognition_week_avg, ...) %>% 
+    mutate(survey = 'neuroQOL Cognition')
+  x2 <- tmp_calc_assoc(features, nQOL_uppExtremity_week_avg, ...) %>%
+    mutate(survey = 'neuroQOL Upper Extremity')
+  x3 <- tmp_calc_assoc(features, nQOL_lowExtremity_week_avg, ... ) %>%
+    mutate(survey = 'neuroQOL Lower Extremity')
+  rbind(x1, x2, x3)
+}
+
+
+clean_features <- function(df){
+  df %>%
+    dplyr::select(survey, feature, lmm.mod.res, lmm.anova.pval, lmm.anova.pval.adj) %>%
+    unnest() %>%
+    dplyr::filter(str_detect(term, 'class')) %>%
+    dplyr::mutate(lmm.pval = round(p.value, digits=5), 
+                  lmm.anova.pval = round(lmm.anova.pval, digits=5),
+                  lmm.anova.pval.adj = round(lmm.anova.pval.adj, digits=5),
+                  estimate = round(estimate, digits=5),
+                  std.error = round(std.error, digits=5)) %>%
+    dplyr::select(-group, -statistic, -df, -p.value) %>%
+    arrange(lmm.anova.pval.adj)
+}
+
+```
+
+
+
+### Association between Tap features and Neuro-QoL's 
+
+```{r}
+tapF_week_avg <- tapF %>% filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, all_of(TAP_FEATURES)) %>%
+  dplyr::select(healthCode, participant_week, hand, feature, value) %>%
+  dplyr::group_by(healthCode, participant_week, hand, feature) %>% 
+  dplyr::summarise_all(.funs=c(mean), na.rm=T) 
+
+tapF_association <- get_neruoQOL_association(tapF_week_avg, hand=T)
+
+datatable(clean_features(tapF_association),
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+```
+
+
+```{r, fig.align='center', fig.width=8, fig.height=6}
+df  <- tapF_association %>% filter(feature == 'maxTapInter', survey == 'neuroQOL Cognition')
+df <- df$data[[1]]
+
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL-Cognition') + ylab('log10(max tap interval)') + theme_bw(base_size = 15) 
+p
+
+df  <- tapF_association %>% filter(feature == 'maxTapInter', survey == 'neuroQOL Upper Extremity')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.9) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL Upper Extremity') + ylab('log10(max tap interval)') + theme_bw(base_size = 15) 
+p
+
+df  <- tapF_association %>% filter(feature == 'minDriftLeft', survey == 'neuroQOL Lower Extremity')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.9) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('log10(min drift left)') + theme_bw(base_size = 15) 
+p
+```
+
+---------
+
+### Association between Walk features and Neuro-QoL's 
+
+
+```{r}
+walkF_week_avg <- walkF %>% filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, all_of(WALK_FEATURES)) %>%
+  dplyr::select(healthCode, participant_week, feature, value) %>%
+
+    dplyr::group_by(healthCode, participant_week, feature) %>% 
+  dplyr::summarise_all(.funs=c(mean), na.rm=T) 
+
+walkF_association <- get_neruoQOL_association(walkF_week_avg)
+
+datatable(clean_features(walkF_association), 
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+```
+
+```{r, fig.align='center', fig.width=8, fig.height=6}
+
+#NeuroQOL Cognition 
+# No significant feature 
+
+#NueroQoL Upper
+# No sig feature 
+
+# Neuro Lower
+df  <- walkF_association %>% filter(feature == 'P0Y', survey == 'neuroQOL Lower Extremity')
+df <- df$data[[1]]
+
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('log10(Accelerometer- P0Y*)') + theme_bw(base_size = 15)
+p
+```
+
+--------
+
+### Association between Rest features and Neuro-QoL's 
+
+```{r}
+restF_week_avg <- restF %>% filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, all_of(REST_FEATURES)) %>%
+  dplyr::select(healthCode, participant_week, feature, value) %>%
+  dplyr::group_by(healthCode, participant_week, feature) %>% 
+  dplyr::summarise_all(.funs=c(mean), na.rm=T) 
+
+restF_association <- get_neruoQOL_association(restF_week_avg)
+
+datatable(clean_features(restF_association), 
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+```
+
+
+```{r, fig.align='center', fig.width=8, fig.height=6}
+#neuroQoL - cognition
+df  <- restF_association %>% filter(feature == 'dVol', survey == 'neuroQOL Cognition')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(total displacement volume)') + theme_bw(base_size = 15)
+
+#neuroQoL - upper
+df  <- restF_association %>% filter(feature == 'kurAA', survey == 'neuroQOL Upper Extremity')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Upper Extremity') + ylab('log10(kurtosis avg acceleration)') + theme_bw(base_size = 15)
+p
+
+#neuroQoL - Lower
+df  <- restF_association %>% filter(feature == 'turningTime', survey == 'neuroQOL Upper Extremity')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('log10(turning time)') + theme_bw(base_size = 15)
+p
+```
+
+
+### Association between DSST features and Neuro-QoL's 
+
+```{r}
+DSST_FEATURES <- c("numDigits", "numCorrect", "percentCorrect", 
+                   "avgTime", "sdTime", "totalTime")
+
+dsstF_week_avg <-  dsst %>% filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, all_of(DSST_FEATURES)) %>%
+  dplyr::select(healthCode, participant_week, feature, value) %>%
+  dplyr::group_by(healthCode, participant_week, feature) %>% 
+  dplyr::summarise_all(.funs=c(mean), na.rm=T) 
+
+dsstF_association <- get_neruoQOL_association(dsstF_week_avg)
+
+datatable(clean_features(dsstF_association), 
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+```
+
+
+```{r, fig.align='center', fig.width=8, fig.height=6}
+#Neuro-QoL Cognition
+df  <- dsstF_association %>% filter(feature == 'sdTime', survey == 'neuroQOL Cognition')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(SD - time between symbols)') + theme_bw(base_size = 15)
+p
+
+#Neuro-QoL Upper
+# No Significant feature 
+
+#Neuro-QoL Cognition
+df  <- dsstF_association %>% filter(feature == 'avgTime', survey == 'neuroQOL Cognition')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(average time)') + theme_bw(base_size = 15)
+p
+```
+
+
+### Association between Tremor features and Neuro-QoL's 
+
+```{r}
+tremorF_week_avg <- tremorF %>% filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(feature, value, all_of(TREMOR_FEATURES)) %>%
+  dplyr::select(healthCode, participant_week, hand, feature, value) %>%
+  dplyr::group_by(healthCode, participant_week, hand, feature) %>% 
+  dplyr::summarise_all(.funs=c(mean), na.rm=T) %>%
+  as.data.frame()
+
+tremorF_association <- get_neruoQOL_association(tremorF_week_avg, hand=T)
+
+datatable(clean_features(tremorF_association),
+          extensions = 'Buttons', 
+          options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
+          rownames = F)
+```
+
+
+
+```{r, fig.align='center', fig.width=8, fig.height=6}
+
+#Neuro Cog
+# No Significant 
+
+#Neuro Upper
+df  <- tremorF_association %>% filter(feature == 'skewness.tm.IMF1.iqr_uaa_gyroscope', survey == 'neuroQOL Upper Extremity')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Upper Extremity') + ylab('log10(hand rotation acceleration*)') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.jpeg", plot = p, width = 6, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.tiff", plot = p, width = 6, height = 5, dpi = 150)
+
+#Neuro Lower
+# No Significant 
+
+```
+
+
+
+-----
+
+
+
+```{r, syn.store, eval=F}
+# Knit html document and push to synapse
+thisFileDir = '~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/'
+setwd(thisFileDir)
+thisFilePrefix = "NeuroQoLs_vs_ObjectiveTasks_"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
+
+thisFilePrefix = "NeuroQoLs_vs_ObjectiveTasks"
+thisFileName = paste0(thisFilePrefix, '.Rmd')
+gtToken = '~/.ssh/apratap_github_token_20190219.txt';
+githubr::setGithubToken(as.character(read.table(gtToken)$V1))
+thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
+thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+
+## Internal Synapse Copy
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+
+## External Synapse Copy
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn22005477')
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+
+unlink(paste0(thisFilePrefix, '.html'))
+```
+
+
