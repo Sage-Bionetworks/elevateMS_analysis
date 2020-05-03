@@ -21,7 +21,8 @@ install_load("DT", "lme4", "broom.mixed", "lmerTest")
 
 ###Load data freeze
 load(synGet("syn19273733")$path)
-source("~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/common_analysis_functions.R")
+setwd("~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/")
+source("common_analysis_functions.R")
 ```
 
 
@@ -78,9 +79,11 @@ nQOL_uppExtremity_week_avg <- nQOL_uppExtremity_week_avg %>%
 # x <- tmp_df %>% filter(feature == 'energy.tm.IMF2.iqr_uavacf_gyroscope')
 # tmp_lmer_mod1(x)
 
+#controlling for hand
 tmp_lmer_mod1 <- function(df) { lmer(value ~ class  + hand + (1 | healthCode), data=df) }
 tmp_lmer_mod1 <- purrr::possibly(tmp_lmer_mod1, otherwise = 'Error')
 
+#NOT controlling for hand
 tmp_lmer_mod2 <- function(df) { lmer(value ~ class + (1 | healthCode), data=df) }
 tmp_lmer_mod2 <- purrr::possibly(tmp_lmer_mod2, otherwise = 'Error')
 
@@ -125,9 +128,7 @@ tmp_calc_assoc <- function(features, survey, hand=F){
   #   res <- res %>% full_join(features_failed_modelling, by=c("feature", "data"))
   # }
   res
-  
   }
-
 
 get_neruoQOL_association <- function(features, ...){
   x1 <- tmp_calc_assoc(features, nQOL_cognition_week_avg, ...) %>% 
@@ -158,7 +159,6 @@ clean_features <- function(df){
 
 
 
-
 ### Association between Tap features and Neuro-QoL's 
 
 ```{r}
@@ -181,19 +181,34 @@ datatable(clean_features(tapF_association),
 df  <- tapF_association %>% filter(feature == 'maxTapInter', survey == 'neuroQOL Cognition')
 df <- df$data[[1]]
 
-p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL-Cognition') + ylab('log10(maxTapInterval)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('Cognition') + ylab('log10(max tap interval)') + theme_bw(base_size = 15) 
 p
-ggsave("Figs_N_Tables/NeuroQoL_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/NeuroQoL_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_TapF1.jpeg", plot = p, width = 5, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_TapF1.tiff", plot = p, width = 5, height = 5, dpi = 150)
 
  
 df  <- tapF_association %>% filter(feature == 'maxTapInter', survey == 'neuroQOL Upper Extremity')
 df <- df$data[[1]]
-p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.9) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL Upper Extremity') + ylab('log10(maxTapInterval)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.9) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('Upper Extremity') + ylab('log10(max tap interval)') + theme_bw(base_size = 15) 
 p
-ggsave("Figs_N_Tables/NeuroQoL_vs_TapF2.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/NeuroQoL_vs_TapF2.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_TapF2.jpeg", plot = p, width = 5, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_TapF2.tiff", plot = p, width = 5, height = 5, dpi = 150)
 
+
+# tapF.mat <- tapF_association %>% select(feature, survey, lmm.anova.pval) %>%
+#   tidyr::spread(survey, lmm.anova.pval) %>%
+#   tibble::column_to_rownames('feature')
+# 
+# cols <- c('#c51b7d', '#e0e0e0', '#e0e0e0')
+# heatmap.tapF <- ComplexHeatmap::Heatmap(tapF.mat, 
+#                                         show_row_names = T, row_title_gp = gpar(fontsize=10),
+#                                         cluster_columns = F,
+#                                         name='FDR', cluster_rows = T,
+#                                         clustering_method_rows = "average",
+#                                         column_title = "Session 1 vs 3",
+#                                         na_col = "gray",
+#                                         col  = circlize::colorRamp2(breaks = c(0,0.05,1), cols))
+# heatmap.tapF
 ```
 
 
@@ -206,7 +221,6 @@ ggsave("Figs_N_Tables/NeuroQoL_vs_TapF2.tiff", plot = p, width = 8, height = 6, 
 walkF_week_avg <- walkF %>% filter(dataGroups == 'ms_patient') %>% 
   tidyr::gather(feature, value, all_of(WALK_FEATURES)) %>%
   dplyr::select(healthCode, participant_week, feature, value) %>%
-
     dplyr::group_by(healthCode, participant_week, feature) %>% 
   dplyr::summarise_all(.funs=c(mean), na.rm=T) 
 
@@ -218,17 +232,39 @@ datatable(clean_features(walkF_association),
           rownames = F)
 ```
 
-
-
 ```{r, fig.align='center', fig.width=8, fig.height=6}
+
+#NeuroQOL Cognition 
+# No significant feature 
+
+#NueroQoL Upper
+# No sig feature 
+
+# Neuro Lower
 df  <- walkF_association %>% filter(feature == 'P0Y', survey == 'neuroQOL Lower Extremity')
 df <- df$data[[1]]
+df <- df %>% filter(class != 'Severe') #Removing as there is very low data - sensitivity analysis shows removing this wont impact the trend and stats sig
 
-p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('lgo10(P0Y)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.7) + geom_jitter(size=0.3, width=0.3, color="grey60") + theme_bw() + xlab('Lower Extremity') + ylab('log10(Accelerometer- P0Y*)') + theme_bw(base_size = 15)
 p
-ggsave("Figs_N_Tables/NeuroQoL_vs_WalkF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/NeuroQoL_vs_WalkF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_WalkF1.jpeg", plot = p, width = 5, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_WalkF1.tiff", plot = p, width = 5, height = 5, dpi = 150)
 
+
+#### heatmap
+# walkF.mat <- walkF_association %>% select(feature, survey, lmm.anova.pval) %>%
+#   tidyr::spread(survey, lmm.anova.pval) %>%
+#   tibble::column_to_rownames('feature')
+# cols <- c('#c51b7d', '#e0e0e0', '#e0e0e0')
+# heatmap.walkF <- ComplexHeatmap::Heatmap(walkF.mat, 
+#                                         show_row_names = T, row_title_gp = gpar(fontsize=10),
+#                                         cluster_columns = F,
+#                                         name='FDR', cluster_rows = T,
+#                                         clustering_method_rows = "average",
+#                                         column_title = "Session 1 vs 3",
+#                                         na_col = "gray",
+#                                         col  = circlize::colorRamp2(breaks = c(0,0.05,1), cols))
+# heatmap.walkF
 ```
 _(we might need to filter out classes that dont have sufficient data e.g - Severe category NeuroQoL)_
 
@@ -254,15 +290,30 @@ datatable(clean_features(restF_association),
 
 
 ```{r, fig.align='center', fig.width=8, fig.height=6}
+#neuroQoL - cognition
 df  <- restF_association %>% filter(feature == 'dVol', survey == 'neuroQOL Cognition')
 df <- df$data[[1]]
-ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(dVol)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('Cognition') + ylab('log10(total displacement volume)') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/NeuroQoL_vs_RestF1.jpeg", plot = p, width = 5, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_RestF1.tiff", plot = p, width = 5, height = 5, dpi = 150)
 
-
-df  <- restF_association %>% filter(feature == 'turningTime', survey == 'neuroQOL Lower Extremity')
+#neuroQoL - upper
+df  <- restF_association %>% filter(feature == 'kurAA', survey == 'neuroQOL Upper Extremity')
 df <- df$data[[1]]
-ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('lgo10(turning time)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Upper Extremity') + ylab('log10(kurtosis avg acceleration)') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/NeuroQoL_vs_RestF2.jpeg", plot = p, width = 6, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_RestF2.tiff", plot = p, width = 6, height = 5, dpi = 150)
 
+
+#neuroQoL - Lower
+df  <- restF_association %>% filter(feature == 'turningTime', survey == 'neuroQOL Upper Extremity')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('log10(turning time)') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/NeuroQoL_vs_RestF3.jpeg", plot = p, width = 6, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_RestF3.tiff", plot = p, width = 6, height = 5, dpi = 150)
 ```
 
 
@@ -288,20 +339,24 @@ datatable(clean_features(dsstF_association),
 
 
 ```{r, fig.align='center', fig.width=8, fig.height=6}
+#Neuro-QoL Cognition
 df  <- dsstF_association %>% filter(feature == 'sdTime', survey == 'neuroQOL Cognition')
 df <- df$data[[1]]
-p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(sdTime)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('Cognition') + ylab('log10(time sd)') + theme_bw(base_size = 15)
 p
-ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.jpeg", plot = p, width = 5, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.tiff", plot = p, width = 5, height = 5, dpi = 150)
 
+#Neuro-QoL Upper
+# No Significant feature 
 
-df  <- dsstF_association %>% filter(feature == 'sdTime', survey == 'neuroQOL Lower Extremity')
+#Neuro-QoL Cognition
+df  <- dsstF_association %>% filter(feature == 'avgTime', survey == 'neuroQOL Cognition')
 df <- df$data[[1]]
-p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('lgo10(Time(SD))') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(average time)') + theme_bw(base_size = 15)
 p
-ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.jpeg", plot = p, width = 6, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.tiff", plot = p, width = 6, height = 5, dpi = 150)
 ```
 
 
@@ -326,15 +381,22 @@ datatable(clean_features(tremorF_association),
 
 
 ```{r, fig.align='center', fig.width=8, fig.height=6}
+
+#Neuro Cog
+# No Significant 
+
+#Neuro Upper
 df  <- tremorF_association %>% filter(feature == 'skewness.tm.IMF1.iqr_uaa_gyroscope', survey == 'neuroQOL Upper Extremity')
 df <- df$data[[1]]
-p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Upper Extremity') + ylab('log10(skewness.tm.IMF1.iqr_uaa_gyroscope)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('Upper Extremity') + ylab('log10(hand rotation acceleration*)') + theme_bw(base_size = 15)
 p
-ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.jpeg", plot = p, width = 5, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.tiff", plot = p, width = 5, height = 5, dpi = 150)
+
+#Neuro Lower
+# No Significant 
+
 ```
-
-
 
 
 ```{r, eval=F}
@@ -386,9 +448,15 @@ gtToken = '~/.ssh/apratap_github_token_20190219.txt';
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
 thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo, repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+
+## Internal Synapse Copy
 thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
-###Store on Synapse
 synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+
+## External Synapse Copy
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn22005477')
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+
 unlink(paste0(thisFilePrefix, '.html'))
 ```
 

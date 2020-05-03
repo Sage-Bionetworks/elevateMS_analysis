@@ -357,11 +357,11 @@ ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.tiff", plot = p, width = 6, height = 
 # Knit html document and push to synapse
 thisFileDir = '~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/'
 setwd(thisFileDir)
-thisFilePrefix = "NeuroQoLs_vs_ObjectiveTasks_"
+thisFilePrefix = "NeuroQoLs_vs_ObjectiveTasks_SensitivityAnalysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 html.obj = rmarkdown::render(thisFileName, output_format = 'html_document')
 
-thisFilePrefix = "NeuroQoLs_vs_ObjectiveTasks"
+thisFilePrefix = "NeuroQoLs_vs_ObjectiveTasks_SensitivityAnalysis"
 thisFileName = paste0(thisFilePrefix, '.Rmd')
 gtToken = '~/.ssh/apratap_github_token_20190219.txt';
 githubr::setGithubToken(as.character(read.table(gtToken)$V1))
