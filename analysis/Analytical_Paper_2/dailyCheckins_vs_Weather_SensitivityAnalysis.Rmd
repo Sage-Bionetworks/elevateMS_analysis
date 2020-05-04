@@ -4,6 +4,7 @@ author: "Abhi Pratap"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
+
 Given that most participants' self-reported response to daily checkin PROs have very few responses in the "horrible" category, the following analysis assess the sensitivity of association between weather and daily checkin after removing the "horrible" responses 
 
 
@@ -42,10 +43,14 @@ dailyCheckins_flt <- dailyCheckins %>%
                 health = recode(health, '1'='Amazing', '2'='Okay', '3'='So-So', '4'='Not Great', '5'='Horrible'),
                 health = factor(health, levels=c('Amazing', 'Okay', 'So-So', 'Not Great', 'Horrible')))
 
+cat('pain \n')
+prop.table(table(dailyCheckins_flt$pain)) * 100
 
-prop.table(table(dailyCheckins_flt$pain))
-prop.table(table(dailyCheckins_flt$health))
-prop.table(table(dailyCheckins_flt$mobility))
+cat('\n health \n')
+prop.table(table(dailyCheckins_flt$health)) * 100
+
+cat('\n mobility \n')
+prop.table(table(dailyCheckins_flt$mobility)) * 100
 
 # View(dailyCheckins_flt)
 # table(dailyCheckins_flt$health, dailyCheckins_flt$mobility)
@@ -70,14 +75,17 @@ dailyCheckins_N_weather <- merge(dailyCheckins_flt, weatherF_flt,
 _Baseline health level - Amazing_
 ```{r}
 #### Mixed effect modelling
-tmp <- dailyCheckins_N_weather %>% filter(health != 'Horrible') %>% mutate(health = as.character(health))
+health <- dailyCheckins_N_weather %>% 
+  filter(health != 'Horrible') %>% 
+  mutate(health = as.character(health)) %>%
+  mutate( health = factor(health, levels=c('Amazing', 'Okay', 'So-So', 'Not Great') ))
 install_load("lme4", "lmerTest", "broom")
-res.1 <- lmer(atmosphericPressure ~ health + (1 | healthCode), data=tmp )
-res.2 <- lmer(cloudCoverage ~ health  + (1 | healthCode), data=tmp )
-res.3 <- lmer(currentTemperature ~ health + (1 | healthCode), data=tmp )
-res.4 <- lmer(humidity ~ health + (1 | healthCode), data=tmp )
-res.5 <- lmer(maximumTemperature ~ health + (1 | healthCode), data=tmp )
-res.6 <- lmer(minimumTemperature ~ health + (1 | healthCode), data=tmp )
+res.1 <- lmer(atmosphericPressure ~ health + (1 | healthCode), data=health )
+res.2 <- lmer(cloudCoverage ~ health  + (1 | healthCode), data=health )
+res.3 <- lmer(currentTemperature ~ health + (1 | healthCode), data=health )
+res.4 <- lmer(humidity ~ health + (1 | healthCode), data=health )
+res.5 <- lmer(maximumTemperature ~ health + (1 | healthCode), data=health )
+res.6 <- lmer(minimumTemperature ~ health + (1 | healthCode), data=health )
 sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 ```
 
@@ -85,20 +93,18 @@ sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 ### Visual difference between weather features and daily health
 ```{r fig.align='center', fig.width=12, fig.height=4, dpi=100}
 ### Plot top differentiator - cloudCoverage
-p1 <- ggplot(data=tmp, aes(x=health, y=currentTemperature)) + geom_boxplot(width=0.6)
+p1 <- ggplot(data=health, aes(x=health, y=currentTemperature)) + geom_boxplot(width=0.6)
 p1 <- p1 + xlab('daily health score') + ylab("Temperature(F)")
 p1 <- p1 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15)
-p1
 
-p2 <- ggplot(data=tmp, aes(x=health, y=humidity)) + geom_boxplot(width=0.6)
+p2 <- ggplot(data=health, aes(x=health, y=humidity)) + geom_boxplot(width=0.6)
 p2 <- p2 + xlab('daily health score') + ylab("Humidity")
 p2 <- p2 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15)
-p2
 
-p3 <- ggplot(data=tmp, aes(x=health, y=maximumTemperature)) + geom_boxplot(width=0.6)
+p3 <- ggplot(data=health, aes(x=health, y=maximumTemperature)) + geom_boxplot(width=0.6)
 p3 <- p3 + xlab('daily health score') + ylab("Humidity")
 p3 <- p3 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15)
-p3
+
 gridExtra::grid.arrange(p1, p2, p3, nrow=1)
 ```
 
@@ -114,20 +120,24 @@ _Baseline Mobility level - Excellent_
 ```{r}
 #### Mixed effect modelling
 install_load("lme4", "lmerTest", "broom")
-tmp <- dailyCheckins_N_weather %>% filter(mobility != 'Horrible') %>% mutate(mobility = as.character(mobility))
-mobility.1 <- lmer(atmosphericPressure ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
-mobility.2 <- lmer(cloudCoverage ~ mobility  + (1 | healthCode),  data=dailyCheckins_N_weather )
-mobility.3 <- lmer(currentTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
-mobility.4 <- lmer(humidity ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
-mobility.5 <- lmer(maximumTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
-mobility.6 <- lmer(minimumTemperature ~ mobility + (1 | healthCode), data=dailyCheckins_N_weather )
+mobility <- dailyCheckins_N_weather %>% 
+  filter(mobility != 'Horrible') %>% 
+  mutate(mobility = as.character(mobility), 
+         mobility = factor(mobility, levels=c('Excellent', 'Very Good', 'Good', 'Not Great')))
+
+mobility.1 <- lmer(atmosphericPressure ~ mobility + (1 | healthCode), data=mobility )
+mobility.2 <- lmer(cloudCoverage ~ mobility  + (1 | healthCode),  data=mobility )
+mobility.3 <- lmer(currentTemperature ~ mobility + (1 | healthCode), data=mobility )
+mobility.4 <- lmer(humidity ~ mobility + (1 | healthCode), data=mobility )
+mobility.5 <- lmer(maximumTemperature ~ mobility + (1 | healthCode), data=mobility )
+mobility.6 <- lmer(minimumTemperature ~ mobility + (1 | healthCode), data=mobility )
 sjPlot::tab_model(mobility.1, mobility.2, mobility.3, mobility.4, mobility.5, mobility.6, show.ci = F)
 ```
 
 
 ### Visual difference between weather features and daily mobility
 ```{r fig.align='center', fig.width=6, fig.height=4, dpi=100}
-p1 <- ggplot(data=tmp, aes(x=mobility, y=currentTemperature)) + geom_boxplot(width=0.6)
+p1 <- ggplot(data=mobility, aes(x=mobility, y=currentTemperature)) + geom_boxplot(width=0.6)
 p1 <- p1 + xlab('daily mobility') +  ylab("Temperature(F)")
 p1 <- p1 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_light(base_size = 15)
 p1
@@ -143,13 +153,15 @@ _Baseline Pain level - None_
 ```{r}
 #### Mixed effect modelling
 install_load("lme4", "lmerTest", "broom")
-tmp <- dailyCheckins_N_weather %>% filter(mobility != 'Horrible') %>% mutate(pain = as.character(pain))
-res.1 <- lmer(atmosphericPressure ~ pain + (1 | healthCode), data=tmp )
-res.2 <- lmer(cloudCoverage ~ pain  + (1 | healthCode),  data=tmp )
-res.3 <- lmer(currentTemperature ~ pain + (1 | healthCode), data=tmp )
-res.4 <- lmer(humidity ~ pain + (1 | healthCode), data=tmp )
-res.5 <- lmer(maximumTemperature ~ pain + (1 | healthCode), data=tmp )
-res.6 <- lmer(minimumTemperature ~ pain + (1 | healthCode), data=tmp )
+pain <- dailyCheckins_N_weather %>% filter(pain != 'Horrible') %>% 
+  mutate(pain = as.character(pain),
+         pain = factor(pain, levels=c('None', 'Mild', 'Moderate', 'Severe')))
+res.1 <- lmer(atmosphericPressure ~ pain + (1 | healthCode), data=pain )
+res.2 <- lmer(cloudCoverage ~ pain  + (1 | healthCode),  data=pain )
+res.3 <- lmer(currentTemperature ~ pain + (1 | healthCode), data=pain )
+res.4 <- lmer(humidity ~ pain + (1 | healthCode), data=pain )
+res.5 <- lmer(maximumTemperature ~ pain + (1 | healthCode), data=pain )
+res.6 <- lmer(minimumTemperature ~ pain + (1 | healthCode), data=pain )
 sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 ```
 
@@ -157,7 +169,7 @@ sjPlot::tab_model(res.1, res.2, res.3, res.4, res.5, res.6, show.ci = F)
 ```{r fig.align='center', fig.width=6, fig.height=4, dpi=100, eval=F}
 ### Visual difference between weather features and daily pain
 ### Plot top differentiator - cloudCoverage
-p1  <- ggplot(data=tmp, aes(x=pain, y=humidity)) + geom_boxplot(width=0.6)
+p1  <- ggplot(data=pain, aes(x=pain, y=humidity)) + geom_boxplot(width=0.6)
 p1  <- p1 + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_light(base_size = 15)
 p1  <- p1 + xlab('self reported daily pain')
 p1

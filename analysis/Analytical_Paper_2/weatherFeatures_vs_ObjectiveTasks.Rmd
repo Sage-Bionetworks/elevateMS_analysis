@@ -1,6 +1,6 @@
 ---
 title: "ElevateMS Weather vs Objective features "
-author: "Abhi Pratap"
+author: "Abhi Pratap @ Sage Bionetworks"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
@@ -76,10 +76,10 @@ df <- tapF_and_weatherF %>%
 p <- ggplot(data=df %>% filter(!is.na(weatherFeatureVal)),
        aes(y=objFeatureVal, x=weatherFeatureVal)) 
 p <- p + geom_boxplot() + geom_jitter(size=0.3, width = 0.3, color="gray70") + theme_bw() 
-p <- p + xlab('Daily Temperature(F)') + ylab('Number of Taps') + theme_bw(base_size = 15)
+p <- p + xlab('Temperature(F)') + ylab('Number of Taps') + theme_bw(base_size = 15)
 p
-ggsave("Figs_N_Tables/weatherF_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/weatherF_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/weatherF_vs_TapF1.jpeg", plot = p, width = 5, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/weatherF_vs_TapF1.tiff", plot = p, width = 5, height = 5, dpi = 150)
 ```
 
 
@@ -119,7 +119,6 @@ datatable(res %>% select(objFeature, weatherFeature, estimate, p.val.adj) %>%
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
-
 ```
 
 
@@ -134,15 +133,11 @@ df <- dsstF_and_weatherF %>%
 p <- ggplot(data=df %>% filter(!is.na(weatherFeatureVal)),
        aes(y=objFeatureVal, x=weatherFeatureVal)) 
 p <- p + geom_boxplot() + geom_jitter(size=0.3, width = 0.3, color="gray70") + theme_bw() 
-p <- p + xlab('Daily Temperature(F)') + ylab('Number of correctly called digits') + theme_bw(base_size = 15)
+p <- p + xlab('Temperature(F)') + ylab('Number of correctly called digits') + theme_bw(base_size = 15)
 p
-ggsave("Figs_N_Tables/weatherF_vs_DSST.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/weatherF_vs_DSST.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/weatherF_vs_DSST.jpeg", plot = p, width = 5, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/weatherF_vs_DSST.tiff", plot = p, width = 5, height = 5, dpi = 150)
 ```
-
-
-
-
 
 
 ----------
@@ -180,7 +175,6 @@ datatable(res %>% select(objFeature, weatherFeature, estimate, p.val.adj) %>%
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
-
 ```
 
 ----------
@@ -249,7 +243,6 @@ tremorF_and_weatherF_assoc <- tremorF_and_weatherF %>%
 tremorF_and_weatherF_assoc <- tremorF_and_weatherF_assoc %>%
   dplyr::mutate(error = map_lgl(mod, is.character))
 features_that_failed_modelling <- tremorF_and_weatherF_assoc %>% filter(error == T) %>% select(-mod)
-features_that_failed_modelling
 
 ##Features for which the mixed modelling worked
 tremorF_and_weatherF_assoc <- tremorF_and_weatherF_assoc %>% filter(error == F) %>% select(-error)
@@ -265,23 +258,23 @@ datatable(res %>% select(objFeature, weatherFeature, estimate, p.val.adj) %>%
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
-
 ```
 
 
 
 ```{r, fig.align='center', fig.width=8, fig.height=6}
 df <- tremorF_and_weatherF %>% 
-  dplyr::filter(objFeature == "energy.tm.IMF1.iqr_uj_accelerometer" , weatherFeature == 'currentTemperature') %>%
+  dplyr::filter(objFeature == "energy.tm.IMF1.iqr_uj_accelerometer" , 
+                weatherFeature == 'currentTemperature') %>%
   mutate(weatherFeatureVal = cut(weatherFeatureVal, breaks = c(0,50, 80, 130), 
                                  labels = c('0-50', '51-80', '80+')))
 p <- ggplot(data=df %>% filter(!is.na(weatherFeatureVal)),
        aes(y=log10(objFeatureVal), x=weatherFeatureVal)) 
 p <- p + geom_boxplot() + geom_jitter(size=0.3, width = 0.3, color="gray70") + theme_bw() 
-p <- p + xlab('Daily Temperature(F)') + ylab('log10(energy.tm.IMF1.iqr_uj_accelerometer)') + theme_bw(base_size = 15)
+p <- p + xlab('Temperature(F)') + ylab('log10(linear jerk)') + theme_bw(base_size = 15)
 p
-ggsave("Figs_N_Tables/weatherF_vs_TremorF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/weatherF_vs_TremorF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/weatherF_vs_TremorF1.jpeg", plot = p, width = 5, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/weatherF_vs_TremorF1.tiff", plot = p, width = 5, height = 5, dpi = 150)
 ```
 
 
@@ -299,9 +292,15 @@ githubr::setGithubToken(as.character(read.table(gtToken)$V1))
 thisRepo <- githubr::getRepo(repository = "Sage-Bionetworks/elevateMS_analysis", ref="branch", refName='master')
 thisFile_github_permaLink <- githubr::getPermlink(repository = thisRepo,
                                                   repositoryPath=paste0('analysis/Analytical_Paper_2/',thisFileName))
+
+### Internal Synapse project
 thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn11315047')
-###Store on Synapse
 synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+
+### External Synapse project
+thisFile_synapse = File(paste0(thisFilePrefix, '.html'), parentId ='syn22005477')
+synStore(thisFile_synapse, executed=thisFile_github_permaLink)
+
 unlink(paste0(thisFilePrefix, '.html'))
 ```
 
