@@ -1,0 +1,83 @@
+---
+title: "ElevateMS HK features "
+author: "Abhi Pratap"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+
+```{r global_options, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+Sys.setenv(TZ='GMT')
+library(install.load)
+install_load(c('plyr', 'tidyverse', 'data.table', 'lubridate', 'ggpubr', 'synapser'))
+install_load('ggthemes', 'devtools')
+synapser::synLogin()
+install_load("DT", "lme4", "broom.mixed", "lmerTest")
+
+###Load data freeze
+load(synGet("syn19273733")$path)
+source("~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/common_analysis_functions.R")
+```
+
+
+```{r}
+ms_patients = baselineChar %>% filter(dataGroups == 'ms_patient') %>% .$healthCode
+
+HK.data <- HK.data %>% filter(healthCode %in% ms_patients) %>%
+  dplyr::select(-study_day, -study_week, -elevateMS_startDate_GMT)
+
+HK.data.byweek <- HK.data %>%
+  tidyr::gather(HKfeature, value, c('numberOfSteps', 'floorsDescended', 'floorsAscended',
+                                  'distance','mean.averageActivePace',
+                                  'median.averageActivePace')) %>%
+  dplyr::group_by(healthCode, participant_week, HKfeature) %>%
+  dplyr::summarise(median = median(value, na.rm = T),
+                   mean = mean(value, na.rm = T),
+                   iqr = IQR(value, na.rm = T),
+                   sd = sd(value, na.rm = T),
+                   sum = sum(value, na.rm = T)) %>%
+  tidyr::gather(stat, HKvalue, c('median', 'iqr', 'sd', 'sum', 'mean')) %>%
+  dplyr::mutate(HKfeature = paste0(HKfeature,'.',stat)) %>%
+  dplyr::select(-stat) %>%
+  filter(! HKfeature %in% c('mean.averageActivePace.sum', 'median.averageActivePace.sum'))
+```
+
+
+
+```{r}
+DSST_FEATURES <- c("numDigits", "numCorrect", "percentCorrect", 
+                   "avgTime", "sdTime", "totalTime")
+
+dsstF_week_avg <-  dsst %>% filter(dataGroups == 'ms_patient') %>% 
+  tidyr::gather(dsstFeature, dsstValue, all_of(DSST_FEATURES)) %>%
+  dplyr::select(healthCode, participant_week, dsstFeature, dsstValue) %>%
+  dplyr::group_by(healthCode, participant_week, dsstFeature) %>% 
+  dplyr::summarise_all(.funs=c(mean), na.rm=T) 
+
+HK.n.dsst <- merge(HK.data.byweek, dsstF_week_avg)
+
+HK.n.dsst.assoc <- HK.n.dsst %>%
+  group_by(HKfeature, dsstFeature) %>%
+  nest() %>%
+  dplyr::mutate(lmm.mod = map(data, function(df) {
+    lmer(HKvalue ~ dsstValue + (1 | healthCode), data=df) } )) %>%
+  dplyr::mutate(lmm.res = map(lmm.mod, broom::tidy))
+
+res <- HK.n.dsst.assoc %>% select(-data, -lmm.mod) %>% unnest() %>% 
+  filter(term == 'dsstValue') %>%
+  as.data.frame()  %>%
+  dplyr::mutate(p.val.adj = p.adjust(p.value, method="fdr"))
+
+```
+
+
+```{r}
+colnames(HK.n.dsst)
+df <- HK.n.dsst %>% filter(HKfeature == "distance.median",
+                           dsstFeature == "numCorrect" )
+
+View(df)
+```
+
