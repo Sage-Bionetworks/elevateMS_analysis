@@ -21,6 +21,7 @@ synapser::synLogin()
 ###Load data freeze
 load(synGet("syn19273733")$path)
 source("~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/common_analysis_functions.R")
+setwd("~/dev/elevateMS_analysis/analysis/Analytical_Paper_2/")
 ```
 
 
@@ -63,6 +64,11 @@ corOutput = CovariateAnalysis::getAssociationStatistics(baselineChar_tmp %>%
                                                      YearsSinceDiagnosis.grouped, employment,
                                                      YearsSinceFirstDMT.grouped,msFamilyHistory,
                                                      age_group, education, race.mod))
+
+ggsave("Figs_N_Tables/BaselinePDDS_vs_baselineChars_Cor.jpeg", plot = corOutput$plot, width = 8, height = 6, dpi = 200)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_baselineChars_Cor.tiff", plot = corOutput$plot, width = 8, height = 6, dpi = 200)
+
+
 cors <- as.data.frame( corOutput$ESTIMATE) %>% 
   rownames_to_column(var='var1') %>% 
   tidyr::gather('var2', 'cor', -var1)
@@ -130,6 +136,12 @@ association_baselineChars_vs_tapF <- baselineChars_vs_tapF  %>%
   mutate(lm_res = purrr::map(data, tmp_lm_model),
          anova_res = purrr::map(lm_res, function(x){ anova(x) }) ) 
 
+lm.model.effectSize <- association_baselineChars_vs_tapF %>%
+  mutate(glance = lm_res %>% map(broom::tidy)) %>%
+  select(-data, -lm_res, -anova_res) %>%
+  unnest() %>%
+  dplyr::filter(str_detect(term, "baselineValue")) %>%
+  dplyr::select(baselineChar, feature, term, lmModel.effectSize = estimate, lmModel.pVal = p.value)
 
 anova.pvals <- association_baselineChars_vs_tapF %>%
   mutate(glance = anova_res %>% map(broom::tidy)) %>%
@@ -141,32 +153,25 @@ anova.pvals <- association_baselineChars_vs_tapF %>%
   mutate(res = map(data, function(df) { data.frame(feature = df$feature,p.value = df$p.value,
                                                    p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
   select(-data) %>% 
-    unnest() 
+    unnest() %>%
+  rename(anova.p.val = p.value,
+         anova.p.val.adj = p.val.adj)
 
 ##Feature with best association with PDDS
 bestTapF_PDDS_feature  <- anova.pvals %>%
   dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
-  dplyr::slice(which.min(p.val.adj)) %>% .$feature
+  dplyr::slice(which.min(anova.p.val.adj)) %>% .$feature %>% as.character()
 
 bestTapF_vs_baselineChar <- anova.pvals %>%
   dplyr::filter(feature == bestTapF_PDDS_feature) %>%
-  dplyr::select(baselineChar, feature, p.val.adj) %>%
-  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
-  
-datatable(anova.pvals,
+  dplyr::select(baselineChar, feature, anova.p.val.adj) %>%
+  dplyr::mutate(anova.p.val.adj = round(anova.p.val.adj, digits = 5))
+
+datatable(lm.model.effectSize %>% full_join(anova.pvals) %>%
+            dplyr::select(baselineChar, feature, term, lmModel.effectSize, lmModel.pVal, anova.p.val, anova.p.val.adj),
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
-
-
-#### get effect size for top feature
-# View(association_baselineChars_vs_tapF %>%
-#   mutate(glance = lm_res %>% map(broom::tidy)) %>%
-#   select(-data, -lm_res, -anova_res) %>%
-#   unnest() %>% 
-#   filter(feature == bestTapF_PDDS_feature) %>%
-#   filter(baselineChar == 'overallPhysicalAbility'))
-
 ```
 
 <br><br>
@@ -185,10 +190,10 @@ df <- baselineChars_vs_tapF %>%
                                                   'moderate-disability', 'gait-disability')))
 
 p <- ggplot(data = df, aes(y=value, x=(baselineValue))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15)
-p <- p + xlab('Physical ability category') + ylab("number of median taps (Finger tapping)") + coord_flip()
+p <- p + xlab('Physical ability category') + ylab("Number of median taps (Finger tapping)") + coord_flip()
 p
-ggsave("Figs_N_Tables/BaselinePDDS_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/BaselinePDDS_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 200)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 200)
 
 
 #2 
@@ -196,10 +201,10 @@ df <- baselineChars_vs_tapF %>%
   dplyr::filter(baselineChar == "age_group", feature == 'numberTaps.median') %>%
   filter(!is.na(baselineValue))
 p <- ggplot(data = df, aes(y=value, x=(baselineValue))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw(base_size = 15) 
-p <- p + xlab('Age group') + ylab("number of median taps(Finger tapping)") + coord_flip()
+p <- p + xlab('Age group') + ylab("Number of median taps(Finger tapping)") + coord_flip()
 p
-ggsave("Figs_N_Tables/BaselineAge_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/BaselineAge_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/BaselineAge_vs_TapF1.jpeg", plot = p, width = 8, height = 6, dpi = 200)
+ggsave("Figs_N_Tables/BaselineAge_vs_TapF1.tiff", plot = p, width = 8, height = 6, dpi = 200)
 
 ```
 
@@ -222,14 +227,12 @@ walkF_averaged <- walkF %>%
   dplyr::mutate(feature = paste0(feature,'.',stat)) %>% 
   dplyr::select(-stat)
 
-
 baselineChars_vs_walkF <- baselineChar_tmp %>% 
    dplyr::select(healthCode, overallPhysicalAbility, YearsSinceDiagnosis.grouped,
                 YearsSinceFirstDMT.grouped, msFamilyHistory,
                 age_group, education, race.mod) %>%
   tidyr::gather(baselineChar, baselineValue, c(2:8)) %>%
   inner_join(walkF_averaged)
-
 
 
 tmp_lm_model <- function(df){
@@ -249,6 +252,12 @@ association_baselineChars_vs_walkF <- baselineChars_vs_walkF  %>%
   mutate(lm_res = purrr::map(data, tmp_lm_model),
          anova_res = purrr::map(lm_res, function(x){ anova(x) }) ) 
 
+lm.model.effectSize <- association_baselineChars_vs_walkF %>%
+  mutate(glance = lm_res %>% map(broom::tidy)) %>%
+  select(-data, -lm_res, -anova_res) %>%
+  unnest() %>%
+  dplyr::filter(str_detect(term, "baselineValue")) %>%
+  dplyr::select(baselineChar, feature, term, lmModel.effectSize = estimate, lmModel.pVal = p.value)
 
 anova.pvals <- association_baselineChars_vs_walkF %>%
   mutate(glance = anova_res %>% map(broom::tidy)) %>%
@@ -260,34 +269,26 @@ anova.pvals <- association_baselineChars_vs_walkF %>%
   mutate(res = map(data, function(df) { data.frame(feature = df$feature,p.value = df$p.value,
                                                    p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
   select(-data) %>% 
-    unnest() 
+    unnest() %>%
+  rename(anova.p.val = p.value,
+         anova.p.val.adj = p.val.adj)
   
 
 ##Feature with best association with PDDS
 bestWalkF_PDDS_feature  <- anova.pvals %>%
   dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
-  dplyr::slice(which.min(p.val.adj)) %>% .$feature
+  dplyr::slice(which.min(anova.p.val.adj)) %>% .$feature
 
 bestWalkF_vs_baselineChar <- anova.pvals %>% 
   dplyr::filter(feature == bestWalkF_PDDS_feature) %>%
-  dplyr::select(baselineChar, feature, p.val.adj) %>%
-  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
+  dplyr::select(baselineChar, feature, anova.p.val.adj) %>%
+  dplyr::mutate(anova.p.val.adj = round(anova.p.val.adj, digits = 5))
 
-datatable(anova.pvals %>%
-            dplyr::arrange(p.val.adj), 
+datatable(lm.model.effectSize %>% full_join(anova.pvals) %>% dplyr::arrange(anova.p.val.adj) %>%
+            dplyr::select(baselineChar, feature, term, lmModel.effectSize, lmModel.pVal, anova.p.val, anova.p.val.adj), 
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
-
-
-#### get effect size for top feature
-# View(association_baselineChars_vs_walkF %>%
-#   mutate(glance = lm_res %>% map(broom::tidy)) %>%
-#   select(-data, -lm_res, -anova_res) %>%
-#   unnest() %>%
-#   filter(feature == bestWalkF_PDDS_feature) %>%
-#   filter(baselineChar == 'overallPhysicalAbility'))
-
 ```
 
 
@@ -304,8 +305,8 @@ df <- baselineChars_vs_walkF %>%
 p <- ggplot(data = df,
        aes(y=log10(value), x=baselineValue)) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") +  theme_bw()  + theme_bw(base_size = 15) + xlab('Physical ability category') + ylab("log10(Average jerk derived feature (walking))")  + coord_flip()
 p
-ggsave("Figs_N_Tables/BaselinePDDS_vs_WalkF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/BaselinePDDS_vs_WalkF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_WalkF1.jpeg", plot = p, width = 8, height = 6, dpi = 200)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_WalkF1.tiff", plot = p, width = 8, height = 6, dpi = 200)
 ```
 
 
@@ -353,6 +354,14 @@ association_baselineChars_vs_tremorF <- baselineChars_vs_tremorF  %>%
   mutate(lm_res = purrr::map(data, tmp_lm_model),
          anova_res = purrr::map(lm_res, function(x){ anova(x) }) ) 
 
+lm.model.effectSize <- association_baselineChars_vs_tremorF %>%
+  mutate(glance = lm_res %>% map(broom::tidy)) %>%
+  select(-data, -lm_res, -anova_res) %>%
+  unnest() %>%
+  dplyr::filter(str_detect(term, "baselineValue")) %>%
+  dplyr::select(baselineChar, feature, term, lmModel.effectSize = estimate, lmModel.pVal = p.value) %>%
+  dplyr::filter(!is.na(lmModel.pVal))
+
 anova.pvals <- association_baselineChars_vs_tremorF %>%
   mutate(glance = anova_res %>% map(broom::tidy)) %>%
   select(-data, -lm_res, -anova_res) %>%
@@ -364,20 +373,22 @@ anova.pvals <- association_baselineChars_vs_tremorF %>%
                                                    p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
   select(-data) %>% 
   unnest() %>%
-  dplyr::filter(!is.na(p.value))
+  dplyr::filter(!is.na(p.value)) %>%
+  rename(anova.p.val = p.value,
+         anova.p.val.adj = p.val.adj)
 
 ##Feature with best association with PDDS
 bestTremorF_PDDS_feature  <- anova.pvals %>%
   dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
-  dplyr::slice(which.min(p.val.adj)) %>% .$feature %>% as.character()
+  dplyr::slice(which.min(anova.p.val.adj)) %>% .$feature %>% as.character()
 
 bestTremorF_vs_baselineChar <- anova.pvals %>% 
   dplyr::filter(feature == bestTremorF_PDDS_feature) %>%
-  dplyr::select(baselineChar, feature, p.val.adj) %>%
-  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
+  dplyr::select(baselineChar, feature, anova.p.val.adj) %>%
+  dplyr::mutate(anova.p.val.adj = round(anova.p.val.adj, digits = 5))
 
-datatable(anova.pvals %>% 
-            dplyr::arrange(p.val.adj), 
+datatable(anova.pvals %>% inner_join(lm.model.effectSize) %>% dplyr::arrange(anova.p.val.adj) %>%
+            dplyr::select(baselineChar, feature, term, lmModel.effectSize, lmModel.pVal, anova.p.val, anova.p.val.adj), 
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
@@ -396,10 +407,10 @@ df <- baselineChars_vs_tremorF %>%
                                                   'moderate-disability', 'gait-disability')))
 p <- ggplot(data = df,
        aes(y=value, x=baselineValue)) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") +  theme_bw()  + theme_bw(base_size = 15) 
-p <- p + xlab('Physical ability category') + ylab("hand rotational velocity derived feature (finger-to-nose)")  + coord_flip()
+p <- p + xlab('Physical ability category') + ylab("Hand rotational velocity derived feature (finger-to-nose)")  + coord_flip()
 p
-ggsave("Figs_N_Tables/BaselinePDDS_vs_TremorF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/BaselinePDDS_vs_TremorF1.tiff", plot = p, width = 8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_TremorF1.jpeg", plot = p, width = 8, height = 6, dpi = 200)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_TremorF1.tiff", plot = p, width = 8, height = 6, dpi = 200)
 ```
 
 ----
@@ -427,32 +438,49 @@ baselineChars_vs_restF <- baselineChar_tmp %>%
   inner_join(restF_averaged)
 
 association_baselineChars_vs_restF <- baselineChars_vs_restF  %>%
+  dplyr::mutate(baselineChar_tmp = baselineChar) %>%
   group_by(feature, baselineChar) %>%
   nest() %>%
-  mutate(res = purrr::map(data,function(x) anova(lm(value ~ baselineValue, data=x)))) %>%
-  mutate(glance = res %>% map(broom::tidy)) %>%
-  select(-data, -res) %>%
+  mutate(lm_res = purrr::map(data, function(x) lm(value ~ baselineValue, data=x)),
+         anova_res = purrr::map(lm_res, function(x){ anova(x) }) ) 
+
+lm.model.effectSize <- association_baselineChars_vs_restF %>%
+  mutate(glance = lm_res %>% map(broom::tidy)) %>%
+  select(-data, -lm_res, -anova_res) %>%
   unnest() %>%
-  dplyr::filter(term == 'baselineValue') %>% 
+  dplyr::filter(str_detect(term, "baselineValue")) %>%
+  dplyr::select(baselineChar, feature, term, lmModel.effectSize = estimate, lmModel.pVal = p.value) %>%
+  dplyr::filter(!is.na(lmModel.pVal))
+
+anova.pvals <- association_baselineChars_vs_restF %>%
+  mutate(glance = anova_res %>% map(broom::tidy)) %>%
+  select(-data, -lm_res, -anova_res) %>%
+  unnest() %>% 
+  dplyr::filter(term == 'baselineValue') %>%
   group_by(baselineChar) %>%
   nest() %>%
   mutate(res = map(data, function(df) { data.frame(feature = df$feature,p.value = df$p.value,
                                                    p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
   select(-data) %>% 
-    unnest()
+  unnest() %>%
+  dplyr::filter(!is.na(p.value)) %>%
+  rename(anova.p.val = p.value,
+         anova.p.val.adj = p.val.adj)
 
 ##Feature with best association with PDDS
-bestRestF_PDDS_feature  <- association_baselineChars_vs_restF %>%
+bestRestF_PDDS_feature  <- anova.pvals %>%
   dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
-  dplyr::slice(which.min(p.val.adj)) %>% .$feature
+  dplyr::slice(which.min(anova.p.val.adj)) %>% .$feature %>% as.character()
 
-bestRestF_vs_baselineChar <- association_baselineChars_vs_restF %>% 
+bestRestF_vs_baselineChar <- anova.pvals %>% 
   dplyr::filter(feature == bestRestF_PDDS_feature) %>%
-  dplyr::select(baselineChar, feature, p.val.adj) %>%
-  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
+  dplyr::select(baselineChar, feature, anova.p.val.adj) %>%
+  dplyr::mutate(anova.p.val.adj = round(anova.p.val.adj, digits = 5))
 
-datatable(association_baselineChars_vs_restF %>%
-            dplyr::arrange(p.val.adj), 
+
+datatable(anova.pvals %>% inner_join(lm.model.effectSize) %>% 
+            dplyr::arrange(anova.p.val.adj) %>%
+            dplyr::select(baselineChar, feature, term, lmModel.effectSize, lmModel.pVal, anova.p.val, anova.p.val.adj), 
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
@@ -505,6 +533,14 @@ association_baselineChars_vs_dsstF <- baselineChars_vs_dsstF  %>%
          anova_res = purrr::map(lm_res, function(x){ anova(x) }) ) 
 
 
+lm.model.effectSize <- association_baselineChars_vs_dsstF %>%
+  mutate(glance = lm_res %>% map(broom::tidy)) %>%
+  select(-data, -lm_res, -anova_res) %>%
+  unnest() %>%
+  dplyr::filter(str_detect(term, "baselineValue")) %>%
+  dplyr::select(baselineChar, feature, term, lmModel.effectSize = estimate, lmModel.pVal = p.value) %>%
+  dplyr::filter(!is.na(lmModel.pVal))
+
 anova.pvals <- association_baselineChars_vs_dsstF %>%
   mutate(glance = anova_res %>% map(broom::tidy)) %>%
   select(-data, -lm_res, -anova_res) %>%
@@ -515,30 +551,26 @@ anova.pvals <- association_baselineChars_vs_dsstF %>%
   mutate(res = map(data, function(df) { data.frame(feature = df$feature,p.value = df$p.value,
                                                    p.val.adj = p.adjust(df$p.value, method="fdr") ) } )) %>%
   select(-data) %>% 
-    unnest() 
+    unnest() %>%
+  rename(anova.p.val = p.value,
+         anova.p.val.adj = p.val.adj)
 
 ##Feature with best association with PDDS
 bestDSSTF_PDDS_feature  <- anova.pvals %>%
   dplyr::filter(baselineChar == 'overallPhysicalAbility') %>%
-  dplyr::slice(which.min(p.val.adj)) %>% .$feature
+  dplyr::slice(which.min(anova.p.val.adj)) %>% .$feature %>% as.character()
 
 bestDSSTF_vs_baselineChar <- anova.pvals %>% 
   dplyr::filter(feature == bestDSSTF_PDDS_feature) %>%
-  dplyr::select(baselineChar, feature, p.val.adj) %>%
-  dplyr::mutate(p.val.adj = round(p.val.adj, digits = 5))
+  dplyr::select(baselineChar, feature, anova.p.val.adj) %>%
+  dplyr::mutate(anova.p.val.adj = round(anova.p.val.adj, digits = 5))
 
-datatable(anova.pvals %>% dplyr::arrange(p.val.adj), 
+datatable(anova.pvals %>% inner_join(lm.model.effectSize) %>% 
+            dplyr::arrange(anova.p.val.adj) %>%
+            dplyr::select(baselineChar, feature, term, lmModel.effectSize, lmModel.pVal, anova.p.val, anova.p.val.adj), 
           extensions = 'Buttons', 
           options = list(dom = 'Bfrtip', buttons = c('csv', 'excel')),
           rownames = F)
-
-#### get effect size for top feature
-# View(association_baselineChars_vs_dsstF %>%
-#   mutate(glance = lm_res %>% map(broom::tidy)) %>%
-#   select(-data, -lm_res, -anova_res) %>%
-#   unnest() %>%
-#   filter(feature == bestDSSTF_PDDS_feature) %>%
-#   filter(baselineChar == 'overallPhysicalAbility'))
 
 
 ```
@@ -554,10 +586,10 @@ df <- baselineChars_vs_dsstF %>%
                                          levels=c('normal', 'mild-disability',
                                                   'moderate-disability', 'gait-disability')))
 p <- ggplot(data = df,
-       aes(y=(value), x=baselineValue)) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") +  theme_bw()  + theme_bw(base_size = 15) + xlab('Physical ability category') + ylab("number correctly called symbols (DSST)")  + coord_flip()
+       aes(y=(value), x=baselineValue)) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") +  theme_bw()  + theme_bw(base_size = 15) + xlab('Physical ability category') + ylab("Number correctly called symbols (DSST)")  + coord_flip()
 p
-ggsave("Figs_N_Tables/BaselinePDDS_vs_DSSTF1.jpeg", plot = p, width = 8, height = 6, dpi = 300)
-ggsave("Figs_N_Tables/BaselinePDDS_vs_DSSTF1.tiff", plot = p, width =8, height = 6, dpi = 300)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_DSSTF1.jpeg", plot = p, width = 8, height = 6, dpi = 200)
+ggsave("Figs_N_Tables/BaselinePDDS_vs_DSSTF1.tiff", plot = p, width =8, height = 6, dpi = 200)
 ```
 
 
