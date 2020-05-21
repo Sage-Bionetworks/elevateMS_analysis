@@ -57,8 +57,10 @@ tapping.tbl.id = 'syn10278765' # Tapping activity v2
 tapping.tbl.syn <- synapser::synTableQuery(paste0("SELECT * FROM ", tapping.tbl.id))
 tapping.tbl <- tapping.tbl.syn$asDataFrame()
 
+
 ## Convert createdOn into an understandable datetime format
-tapping.tbl$createdOn <- lubridate::as_datetime(tapping.tbl$createdOn/1000)
+tapping.tbl$createdOn <- lubridate::ymd_hms(tapping.tbl$createdOn)
+tapping.tbl$createdOn 
 
 ## Download required columns i,e the JSON files
 columnsToDownload = c("tapping_left.json.TappingSamples",
