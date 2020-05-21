@@ -339,8 +339,8 @@ df  <- tremorF_association %>% filter(feature == 'skewness.tm.IMF1.iqr_uaa_gyros
 df <- df$data[[1]]
 p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Upper Extremity') + ylab('log10(hand rotation acceleration*)') + theme_bw(base_size = 15)
 p
-ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.jpeg", plot = p, width = 6, height = 5, dpi = 150)
-ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.tiff", plot = p, width = 6, height = 5, dpi = 150)
+# ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.jpeg", plot = p, width = 6, height = 5, dpi = 150)
+# ggsave("Figs_N_Tables/NeuroQoL_vs_TremorF1.tiff", plot = p, width = 6, height = 5, dpi = 150)
 
 #Neuro Lower
 # No Significant 

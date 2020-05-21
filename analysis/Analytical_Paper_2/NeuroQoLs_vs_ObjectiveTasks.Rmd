@@ -342,7 +342,7 @@ datatable(clean_features(dsstF_association),
 #Neuro-QoL Cognition
 df  <- dsstF_association %>% filter(feature == 'sdTime', survey == 'neuroQOL Cognition')
 df <- df$data[[1]]
-p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('Cognition') + ylab('log10(time sd)') + theme_bw(base_size = 15)
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Cognition') + ylab('log10(time sd)') + theme_bw(base_size = 15)
 p
 ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.jpeg", plot = p, width = 5, height = 5, dpi = 150)
 ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF1.tiff", plot = p, width = 5, height = 5, dpi = 150)
@@ -357,6 +357,17 @@ p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + g
 p
 ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.jpeg", plot = p, width = 6, height = 5, dpi = 150)
 ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.tiff", plot = p, width = 6, height = 5, dpi = 150)
+
+
+#Neuro-QoL Lower Extremity 
+df  <- dsstF_association %>% filter(feature == 'sdTime', survey == 'neuroQOL Lower Extremity')
+df <- df$data[[1]]
+p <- ggplot(data=df, aes(x=class, y=log10(value))) + geom_boxplot(width=0.5) + geom_jitter(size=0.3, width=0.2, color="grey60") + theme_bw() + xlab('NeuroQoL Lower Extremity') + ylab('log10(average time)') + theme_bw(base_size = 15)
+p
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.jpeg", plot = p, width = 6, height = 5, dpi = 150)
+ggsave("Figs_N_Tables/NeuroQoL_vs_DSSTF2.tiff", plot = p, width = 6, height = 5, dpi = 150)
+
+
 ```
 
 
