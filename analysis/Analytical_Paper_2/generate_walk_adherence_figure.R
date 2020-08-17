@@ -91,6 +91,7 @@ main <- function(){
                         analysis = "adherence analysis",
                         dataType = "figures")
   synStore(f, activity = Activity(
+    "generate adherence figures",
     used = c(INTERMEDIARY_DATA),
     executed = GIT_URL))
   unlink(title)
