@@ -19,7 +19,7 @@ setGithubToken(
 SCRIPT_NAME <- "generate_walking_adherence_data.R"
 PARENT_ID <- "syn22313816"
 INTERMEDIARY_DATA <- "syn22313467"
-OUTPUT_FIGURE <- "elevateMS_walking_adherence.pdf"
+OUTPUT_FIGURE <- "elevateMS_walking_adherence.tif"
 FREEZE_DATE   <- lubridate::ymd("2019-10-30")
 START_DATE    <- lubridate::ymd("2017-08-14")
 SYN_ID_REF <- list(baselineChar = 'syn17115631',
@@ -49,7 +49,7 @@ main <- function(){
   dscores <- fread(synGet(INTERMEDIARY_DATA)$path) %>% 
     dplyr::filter(recordId %in% filter.walk.data()$recordId)
   
-  ## Generate Figure
+  unlink(OUTPUT_FIGURE)
   tb <- table(na.omit(dscores %>% filter(vertical != "NA"))$vertical)
   pc <- 100*tb/sum(tb)
   figpath <- ""
@@ -66,7 +66,7 @@ main <- function(){
                 byrow = TRUE)
   
   title <- OUTPUT_FIGURE
-  pdf(paste(figpath, title, sep = ""), width = 9, height = 6)
+  tiff(paste(figpath, title, sep = ""), width = 1500, height = 1000, res = 200)
   layout(mat)
   par(mar = c(4, 3.75, 1, 0.5), mgp = c(2.5, 0.75, 0))
   plot(seq(3), seq(3), type = "n", xlab = "", ylab = "", xaxt = "n", yaxt = "n", bty = "n")
