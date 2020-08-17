@@ -1,7 +1,6 @@
 #' This script is used for generating
 #' walking adherence data based on 
 #' gravitational value queried from acceleromter
-
 library(synapser)
 library(tidyverse)
 library(dplyr)
@@ -12,9 +11,11 @@ library(purrr)
 library(data.table)
 
 synLogin()
+setGithubToken(
+  readLines("/Users/atediarjo/git_token.txt"))
 
 ### global variable
-SCRIPT_NAME <- "generate_walking_adherence_data.R"
+SCRIPT_NAME <- "generate_walk_adherence_data.R"
 PARENT_ID <- "syn22311179"
 OUTPUT_FILE <- "walking_adherence_data.tsv"
 SYN_ID_REF <- list(
@@ -23,7 +24,7 @@ SYN_ID_REF <- list(
   WALKING_V2 = list(TBL = "syn10278766", 
                     COL = c("deviceMotion_walking_outbound.json.items")))
 GIT_URL <- getPermlink(
-  "/Users/atediarjo/git_token.txt", 
+  getRepo("arytontediarjo/elevateMS_analysis"), 
   repositoryPath = file.path('analysis/Analytical_Paper_2', SCRIPT_NAME))
 
 

@@ -1,7 +1,6 @@
 #' This script is used for generating
 #' walking adherence figures based on 
 #' mPower paper supplementary figure 10
-
 library(synapser)
 library(tidyverse)
 library(dplyr)
@@ -12,6 +11,9 @@ library(data.table)
 
 
 synLogin()
+setGithubToken(
+  readLines("/Users/atediarjo/git_token.txt"))
+
 
 ### Variables and Synapse References
 SCRIPT_NAME <- "generate_walking_adherence_data.R"
@@ -23,9 +25,8 @@ START_DATE    <- lubridate::ymd("2017-08-14")
 SYN_ID_REF <- list(baselineChar = 'syn17115631',
                    walkFeatures = 'syn10647801')
 GIT_URL <- getPermlink(
-  "/Users/atediarjo/git_token.txt", 
+  getRepo("arytontediarjo/elevateMS_analysis"), 
   repositoryPath = file.path('analysis/Analytical_Paper_2', SCRIPT_NAME))
-
 
 ### Helpers
 filter.walk.data <- function(){
@@ -37,7 +38,7 @@ filter.walk.data <- function(){
     dplyr::inner_join(baselineChar %>% 
                         dplyr::select(healthCode, dataGroups))%>% 
     dplyr::filter(createdOn >= START_DATE & createdOn <= FREEZE_DATE,
-                  healthCode %in% STUDY_HEALTHCODES,
+                  healthCode %in% study_healthcodes,
                   dataGroups == "ms_patient") 
   return(flt.walk.data)
 }
