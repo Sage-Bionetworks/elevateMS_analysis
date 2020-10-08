@@ -88,6 +88,11 @@ perUser_perAcitivity_total <- perUser_activitySpecificCompliance_perweek %>%
   summarise(n = sum(n)) %>%
   mutate(percent= round((n / total)*100, digits=2))
 
+head(perUser_perAcitivity_total %>%
+       dplyr::group_by(activitytype) %>%
+       dplyr::summarise(median = median(percent),
+                        iqr = IQR(percent)))
+
 p <- ggplot(data=perUser_perAcitivity_total, aes(x=activitytype, y=percent)) + geom_boxplot(width=0.7)
 p <- p + scale_x_discrete(labels=c('daily checkin \n survey', 'MS triggers/symptoms \n survey', 'sensor-based'))
 p <- p + theme_light(base_size = 13) + xlab('activity type')

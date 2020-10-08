@@ -43,6 +43,8 @@ TAP_FEATURES <- c('meanTapInter', 'medianTapInter', 'iqrTapInter', 'minTapInter'
                   'minDriftRight', 'maxDriftRight', 'skewDriftRight', 'kurDriftRight', 'sdDriftRight',
                   'madDriftRight', 'cvDriftRight', 'rangeDriftRight', 'numberTaps', 'buttonNoneFreq', 'corXY')
 
+length(TAP_FEATURES)
+
 
 ##TREMOR FEATURE COLS -
 TREMOR_FEATURES <- c('cent.fr.IMF1.iqr_ud_accelerometer', 'cent.fr.IMF2.iqr_uad_gyroscope', 'cent.fr.IMF2.iqr_ud_accelerometer',
@@ -85,6 +87,9 @@ TREMOR_FEATURES <- c('cent.fr.IMF1.iqr_ud_accelerometer', 'cent.fr.IMF2.iqr_uad_
                      'skewness.tm.IMF2.iqr_uv_accelerometer', 'skewness.tm.IMF2.md_ua_accelerometer', 
                      'skewness.tm.IMF2.md_uad_gyroscope', 'skewness.tm.IMF2.md_uavacf_gyroscope')
 
+length(TREMOR_FEATURES)
+
+
 
 ##WALK FEATURE COLS -
 WALK_FEATURES <- c('meanX', 'sdX', 'modeX', 'skewX', 'kurX', 'q1X', 'medianX', 'q3X',
@@ -102,13 +107,14 @@ WALK_FEATURES <- c('meanX', 'sdX', 'modeX', 'skewX', 'kurX', 'q1X', 'medianX', '
                    'medianAJ', 'q3AJ', 'iqrAJ', 'rangeAJ', 'acfAJ', 'zcrAJ', 'dfaAJ', 'cvAJ', 
                    'tkeoAJ', 'F0AJ', 'P0AJ', 'F0FAJ', 'P0FAJ', 'medianF0FAJ', 'sdF0FAJ', 'tlagAJ',
                    'corXY', 'corXZ', 'corYZ', 'activityDuration')
+length(WALK_FEATURES)
 
 ##REST FEATURE COLS -
 REST_FEATURES <- c('meanAA', 'sdAA', 'modeAA', 'skewAA', 'kurAA', 'q1AA', 
                    'medianAA', 'q3AA', 'iqrAA', 'rangeAA', 'acfAA', 'zcrAA', 'dfaAA',
                    'turningTime', 'postpeak', 'postpower', 'alpha', 'dVol', 'ddVol')
 
-
+length(REST_FEATURES)
 
 needed <- c('triggers', 'dailyCheckins', 'relapses', 'weatherF',
             'nQOL_uppExtremity_week_avg', 'nQOL_lowExtremity_week_avg',

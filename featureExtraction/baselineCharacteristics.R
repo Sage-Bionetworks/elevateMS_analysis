@@ -146,6 +146,8 @@ participant_age <- profiles %>% select(healthCode, date_of_entry, age) %>%
 baselineChar <- merge(baselineChar, participant_age, all=T)
 
 
+nrow(baselineChar)
+
 ## Fix Race
 #Fix race
 to_replace <- grepl('latino_hispanic', baselineChar$race)

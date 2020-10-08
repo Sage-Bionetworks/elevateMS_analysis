@@ -32,12 +32,14 @@ source("common_analysis_functions.R")
 ```{r, fig.align='center', fig.width=5, fig.height=7, dpi=100}
 ## n_distinct(symptoms$healthCode)
 #### What percentage of people report each symptom?
-symptom_summary <- symptoms %>% mutate(symptom = gsub('_', ' ' ,symptom)) %>%
-  group_by(symptom) %>% 
-  dplyr::summarise(people = n_distinct(healthCode), 
-                   percent = round( (people / n_distinct(symptoms$healthCode)) * 100, digits=2)) %>%
-  dplyr::arrange(desc(percent))
+symptom_summary <- symptoms %>% 
+  dplyr::mutate(symptom = gsub('_', ' ' ,symptom)) %>%
+  dplyr::filter(dataGroups == 'ms_patient') %>%
+  dplyr::group_by(symptom) %>% 
+  dplyr::summarise(people = n_distinct(healthCode)) %>%
+  dplyr::arrange(desc(people))
 
+View(symptom_summary)
 write.table(symptom_summary, file="Figs_N_Tables/symptom_summary.tsv", sep="\t", 
             row.names = F, col.names = T, quote=F)
 
@@ -61,10 +63,12 @@ ggsave(file = "Figs_N_Tables/symptoms.png",
 trigger_summary <- triggers %>%
   filter(! (trigger %in% unique(symptoms$symptom))) %>% ##### IMP - Possible bug -- removing the triggers that are reported as symptoms
   mutate(trigger = gsub('_', ' ' , trigger)) %>%
+  dplyr::filter(dataGroups == 'ms_patient') %>%
   group_by(trigger) %>% 
-  dplyr::summarise(people = n_distinct(healthCode), 
-                   percent = round( (people / n_distinct(triggers$healthCode)) * 100, digits=2)) %>%
-  dplyr::arrange(desc(percent))
+  dplyr::summarise(people = n_distinct(healthCode)) %>%
+  dplyr::arrange(desc(people))
+
+View(trigger_summary)
 
 write.table(trigger_summary, file="Figs_N_Tables/trigger_summary.tsv", sep="\t", 
             row.names = F, col.names = T, quote=F)
